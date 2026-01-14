@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Partners LLC - Application de Gestion de Dossiers
 
-## Getting Started
+Application Next.js pour la gestion de dossiers et paiements pour Partners LLC.
 
-First, run the development server:
+## Prérequis
+
+- Node.js 18+ 
+- pnpm 8.x (gestionnaire de paquets)
+
+## Installation
+
+1. Cloner le repository
+2. Installer les dépendances :
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Configurer les variables d'environnement :
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Puis éditer `.env.local` avec vos valeurs réelles pour :
+- Supabase (URL, clés anon et service role)
+- Stripe (clés API)
+- Configuration email/SMS/WhatsApp (pour les notifications)
 
-## Learn More
+## Scripts Disponibles
 
-To learn more about Next.js, take a look at the following resources:
+- `pnpm dev` - Démarrer le serveur de développement sur http://localhost:3000
+- `pnpm build` - Construire l'application pour la production
+- `pnpm start` - Démarrer le serveur de production
+- `pnpm lint` - Vérifier le code avec ESLint
+- `pnpm lint:fix` - Corriger automatiquement les erreurs ESLint
+- `pnpm format` - Formater le code avec Prettier
+- `pnpm format:check` - Vérifier le formatage sans modifier les fichiers
+- `pnpm type-check` - Vérifier les types TypeScript sans compiler
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Structure du Projet
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+partnersllc-app/
+├── app/                    # Routes Next.js (App Router)
+│   ├── (public)/          # Routes publiques (login, register)
+│   ├── (protected)/       # Routes protégées (dashboard, dossiers)
+│   ├── api/               # API routes
+│   ├── layout.tsx         # Layout racine
+│   └── page.tsx           # Page d'accueil
+├── components/            # Composants React réutilisables
+│   ├── ui/               # Composants UI de base
+│   └── features/         # Composants spécifiques aux features
+├── lib/                   # Utilitaires et helpers
+│   ├── supabase/         # Clients Supabase (server/client)
+│   └── utils/            # Fonctions utilitaires
+├── types/                 # Définitions TypeScript
+├── styles/                # Styles globaux additionnels
+└── public/                # Assets statiques
+```
 
-## Deploy on Vercel
+## Stack Technique
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Framework:** Next.js 16.x avec App Router
+- **Language:** TypeScript 5.x
+- **Styling:** Tailwind CSS 4.x avec design tokens personnalisés
+- **Base de données:** Supabase (PostgreSQL)
+- **Authentification:** Supabase Auth
+- **Paiements:** Stripe
+- **Package Manager:** pnpm 8.x
+- **Linting:** ESLint + Prettier
+- **Git Hooks:** Husky (pre-commit: lint + type-check)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Design System
+
+### Couleurs
+
+- **Background principal:** `#191A1D`
+- **Surface:** `#2D3033`
+- **Bordure:** `#363636`
+- **Texte primaire:** `#F9F9F9`
+- **Texte secondaire:** `#B7B7B7`
+- **Accent (Cyan):** `#00F0FF`
+- **Succès (Vert):** `#4ADE80`
+- **Avertissement (Jaune):** `#FACC15`
+- **Danger (Rouge):** `#F95757`
+
+### Typographie
+
+- **Police:** Inter (Google Fonts)
+- **Icônes:** Font Awesome 6.4.0
+
+## Développement
+
+Le projet utilise des hooks Git (Husky) pour s'assurer que le code est linté et typé avant chaque commit.
+
+Pour désactiver temporairement les hooks :
+```bash
+git commit --no-verify
+```
+
+## Déploiement
+
+L'application est déployée sur Vercel. Les variables d'environnement doivent être configurées dans le dashboard Vercel.
+
+## Support
+
+Pour toute question, contactez l'équipe de développement.

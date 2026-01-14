@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
+import { getUser } from "@/lib/auth";
 
-export default function Home() {
-  // Pour l'instant : on redirige toujours vers /login
-  // (on branchera la vraie logique "connecté / pas connecté" ensuite)
-  redirect("/login");
+export default async function HomePage() {
+  const user = await getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  } else {
+    redirect("/login");
+  }
 }

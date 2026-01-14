@@ -1,26 +1,144 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Tailwind CSS v4 uses @theme for custom design tokens */
+@theme {
+  /* Design System Colors */
+  --color-background: #191a1d;
+  --color-foreground: #f9f9f9;
+  --color-surface: #2d3033;
+  --color-border: #363636;
+  --color-text-primary: #f9f9f9;
+  --color-text-secondary: #b7b7b7;
+  --color-accent: #00f0ff;
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-danger: #f95757;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Brand Colors - These become available as brand-* utilities */
+  --color-brand-dark-bg: #191a1d;
+  --color-brand-dark-surface: #2d3033;
+  --color-brand-dark-border: #363636;
+  --color-brand-text-primary: #f9f9f9;
+  --color-brand-text-secondary: #b7b7b7;
+  --color-brand-accent: #00f0ff;
+  --color-brand-success: #4ade80;
+  --color-brand-warning: #facc15;
+  --color-brand-danger: #f95757;
+  --color-client-green: #50b88a;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Typography */
+  --font-family-sans: var(--font-inter, "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-main-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Floating shapes animation */
+@keyframes float {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(50px, -50px) rotate(90deg);
+  }
+  50% {
+    transform: translate(0, -100px) rotate(180deg);
+  }
+  75% {
+    transform: translate(-50px, -50px) rotate(270deg);
+  }
+}
+
+.floating-shape {
+  position: absolute;
+  opacity: 0.1;
+  animation: float 20s infinite ease-in-out;
+}
+
+/* Input field styles */
+.input-field {
+  transition: all 0.3s ease;
+}
+
+.input-field:focus {
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.3);
+}
+
+/* Social button styles */
+.social-btn {
+  transition: all 0.3s ease;
+}
+
+.social-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.15);
+}
+
+/* Custom checkbox */
+.checkbox-custom {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-surface);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.checkbox-custom:checked {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.checkbox-custom:checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-main-bg);
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Status indicator ripple animation */
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: ripple 1.5s infinite ease-in-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
 }
