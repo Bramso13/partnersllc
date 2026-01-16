@@ -102,7 +102,32 @@ export async function registerWithPaymentLink(
       // Don't fail the registration if profile update fails - trigger may have already set it
     }
 
-    // Step 4: Create order using admin client to bypass RLS
+    // Step 4: Create Stripe Customer
+    const stripeCustomer = await stripe.customers.create({
+      email: paymentLink.prospect_email,
+      name: params.fullName,
+      phone: params.phone,
+      metadata: {
+        user_id: authData.user.id,
+        source: "payment_link_registration",
+      },
+    });
+
+    // Step 4b: Update profile with stripe_customer_id
+    const { error: stripeUpdateError } = await adminSupabase
+      .from("profiles")
+      .update({
+        stripe_customer_id: stripeCustomer.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", authData.user.id);
+
+    if (stripeUpdateError) {
+      console.error("Stripe customer ID update error:", stripeUpdateError);
+      // Non-critical, continue - webhook will also set it
+    }
+
+    // Step 5: Create order using admin client to bypass RLS
     const { data: order, error: orderError } = await adminSupabase
       .from("orders")
       .insert({
@@ -112,6 +137,7 @@ export async function registerWithPaymentLink(
         amount: product.price_amount,
         currency: product.currency,
         status: "PENDING",
+        stripe_customer_id: stripeCustomer.id,
       })
       .select()
       .single();
@@ -121,7 +147,7 @@ export async function registerWithPaymentLink(
       return { error: "FAILED_TO_CREATE_ORDER" };
     }
 
-    // Step 5: Update payment link as used (use admin client)
+    // Step 6: Update payment link as used (use admin client)
     const { error: linkUpdateError } = await adminSupabase
       .from("payment_links")
       .update({
@@ -136,7 +162,7 @@ export async function registerWithPaymentLink(
       // Non-critical error, continue
     }
 
-    // Step 6: Create Stripe Checkout Session
+    // Step 7: Create Stripe Checkout Session with customer ID
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -146,7 +172,7 @@ export async function registerWithPaymentLink(
           quantity: 1,
         },
       ],
-      customer_email: paymentLink.prospect_email,
+      customer: stripeCustomer.id, // Use customer ID instead of email
       metadata: {
         order_id: order.id,
         user_id: authData.user.id,
@@ -157,7 +183,7 @@ export async function registerWithPaymentLink(
       expires_at: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
     });
 
-    // Step 7: Update order with Stripe session ID (use admin client)
+    // Step 8: Update order with Stripe session ID (use admin client)
     await adminSupabase
       .from("orders")
       .update({
@@ -166,7 +192,7 @@ export async function registerWithPaymentLink(
       })
       .eq("id", order.id);
 
-    // Step 8: Return redirect URL
+    // Step 9: Return redirect URL
     if (!session.url) {
       return { error: "FAILED_TO_CREATE_CHECKOUT_SESSION" };
     }

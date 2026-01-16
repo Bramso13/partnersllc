@@ -2,13 +2,14 @@ import { requireAuth } from "@/lib/auth";
 import { getProfile } from "@/lib/profile";
 import { getUserDossiers, getDossierAdvisor } from "@/lib/dossiers";
 import { getProductSteps, ProductStep } from "@/lib/workflow";
+import { getUserOrders } from "@/lib/orders";
+import { syncPaymentStatus } from "@/lib/sync-payment-status";
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { ProgressCard } from "@/components/dashboard/ProgressCard";
-import { SidebarCards } from "@/components/dashboard/SidebarCards";
-import { TimelineSection } from "@/components/dashboard/TimelineSection";
-import { DocumentsSection } from "@/components/dashboard/DocumentsSection";
+import { DossierAccordion } from "@/components/dashboard/DossierAccordion";
+import { OrderCard } from "@/components/dashboard/OrderCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { needsPayment } from "@/types/orders";
 import { LoadingSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ErrorState } from "@/components/dashboard/ErrorState";
 import { isActiveUser, isPendingUser, isSuspendedUser } from "@/types/user";
@@ -24,9 +25,9 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const user = await requireAuth();
-  const profile = await getProfile(user.id);
+  const initialProfile = await getProfile(user.id);
 
-  if (!profile) {
+  if (!initialProfile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-text-secondary">
@@ -36,8 +37,31 @@ export default async function DashboardPage() {
     );
   }
 
-  // If user is not active, show status-specific content
+  // For PENDING or SUSPENDED users, sync payment status with Stripe first
+  let profile = initialProfile;
+  if (isPendingUser(initialProfile) || isSuspendedUser(initialProfile)) {
+    try {
+      const syncResult = await syncPaymentStatus(user.id);
+      if (syncResult.synced > 0) {
+        console.log(`[Dashboard] Synced ${syncResult.synced} payment(s) for user ${user.id}`);
+        // Re-fetch profile to get updated status
+        const updatedProfile = await getProfile(user.id);
+        if (updatedProfile) {
+          profile = updatedProfile;
+        }
+      }
+      if (syncResult.errors.length > 0) {
+        console.error("[Dashboard] Payment sync errors:", syncResult.errors);
+      }
+    } catch (error) {
+      console.error("[Dashboard] Error syncing payment status:", error);
+      // Continue anyway - don't block the dashboard
+    }
+  }
+
+  // If user is still not active after sync, show status-specific content
   if (isPendingUser(profile)) {
+    const orders = await getUserOrders();
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
@@ -52,13 +76,14 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-          <PendingStatus />
+          <PendingStatus orders={orders} />
         </div>
       </div>
     );
   }
 
   if (isSuspendedUser(profile)) {
+    const orders = await getUserOrders();
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
@@ -73,7 +98,7 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-          <SuspendedStatus profile={profile} />
+          <SuspendedStatus profile={profile} orders={orders} />
         </div>
       </div>
     );
@@ -96,7 +121,7 @@ export default async function DashboardPage() {
 
           {/* Dashboard Content */}
           <Suspense fallback={<LoadingSkeleton />}>
-            <DashboardContent user={user} />
+            <DashboardContent />
           </Suspense>
         </div>
       </div>
@@ -104,72 +129,95 @@ export default async function DashboardPage() {
   );
 }
 
-async function DashboardContent({ user }: { user: { id: string } }) {
+async function DashboardContent() {
   try {
-    const dossiers = await getUserDossiers();
+    // Fetch dossiers and orders in parallel
+    const [dossiers, orders] = await Promise.all([
+      getUserDossiers(),
+      getUserOrders(),
+    ]);
 
-    // If no dossier, show EmptyState to create one
-    if (dossiers.length === 0) {
+    // Filter unpaid orders (PENDING/FAILED)
+    const unpaidOrders = orders.filter(needsPayment);
+
+    // If no dossier and no unpaid orders, show EmptyState
+    if (dossiers.length === 0 && unpaidOrders.length === 0) {
       return <EmptyState />;
     }
 
-    // For now, show the first dossier (we can extend to show multiple later)
-    const mainDossier = dossiers[0];
+    // Fetch product steps and advisor for each dossier
+    const dossiersData = await Promise.all(
+      dossiers.map(async (dossier) => {
+        let productSteps: ProductStep[] = [];
+        if (dossier.product_id) {
+          try {
+            productSteps = await getProductSteps(dossier.product_id);
+          } catch (error) {
+            console.error(
+              `Error fetching product steps for dossier ${dossier.id}:`,
+              error
+            );
+          }
+        }
 
-    // Fetch product steps for this dossier if product_id exists
-    let productSteps: ProductStep[] = [];
-    if (mainDossier.product_id) {
-      try {
-        productSteps = await getProductSteps(mainDossier.product_id);
-        console.log(
-          `[Dashboard] Loaded ${productSteps.length} product steps for product ${mainDossier.product_id}`
-        );
-      } catch (error) {
-        console.error("Error fetching product steps:", error);
-      }
-    } else {
-      console.warn(
-        "[Dashboard] No product_id found for dossier",
-        mainDossier.id
-      );
-    }
+        const advisor = await getDossierAdvisor(dossier.id);
 
-    // Calculate estimated completion (mock for now - should come from business logic)
-    const estimatedCompletion = mainDossier.completed_at
-      ? null
-      : new Date(new Date(mainDossier.created_at).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
-
-    // Get advisor information
-    const advisor = await getDossierAdvisor(mainDossier.id);
+        return {
+          dossier,
+          productSteps,
+          advisor: advisor || undefined,
+        };
+      })
+    );
 
     return (
-      <>
-        {/* Link to dossier detail page */}
-        <div className="mb-6 flex justify-end">
-          <a
-            href={`/dashboard/dossier/${mainDossier.id}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-accent text-brand-dark-bg rounded-lg hover:opacity-90 transition-opacity font-medium"
-          >
-            <span>Voir le détail du dossier</span>
-            <i className="fa-solid fa-arrow-right"></i>
-          </a>
-        </div>
+      <div className="space-y-8">
+        {/* Unpaid Orders Section */}
+        {unpaidOrders.length > 0 && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <i className="fa-solid fa-credit-card text-brand-warning text-xl"></i>
+              <h3 className="text-lg font-semibold text-brand-text-primary">
+                Commandes en attente de paiement
+              </h3>
+              <span className="bg-brand-warning/10 text-brand-warning px-2 py-0.5 rounded-full text-sm font-medium">
+                {unpaidOrders.length}
+              </span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {unpaidOrders.map((order) => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Progress Overview Section */}
-        <div id="progress-overview" className="grid grid-cols-12 gap-6 mb-8">
-          <ProgressCard dossier={mainDossier} productSteps={productSteps} />
-          <SidebarCards
-            estimatedCompletion={estimatedCompletion || undefined}
-            advisor={advisor}
-          />
-        </div>
+        {/* Dossiers Section */}
+        {dossiersData.length > 0 && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <i className="fa-solid fa-folder-open text-brand-accent text-xl"></i>
+              <h3 className="text-lg font-semibold text-brand-text-primary">
+                Mes dossiers
+              </h3>
+              <span className="bg-brand-accent/10 text-brand-accent px-2 py-0.5 rounded-full text-sm font-medium">
+                {dossiersData.length}
+              </span>
+            </div>
+            <DossierAccordion dossiers={dossiersData} />
+          </div>
+        )}
 
-        {/* Main Grid Section */}
-        <div id="main-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <TimelineSection dossier={mainDossier} />
-          {/* <DocumentsSection /> */}
-        </div>
-      </>
+        {/* If only unpaid orders and no dossiers */}
+        {dossiersData.length === 0 && unpaidOrders.length > 0 && (
+          <div className="bg-brand-dark-bg rounded-2xl p-6 text-center">
+            <i className="fa-solid fa-info-circle text-brand-text-secondary text-3xl mb-3"></i>
+            <p className="text-brand-text-secondary">
+              Complétez vos paiements pour créer vos dossiers et commencer vos démarches.
+            </p>
+          </div>
+        )}
+      </div>
     );
   } catch (error) {
     console.error("Error loading dashboard:", error);
