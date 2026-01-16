@@ -8,6 +8,7 @@ interface RegisterPaymentLinkParams {
   fullName: string;
   phone: string;
   password: string;
+  termsAccepted: boolean;
 }
 
 interface RegisterPaymentLinkResult {
@@ -85,7 +86,7 @@ export async function registerWithPaymentLink(
       return { error: "FAILED_TO_CREATE_USER" };
     }
 
-    // Step 3: Update profile with phone and full_name (trigger creates profile with full_name from metadata)
+    // Step 3: Update profile with phone, full_name, and terms acceptance (trigger creates profile with full_name from metadata)
     // Use admin client to bypass RLS
     const { error: profileError } = await adminSupabase
       .from("profiles")
@@ -93,6 +94,10 @@ export async function registerWithPaymentLink(
         phone: params.phone,
         full_name: params.fullName,
         status: "PENDING",
+        terms_accepted: params.termsAccepted,
+        terms_accepted_at: params.termsAccepted
+          ? new Date().toISOString()
+          : null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", authData.user.id);

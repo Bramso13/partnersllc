@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { PaymentLink } from "@/types/payment-links";
 import type { Product } from "@/types/products";
 import { registerWithPaymentLink } from "@/app/actions/register-payment-link";
+import { LegalDocumentModal } from "@/components/legal/LegalDocumentModal";
 
 const registerSchema = z.object({
   fullName: z.string().min(1, "Le nom complet est requis"),
@@ -22,6 +23,12 @@ const registerSchema = z.object({
   password: z
     .string()
     .min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  termsCGVAccepted: z.boolean().refine((val) => val === true, {
+    message: "Vous devez accepter les Conditions Générales de Vente",
+  }),
+  termsRefundAccepted: z.boolean().refine((val) => val === true, {
+    message: "Vous devez accepter la Politique de Remboursement",
+  }),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -40,6 +47,11 @@ export function RegisterPaymentLinkForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalDocument, setModalDocument] = useState<
+    "cgv" | "refund_policy" | null
+  >(null);
+  const [modalTitle, setModalTitle] = useState("");
   const router = useRouter();
 
   const {
@@ -48,6 +60,10 @@ export function RegisterPaymentLinkForm({
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      termsCGVAccepted: false,
+      termsRefundAccepted: false,
+    },
   });
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -60,6 +76,7 @@ export function RegisterPaymentLinkForm({
         fullName: data.fullName,
         phone: data.phone,
         password: data.password,
+        termsAccepted: data.termsCGVAccepted && data.termsRefundAccepted,
       });
 
       if (result.error) {
@@ -109,6 +126,20 @@ export function RegisterPaymentLinkForm({
       currency: currency,
     });
     return formatter.format(amount / 100);
+  };
+
+  // Ouvrir le modal avec le document spécifié
+  const openModal = (document: "cgv" | "refund_policy", title: string) => {
+    setModalDocument(document);
+    setModalTitle(title);
+    setModalOpen(true);
+  };
+
+  // Fermer le modal
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalDocument(null);
+    setModalTitle("");
   };
 
   return (
@@ -298,6 +329,72 @@ export function RegisterPaymentLinkForm({
               )}
             </div>
 
+            {/* Terms and Conditions Checkboxes */}
+            <div className="space-y-4 pt-2">
+              <div className="bg-surface border border-border rounded-md p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    {...register("termsCGVAccepted")}
+                    type="checkbox"
+                    className="mt-1 w-4 h-4 text-accent bg-surface border-border rounded focus:ring-accent focus:ring-2"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-foreground">
+                      J'accepte les{" "}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openModal("cgv", "Conditions Générales de Vente")
+                        }
+                        className="text-accent hover:underline font-medium cursor-pointer"
+                      >
+                        Conditions Générales de Vente
+                      </button>{" "}
+                      <span className="text-danger">*</span>
+                    </span>
+                  </div>
+                </label>
+                {errors.termsCGVAccepted && (
+                  <p className="mt-2 text-sm text-danger">
+                    {errors.termsCGVAccepted.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-surface border border-border rounded-md p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    {...register("termsRefundAccepted")}
+                    type="checkbox"
+                    className="mt-1 w-4 h-4 text-accent bg-surface border-border rounded focus:ring-accent focus:ring-2"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm text-foreground">
+                      J'accepte la{" "}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openModal(
+                            "refund_policy",
+                            "Politique de Remboursement"
+                          )
+                        }
+                        className="text-accent hover:underline font-medium cursor-pointer"
+                      >
+                        Politique de Remboursement
+                      </button>{" "}
+                      <span className="text-danger">*</span>
+                    </span>
+                  </div>
+                </label>
+                {errors.termsRefundAccepted && (
+                  <p className="mt-2 text-sm text-danger">
+                    {errors.termsRefundAccepted.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
@@ -313,6 +410,16 @@ export function RegisterPaymentLinkForm({
               )}
             </button>
           </form>
+
+          {/* Modal pour les documents légaux */}
+          {modalDocument && (
+            <LegalDocumentModal
+              isOpen={modalOpen}
+              onClose={closeModal}
+              documentType={modalDocument}
+              title={modalTitle}
+            />
+          )}
         </div>
       </div>
     </div>
