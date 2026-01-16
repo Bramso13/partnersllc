@@ -7,6 +7,7 @@ export interface Step {
   label: string;
   description: string | null;
   position: number;
+  step_type?: "CLIENT" | "ADMIN";
 }
 
 export interface DocumentType {
@@ -62,7 +63,8 @@ export async function getProductSteps(
         code,
         label,
         description,
-        position
+        position,
+        step_type
       )
     `
     )
@@ -207,7 +209,8 @@ export async function getCurrentStepInstance(dossierId: string) {
         code,
         label,
         description,
-        position
+        position,
+        step_type
       )
     `
     )

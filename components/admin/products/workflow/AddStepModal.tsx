@@ -18,6 +18,7 @@ interface CreateStepFormData {
   label: string;
   description: string;
   position: string;
+  step_type: "CLIENT" | "ADMIN";
 }
 
 interface FormErrors {
@@ -56,6 +57,7 @@ export function AddStepModal({
     label: "",
     description: "",
     position: "",
+    step_type: "CLIENT",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isValidating, setIsValidating] = useState(false);
@@ -193,9 +195,11 @@ export function AddStepModal({
         label: string;
         description?: string;
         position?: number;
+        step_type?: "CLIENT" | "ADMIN";
       } = {
         code: formData.code,
         label: formData.label,
+        step_type: formData.step_type,
       };
 
       if (formData.description) {
@@ -330,8 +334,15 @@ export function AddStepModal({
                             className="mt-1"
                           />
                           <div className="flex-1">
-                            <div className="font-medium text-brand-text-primary">
-                              {step.label}
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-brand-text-primary">
+                                {step.label}
+                              </div>
+                              {step.step_type === "ADMIN" && (
+                                <span className="px-2 py-0.5 bg-brand-warning/20 text-brand-warning rounded text-xs font-medium">
+                                  Admin
+                                </span>
+                              )}
                             </div>
                             {step.description && (
                               <div className="text-sm text-brand-text-secondary mt-1">
@@ -445,6 +456,29 @@ export function AddStepModal({
                     <p className="text-xs text-red-400">{errors.description}</p>
                   )}
                 </div>
+              </div>
+
+              {/* Step Type Field */}
+              <div>
+                <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                  Step Type <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={formData.step_type}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      step_type: e.target.value as "CLIENT" | "ADMIN",
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                >
+                  <option value="CLIENT">Client Step (default)</option>
+                  <option value="ADMIN">Admin Step</option>
+                </select>
+                <p className="text-xs text-brand-text-secondary mt-1">
+                  Admin steps are managed by administrators and can receive documents from admins
+                </p>
               </div>
 
               {/* Position Field */}

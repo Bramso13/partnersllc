@@ -7,6 +7,7 @@ import { AgentAssignmentDropdown } from "./AgentAssignmentDropdown";
 import { InternalNotesSection } from "./InternalNotesSection";
 import { CompleteStepButton } from "./CompleteStepButton";
 import { CancelDossierButton } from "./CancelDossierButton";
+import { SendDocumentsModal } from "./SendDocumentsModal";
 
 interface AdminActionsSidebarProps {
   dossier: DossierWithDetails;
@@ -17,6 +18,14 @@ export function AdminActionsSidebar({
   dossier,
   currentStepInstance,
 }: AdminActionsSidebarProps) {
+  const [showSendDocumentsModal, setShowSendDocumentsModal] = useState(false);
+
+  const handleSendDocumentsSuccess = () => {
+    setShowSendDocumentsModal(false);
+    // Optionally refresh the page or show a success message
+    window.location.reload();
+  };
+
   return (
     <div className="sticky top-6">
       <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6 space-y-6">
@@ -59,6 +68,22 @@ export function AdminActionsSidebar({
           </div>
         )}
 
+        {/* Send Documents Button (Manual Delivery) */}
+        {dossier.product_id && (
+          <div className="border-t border-brand-stroke pt-4">
+            <button
+              onClick={() => setShowSendDocumentsModal(true)}
+              className="w-full px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
+            >
+              <i className="fas fa-paper-plane mr-2"></i>
+              Envoyer des documents
+            </button>
+            <p className="text-xs text-brand-text-secondary mt-2">
+              Envoyer des documents au client (non liés à une étape)
+            </p>
+          </div>
+        )}
+
         {/* Cancel Dossier Button */}
         <div className="border-t border-brand-stroke pt-4">
           <CancelDossierButton
@@ -75,6 +100,16 @@ export function AdminActionsSidebar({
           <InternalNotesSection dossierId={dossier.id} />
         </div>
       </div>
+
+      {/* Send Documents Modal (Manual Delivery) */}
+      {showSendDocumentsModal && dossier.product_id && (
+        <SendDocumentsModal
+          dossierId={dossier.id}
+          productId={dossier.product_id}
+          onClose={() => setShowSendDocumentsModal(false)}
+          onSuccess={handleSendDocumentsSuccess}
+        />
+      )}
     </div>
   );
 }

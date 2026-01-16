@@ -102,24 +102,42 @@ export function ProgressCard({
                 >
                   <i className={`${step.icon} ${step.iconColor} text-sm`}></i>
                 </div>
-                <p className="text-sm font-medium text-brand-text-primary">
-                  {step.title}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-brand-text-primary">
+                    {step.title}
+                  </p>
+                  {step.isAdminStep && (
+                    <span className="px-2 py-0.5 bg-brand-warning/20 text-brand-warning rounded text-xs font-medium">
+                      Admin
+                    </span>
+                  )}
+                </div>
               </div>
               {step.showButton && (
                 <button
-                  onClick={() => handleStartStep(step.stepId!)}
+                  onClick={() => {
+                    if (step.isAdminStep && step.canStart) {
+                      // For admin steps, navigate to the step to see documents
+                      handleStartStep(step.stepId!);
+                    } else {
+                      handleStartStep(step.stepId!);
+                    }
+                  }}
                   disabled={!step.canStart}
                   className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all
                     ${
                       step.canStart
-                        ? "bg-brand-accent text-brand-dark-bg hover:opacity-90"
+                        ? step.isAdminStep
+                          ? "bg-brand-accent text-white hover:opacity-90"
+                          : "bg-brand-accent text-brand-dark-bg hover:opacity-90"
                         : "bg-brand-dark-surface text-brand-text-secondary opacity-50 cursor-not-allowed"
                     }`}
                   title={
                     !step.canStart
                       ? "Les étapes précédentes doivent être validées"
-                      : undefined
+                      : step.isAdminStep
+                        ? "Voir les documents reçus"
+                        : undefined
                   }
                 >
                   {step.buttonText}
@@ -232,6 +250,7 @@ function getSteps(dossier: DossierWithDetails, productSteps: ProductStep[]) {
     .map((productStep, index) => {
       const stepInstance = stepInstanceMap.get(productStep.step_id);
       const validationStatus = (stepInstance as any)?.validation_status;
+      const isAdminStep = productStep.step?.step_type === "ADMIN";
 
       // Check if previous step has been submitted
       const canStart = checkPreviousStepSubmitted(
@@ -251,9 +270,10 @@ function getSteps(dossier: DossierWithDetails, productSteps: ProductStep[]) {
           iconBg: "bg-brand-text-secondary/20",
           icon: "fa-solid fa-circle",
           iconColor: "text-brand-text-secondary",
-          showButton: true,
-          canStart,
+          showButton: !isAdminStep, // Admin steps don't have "Commencer" button
+          canStart: !isAdminStep && canStart,
           buttonText: "Commencer",
+          isAdminStep,
         };
       }
 
@@ -276,9 +296,10 @@ function getSteps(dossier: DossierWithDetails, productSteps: ProductStep[]) {
           iconBg: "bg-brand-success/20",
           icon: "fa-solid fa-check",
           iconColor: "text-brand-success",
-          showButton: false,
-          canStart: false,
-          buttonText: "",
+          showButton: isAdminStep, // Show "Récupérer mes documents" for completed admin steps
+          canStart: isAdminStep,
+          buttonText: isAdminStep ? "Récupérer mes documents" : "",
+          isAdminStep,
         };
       } else if (isRejected) {
         return {

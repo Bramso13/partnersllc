@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const body = await request.json();
 
-    const { code, label, description, position } = body;
+    const { code, label, description, position, step_type } = body;
 
     // Validate required fields
     if (!code || typeof code !== "string") {
@@ -181,6 +181,9 @@ export async function POST(request: Request) {
       }
     }
 
+    // Validate step_type if provided
+    const validStepType = step_type === "ADMIN" ? "ADMIN" : "CLIENT";
+
     // Insert step
     const { data: newStep, error: insertError } = await supabase
       .from("steps")
@@ -189,6 +192,7 @@ export async function POST(request: Request) {
         label,
         description: description || null,
         position: finalPosition,
+        step_type: validStepType,
       })
       .select()
       .single();

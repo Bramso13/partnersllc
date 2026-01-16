@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ClientStatusModal } from "./ClientStatusModal";
+import { EventTimeline } from "@/components/EventTimeline";
 import type { ClientProfile } from "@/lib/clients";
+import type { BaseEvent } from "@/lib/events";
 
 interface ClientProfileSlideOverProps {
   clientId: string;
@@ -17,7 +19,7 @@ export function ClientProfileSlideOver({
   onStatusChanged,
 }: ClientProfileSlideOverProps) {
   const [client, setClient] = useState<any>(null);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<BaseEvent[]>([]);
   const [dossiers, setDossiers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -211,29 +213,11 @@ export function ClientProfileSlideOver({
               <h3 className="text-lg font-bold text-[#F9F9F9] mb-4">
                 Activité récente
               </h3>
-              {events.length > 0 ? (
-                <div className="space-y-3">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="p-3 bg-[#191A1D] border border-[#363636] rounded-lg"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm text-[#F9F9F9]">
-                            {event.description || event.event_type}
-                          </div>
-                          <div className="text-xs text-[#B7B7B7] mt-1">
-                            {new Date(event.created_at).toLocaleString("fr-FR")}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[#B7B7B7]">Aucune activité.</p>
-              )}
+              <EventTimeline
+                events={events}
+                showActor={true}
+                maxHeight="max-h-96"
+              />
             </div>
           </div>
         ) : (

@@ -5,6 +5,8 @@ import type { UserRole } from "@/types/auth";
 import type { NavConfig } from "@/lib/navigation-config";
 import { Sidebar } from "./Sidebar";
 import { HamburgerButton } from "./HamburgerButton";
+import { DashboardHeader } from "../DashboardHeader";
+import { NotificationBell } from "../NotificationBell";
 
 interface SidebarProviderProps {
   children: React.ReactNode;
@@ -37,9 +39,13 @@ export function SidebarProvider({
           min-h-screen
         "
       >
+        {/* Desktop Header */}
+        <DashboardHeader />
+
         {/* Mobile header with hamburger */}
-        <div className="md:hidden p-4 border-b border-[#363636]">
+        <div className="md:hidden p-4 border-b border-[#363636] flex items-center justify-between">
           <HamburgerButton onClick={() => setIsSidebarOpen(true)} />
+          <NotificationBell />
         </div>
 
         {/* Page content */}

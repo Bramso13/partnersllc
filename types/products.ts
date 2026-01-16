@@ -39,6 +39,7 @@ export interface Step {
   label: string;
   description: string | null;
   position: number;
+  step_type: "CLIENT" | "ADMIN";
   created_at: string;
 }
 

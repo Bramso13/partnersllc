@@ -14,7 +14,7 @@
 -- This table stores a snapshot of user profile data when a user is deleted
 -- This allows us to preserve historical data while allowing user deletion
 CREATE TABLE IF NOT EXISTS archived_user_profiles (
-  id uuid PRIMARY KEY,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Original profile data (snapshot at deletion time)
   original_user_id uuid NOT NULL,  -- The auth.users.id that was deleted
@@ -167,3 +167,160 @@ $$ LANGUAGE plpgsql;
 -- Comment
 COMMENT ON FUNCTION get_dossier_user_info(uuid) IS 
 'Returns user information for a dossier, including archived user data if the user has been deleted.';
+
+-- =========================================================
+-- 6. CREATE ARCHIVED USER DOSSIERS TABLE
+-- =========================================================
+-- This table stores compressed JSON snapshots of all dossiers
+-- and their related data when a user is archived
+CREATE TABLE IF NOT EXISTS archived_user_dossiers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Reference to archived profile
+  archived_profile_id uuid NOT NULL REFERENCES archived_user_profiles(id) ON DELETE CASCADE,
+  
+  -- Compressed dossier data (JSONB)
+  -- Contains: dossiers, step_instances, step_field_values, documents, 
+  -- document_versions, document_reviews, dossier_status_history, messages, notifications
+  dossier_data jsonb NOT NULL,
+  
+  -- Metadata
+  dossier_count int NOT NULL DEFAULT 0,  -- Number of dossiers archived
+  archived_at timestamptz DEFAULT now() NOT NULL,
+  archived_by uuid REFERENCES profiles(id) ON DELETE SET NULL,  -- Admin who archived
+  archived_reason text  -- Optional: reason for archival
+);
+
+-- Index for lookups
+CREATE INDEX idx_archived_user_dossiers_profile_id 
+  ON archived_user_dossiers(archived_profile_id);
+
+CREATE INDEX idx_archived_user_dossiers_archived_at 
+  ON archived_user_dossiers(archived_at DESC);
+
+-- Comment
+COMMENT ON TABLE archived_user_dossiers IS 
+'Archived user dossiers. Stores compressed JSON snapshots of all dossiers and their related data (steps, documents, messages, etc.) when a user is archived.';
+
+-- =========================================================
+-- 7. CREATE FUNCTION TO ARCHIVE USER DOSSIERS
+-- =========================================================
+-- This function collects all dossier data for a user and compresses it into JSON
+CREATE OR REPLACE FUNCTION archive_user_dossiers(
+  p_user_id uuid,
+  p_archived_by uuid DEFAULT NULL,
+  p_reason text DEFAULT NULL
+)
+RETURNS uuid AS $$
+DECLARE
+  v_archived_profile_id uuid;
+  v_archived_dossiers_id uuid;
+  v_dossier_data jsonb;
+  v_dossier_count int;
+BEGIN
+  -- Find the archived profile record
+  SELECT id INTO v_archived_profile_id
+  FROM archived_user_profiles
+  WHERE original_user_id = p_user_id
+  ORDER BY archived_at DESC
+  LIMIT 1;
+  
+  -- If no archived profile found, raise error
+  IF v_archived_profile_id IS NULL THEN
+    RAISE EXCEPTION 'No archived profile found for user_id: %', p_user_id;
+  END IF;
+  
+  -- Collect all dossier data
+  SELECT 
+    jsonb_agg(
+      jsonb_build_object(
+        'dossier', row_to_json(d.*),
+        'status_history', COALESCE((
+          SELECT jsonb_agg(row_to_json(dsh.*))
+          FROM dossier_status_history dsh
+          WHERE dsh.dossier_id = d.id
+        ), '[]'::jsonb),
+        'step_instances', COALESCE((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'step_instance', row_to_json(si.*),
+              'step_field_values', COALESCE((
+                SELECT jsonb_agg(row_to_json(sfv.*))
+                FROM step_field_values sfv
+                WHERE sfv.step_instance_id = si.id
+              ), '[]'::jsonb)
+            )
+          )
+          FROM step_instances si
+          WHERE si.dossier_id = d.id
+        ), '[]'::jsonb),
+        'documents', COALESCE((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'document', row_to_json(doc.*),
+              'versions', COALESCE((
+                SELECT jsonb_agg(
+                  jsonb_build_object(
+                    'version', row_to_json(dv.*),
+                    'reviews', COALESCE((
+                      SELECT jsonb_agg(row_to_json(dr.*))
+                      FROM document_reviews dr
+                      WHERE dr.document_version_id = dv.id
+                    ), '[]'::jsonb)
+                  )
+                )
+                FROM document_versions dv
+                WHERE dv.document_id = doc.id
+              ), '[]'::jsonb)
+            )
+          )
+          FROM documents doc
+          WHERE doc.dossier_id = d.id
+        ), '[]'::jsonb),
+        'messages', COALESCE((
+          SELECT jsonb_agg(row_to_json(m.*))
+          FROM messages m
+          WHERE m.dossier_id = d.id
+        ), '[]'::jsonb),
+        'notifications', COALESCE((
+          SELECT jsonb_agg(row_to_json(n.*))
+          FROM notifications n
+          WHERE n.dossier_id = d.id
+        ), '[]'::jsonb)
+      )
+    ),
+    COUNT(*)
+  INTO v_dossier_data, v_dossier_count
+  FROM dossiers d
+  WHERE d.user_id = p_user_id;
+  
+  -- If no dossiers, set empty array
+  IF v_dossier_data IS NULL THEN
+    v_dossier_data := '[]'::jsonb;
+    v_dossier_count := 0;
+  END IF;
+  
+  -- Insert into archived_user_dossiers
+  INSERT INTO archived_user_dossiers (
+    archived_profile_id,
+    dossier_data,
+    dossier_count,
+    archived_by,
+    archived_reason
+  )
+  VALUES (
+    v_archived_profile_id,
+    v_dossier_data,
+    v_dossier_count,
+    p_archived_by,
+    p_reason
+  )
+  RETURNING id INTO v_archived_dossiers_id;
+  
+  RETURN v_archived_dossiers_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Comment
+COMMENT ON FUNCTION archive_user_dossiers(uuid, uuid, text) IS 
+'Archives all dossiers and their related data for a user into compressed JSON. Returns the ID of the archived record.';

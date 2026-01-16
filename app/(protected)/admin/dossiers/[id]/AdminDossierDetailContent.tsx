@@ -9,6 +9,8 @@ import { EventLogSection } from "@/components/admin/dossier/EventLogSection";
 import { DocumentHistorySection } from "@/components/admin/dossier/DocumentHistorySection";
 import { AuditTrailSection } from "@/components/admin/dossier/AuditTrailSection";
 import { StepValidationSection } from "@/components/admin/dossier/validation/StepValidationSection";
+import { AdminStepsSection } from "@/components/admin/dossier/AdminStepsSection";
+import { AdminDeliveryHistorySection } from "@/components/admin/dossier/AdminDeliveryHistorySection";
 
 interface AdminDossierDetailContentProps {
   dossier: DossierWithDetails;
@@ -62,6 +64,14 @@ export function AdminDossierDetailContent({
           {/* Dossier Information */}
           <DossierInfoSection dossier={dossier} productSteps={productSteps} />
 
+          {/* Admin Steps Section */}
+          {dossier.product_id && (
+            <AdminStepsSection
+              dossierId={dossier.id}
+              productId={dossier.product_id}
+            />
+          )}
+
           {/* Step Validation Section */}
           <StepValidationSection dossierId={dossier.id} />
 
@@ -70,6 +80,9 @@ export function AdminDossierDetailContent({
 
           {/* Document History */}
           <DocumentHistorySection dossierId={dossier.id} />
+
+          {/* Admin Delivery History */}
+          <AdminDeliveryHistorySection dossierId={dossier.id} />
 
           {/* Audit Trail */}
           <AuditTrailSection dossierId={dossier.id} />

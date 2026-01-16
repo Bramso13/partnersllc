@@ -27,6 +27,7 @@ export function ClientsTable({
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [isArchiving, setIsArchiving] = useState<string | null>(null);
 
   const handleStatusChange = (clientId: string) => {
     setSelectedClientId(clientId);
@@ -41,6 +42,48 @@ export function ClientsTable({
 
   const toggleDropdown = (clientId: string) => {
     setOpenDropdownId(openDropdownId === clientId ? null : clientId);
+  };
+
+  const handleArchive = async (clientId: string) => {
+    if (
+      !confirm(
+        "Êtes-vous sûr de vouloir archiver ce client et tous ses dossiers ? Cette action est irréversible."
+      )
+    ) {
+      return;
+    }
+
+    setIsArchiving(clientId);
+    setOpenDropdownId(null);
+
+    try {
+      const response = await fetch(`/api/admin/clients/${clientId}/archive`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: "Archivage manuel par l'administrateur",
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(
+          `Erreur lors de l'archivage: ${error.error || "Erreur inconnue"}`
+        );
+        return;
+      }
+
+      const data = await response.json();
+      alert("Client et dossiers archivés avec succès");
+      onRefresh();
+    } catch (error) {
+      console.error("Error archiving client:", error);
+      alert("Erreur lors de l'archivage du client");
+    } finally {
+      setIsArchiving(null);
+    }
   };
 
   if (isLoading) {
@@ -169,6 +212,17 @@ export function ClientsTable({
                           <i className="fa-solid fa-edit w-4"></i>
                           Modifier le statut
                         </button>
+                        <div className="border-t border-[#363636] my-1"></div>
+                        <button
+                          onClick={() => handleArchive(client.id)}
+                          disabled={isArchiving === client.id}
+                          className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-[#2D3033] transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <i className="fa-solid fa-box-archive w-4"></i>
+                          {isArchiving === client.id
+                            ? "Archivage..."
+                            : "Archiver le client"}
+                        </button>
                       </div>
                     )}
                   </td>
@@ -232,7 +286,8 @@ function StatusBadge({ status }: { status: string }) {
     },
   };
 
-  const { label, color } = config[status as keyof typeof config] || config.PENDING;
+  const { label, color } =
+    config[status as keyof typeof config] || config.PENDING;
 
   return (
     <span

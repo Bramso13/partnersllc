@@ -63,6 +63,11 @@ export function WorkflowStepCard({
               <h3 className="text-lg font-semibold text-brand-text-primary">
                 {step.step.label}
               </h3>
+              {step.step.step_type === "ADMIN" && (
+                <span className="px-2 py-1 bg-brand-warning/20 text-brand-warning rounded text-xs font-medium">
+                  Admin
+                </span>
+              )}
             </div>
             {step.step.description && (
               <p className="text-sm text-brand-text-secondary mt-1">

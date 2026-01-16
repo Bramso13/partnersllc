@@ -81,9 +81,9 @@ export async function getAllClients(
     console.error("❌ [getAllClients] Error fetching profiles:", profilesError);
     throw profilesError;
   }
-  
+
   console.log("✅ [getAllClients] Profiles fetched:", profiles?.length || 0);
-  
+
   if (!profiles) {
     console.log("⚠️ [getAllClients] No profiles returned");
     return [];
@@ -93,12 +93,16 @@ export async function getAllClients(
 
   // Get emails from auth.users for each profile
   console.log("🔍 [getAllClients] Fetching auth users...");
-  const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+  const { data: authUsers, error: authError } =
+    await supabase.auth.admin.listUsers();
 
   if (authError) {
     console.error("❌ [getAllClients] Error fetching auth users:", authError);
   } else {
-    console.log("✅ [getAllClients] Auth users fetched:", authUsers?.users?.length || 0);
+    console.log(
+      "✅ [getAllClients] Auth users fetched:",
+      authUsers?.users?.length || 0
+    );
   }
 
   const emailMap = new Map(
@@ -109,8 +113,12 @@ export async function getAllClients(
 
   // Get dossier counts for each client
   const clientIds = profiles.map((p) => p.id);
-  console.log("🔍 [getAllClients] Fetching dossiers for", clientIds.length, "clients");
-  
+  console.log(
+    "🔍 [getAllClients] Fetching dossiers for",
+    clientIds.length,
+    "clients"
+  );
+
   const { data: dossierCounts, error: dossierError } = await supabase
     .from("dossiers")
     .select("user_id")
@@ -121,7 +129,10 @@ export async function getAllClients(
     throw dossierError;
   }
 
-  console.log("✅ [getAllClients] Dossier counts fetched:", dossierCounts?.length || 0);
+  console.log(
+    "✅ [getAllClients] Dossier counts fetched:",
+    dossierCounts?.length || 0
+  );
 
   // Count dossiers per client
   const countMap = new Map<string, number>();
@@ -157,7 +168,8 @@ export async function getAllClients(
 export async function getClientById(
   clientId: string
 ): Promise<ClientProfile | null> {
-  const supabase = await createClient();
+  // Use admin client to bypass RLS restrictions
+  const supabase = createAdminClient();
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -166,11 +178,13 @@ export async function getClientById(
     .eq("role", "CLIENT")
     .single();
 
-  if (error || !profile) return null;
+  if (error || !profile) {
+    console.error("Error fetching client by ID:", error);
+    return null;
+  }
 
   // Get email from auth using admin client
-  const adminClient = createAdminClient();
-  const { data: authUser } = await adminClient.auth.admin.getUserById(clientId);
+  const { data: authUser } = await supabase.auth.admin.getUserById(clientId);
 
   return {
     ...profile,
@@ -189,7 +203,7 @@ export async function updateClientStatus(
   reason: string,
   adminId: string
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Get old status
   const { data: client } = await supabase
@@ -233,7 +247,7 @@ export async function getClientEvents(
   clientId: string,
   limit: number = 10
 ): Promise<any[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("events")
@@ -250,7 +264,7 @@ export async function getClientEvents(
  * Get client's dossiers summary
  */
 export async function getClientDossiers(clientId: string): Promise<any[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("dossiers")

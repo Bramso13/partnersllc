@@ -9,6 +9,7 @@ import { TimelineSection } from "@/components/dashboard/TimelineSection";
 import { DocumentsSection } from "@/components/dashboard/DocumentsSection";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { RejectionWarningBanner } from "@/components/dashboard/RejectionWarningBanner";
+import { AdminDeliveredDocumentsSection } from "@/components/dashboard/AdminDeliveredDocumentsSection";
 import Link from "next/link";
 import { useState, useEffect, useMemo, useRef } from "react";
 
@@ -210,6 +211,11 @@ export function DossierDetailContent({
       <div id="main-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <TimelineSection dossier={dossier} />
         {/* <DocumentsSection /> */}
+      </div>
+
+      {/* Admin Delivered Documents Section */}
+      <div className="mt-6">
+        <AdminDeliveredDocumentsSection dossierId={dossier.id} />
       </div>
     </div>
   );
