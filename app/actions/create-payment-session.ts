@@ -28,7 +28,7 @@ export async function createPaymentSession(
       `
       )
       .eq("token", token)
-      .eq("status", "ACTIVE")
+    //   .eq("status", "ACTIVE") TODO: Uncomment after migration
       .is("used_at", null)
       .single();
 

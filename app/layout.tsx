@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "Partners LLC - Gestion de Dossiers",
   description:
     "Plateforme de gestion de dossiers et paiements pour Partners LLC",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
