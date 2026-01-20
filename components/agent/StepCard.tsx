@@ -60,9 +60,9 @@ export function StepCard({ item }: StepCardProps) {
             <span className="font-medium">
               {item.dossier.client.full_name || "N/A"}
             </span>{" "}
-            <span className="text-brand-text-secondary">
-              ({item.dossier.client.email})
-            </span>
+            {/* <span className="text-brand-text-secondary">
+              ({item.dossier.client.full_name})
+            </span> */}
           </div>
           <div className="text-brand-text-secondary">
             Produit:{" "}

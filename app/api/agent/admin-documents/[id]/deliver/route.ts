@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const agent = await requireAgentAuth();
-    const documentId = params.id;
+    const { id: documentId } = await params;
     const supabase = createAdminClient();
 
     // Récupérer le document avec ses informations
@@ -44,14 +44,14 @@ export async function POST(
       );
     }
 
-    if (document.step_instance?.assigned_to !== agent.id) {
+    if (document.step_instance[0]?.assigned_to !== agent.id) {
       return NextResponse.json(
         { error: 'Not authorized to deliver this document' },
         { status: 403 }
       );
     }
 
-    if (document.step_instance?.step?.step_type !== 'ADMIN') {
+    if (document.step_instance[0]?.step[0]?.step_type !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Not an ADMIN step' },
         { status: 400 }
@@ -90,8 +90,8 @@ export async function POST(
       actor_type: 'AGENT',
       actor_id: agent.id,
       payload: {
-        document_type: document.document_type?.label,
-        agent_name: agent.name,
+        document_type: document.document_type[0]?.label,
+        agent_name: agent.full_name,
         agent_type: 'CREATEUR'
       }
     });
@@ -108,7 +108,7 @@ export async function POST(
         user_id: dossier.user_id,
         type: 'DOCUMENT_AVAILABLE',
         title: 'Nouveau document disponible',
-        message: `Le document "${document.document_type?.label}" est maintenant disponible dans votre dossier.`,
+        message: `Le document "${document.document_type[0]?.label}" est maintenant disponible dans votre dossier.`,
         payload: {
           dossier_id: document.dossier_id,
           document_id: documentId

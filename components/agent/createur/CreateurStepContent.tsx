@@ -70,12 +70,12 @@ export function CreateurStepContent({
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
-            <div>
+            {/* <div>
               <span className="text-brand-text-secondary">Email:</span>{" "}
               <span className="text-brand-text-primary">
                 {stepDetails.dossier.client.email}
               </span>
-            </div>
+            </div> */}
             <div className="h-4 w-px bg-[#363636]" />
             <div>
               <span className="text-brand-text-secondary">Dossier:</span>{" "}

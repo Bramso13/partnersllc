@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase/server";
+
 
 export async function POST(request: NextRequest) {
   try {
     const agent = await requireAgentAuth();
 
     // Vérifier que c'est un agent CREATEUR
-    if (agent.agent_type !== 'CREATEUR') {
+    if (agent.role !== 'AGENT') {
       return NextResponse.json(
         { error: 'Only CREATEUR agents can upload admin documents' },
         { status: 403 }
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
       .select(`
         id,
         assigned_to,
+        dossier_id,
         step:steps(step_type)
       `)
       .eq('id', stepInstanceId)
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (stepInstance.step?.step_type !== 'ADMIN') {
+    if (stepInstance.step[0]?.step_type !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Not an ADMIN step' },
         { status: 400 }
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
       actor_id: agent.id,
       payload: {
         document_type: documentTypeId,
-        agent_name: agent.name,
+        agent_name: agent.full_name,
         agent_type: 'CREATEUR',
         source: 'ADMIN'
       }

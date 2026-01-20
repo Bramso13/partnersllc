@@ -44,11 +44,9 @@ export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
     if (q) {
       result = result.filter((item) => {
         const clientName = item.dossier.client.full_name || "";
-        const clientEmail = item.dossier.client.email || "";
         const dossierId = item.dossier.id || "";
         return (
           clientName.toLowerCase().includes(q) ||
-          clientEmail.toLowerCase().includes(q) ||
           dossierId.toLowerCase().includes(q)
         );
       });

@@ -47,7 +47,7 @@ export default async function AgentStepDetailPage({ params }: PageProps) {
 
   const stepType = Array.isArray(stepTypeCheck.step)
     ? stepTypeCheck.step[0]?.step_type
-    : stepTypeCheck.step?.step_type;
+    : stepTypeCheck.step ? (stepTypeCheck.step as { step_type: string }).step_type : null;    
 
   // Router selon le type de step
   if (stepType === "ADMIN") {

@@ -237,7 +237,6 @@ export async function getAgentStepQueue(
         },
         client: {
           full_name: client?.full_name ?? null,
-          email: client?.email ?? "",
         },
       },
     } as AgentStepQueueItem;
@@ -913,7 +912,7 @@ export async function getCreateurStepDetails(
 
         admin_documents.push({
           document_type: docType,
-          document,
+          document: document ? (document as CreateurStepDetails["admin_documents"][0]["document"]) : undefined,
         });
       }
     }
