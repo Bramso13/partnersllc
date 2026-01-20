@@ -71,37 +71,17 @@ export const clientNavConfig: NavConfig = {
 export const agentNavConfig: NavConfig = {
   sections: [
     {
-      label: "Menu",
+      label: "Espace Agent",
       items: [
         {
           href: "/agent",
-          icon: "fa-chart-pie",
+          icon: "fa-gauge-high",
           label: "Tableau de bord",
         },
         {
-          href: "/agent/queue",
+          href: "/agent/steps",
           icon: "fa-list-check",
-          label: "File d'attente",
-        },
-        {
-          href: "/agent/dossiers",
-          icon: "fa-folder-tree",
-          label: "Dossiers",
-        },
-        {
-          href: "/agent/documents",
-          icon: "fa-file-check",
-          label: "Documents à réviser",
-        },
-      ],
-    },
-    {
-      label: "Support",
-      items: [
-        {
-          href: "/agent/profile",
-          icon: "fa-gear",
-          label: "Paramètres",
+          label: "Mes étapes",
         },
       ],
     },

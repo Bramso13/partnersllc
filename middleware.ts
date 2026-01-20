@@ -83,11 +83,14 @@ export async function middleware(request: NextRequest) {
         url.pathname = "/agent";
         return NextResponse.redirect(url);
       }
+      // ADMIN should be redirected to admin workspace
+      // Redirect all /dashboard routes for ADMIN to avoid confusion
       if (role === "ADMIN") {
         const url = request.nextUrl.clone();
         url.pathname = "/admin/analytics";
         return NextResponse.redirect(url);
       }
+      // CLIENT can access /dashboard, let them through
     }
 
     // Store role and status in headers for use in page components
@@ -111,7 +114,7 @@ export async function middleware(request: NextRequest) {
 
     // Redirect based on role
     if (role === "ADMIN") {
-      url.pathname = "/admin";
+      url.pathname = "/admin/analytics";
     } else if (role === "AGENT") {
       url.pathname = "/agent";
     } else {

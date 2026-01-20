@@ -71,7 +71,97 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const orderId = session.metadata?.order_id;
   const userId = session.metadata?.user_id;
   const productId = session.metadata?.product_id;
+  const paymentLinkToken = session.metadata?.payment_link_token;
 
+  const paidAt = new Date().toISOString();
+  const amountPaid = session.amount_total || 0;
+
+  // Check if this is a payment link payment (new inverted flow)
+  if (paymentLinkToken) {
+    // Handle payment link payment
+    const { data: paymentLink, error: linkError } = await adminSupabase
+      .from("payment_links")
+      .select("id, status, product_id, prospect_email")
+      .eq("token", paymentLinkToken)
+      .single();
+
+    if (linkError || !paymentLink) {
+      throw new Error(`Payment link not found: ${paymentLinkToken}`);
+    }
+
+    // Idempotency check
+    if (paymentLink.status === "PAID" || paymentLink.status === "USED") {
+      console.log(`Payment link ${paymentLinkToken} already processed, skipping`);
+      return;
+    }
+
+    // Create order for payment link (without user_id initially)
+    const { data: order, error: orderError } = await adminSupabase
+      .from("orders")
+      .insert({
+        product_id: paymentLink.product_id,
+        payment_link_id: paymentLink.id,
+        amount: amountPaid,
+        currency: session.currency || "usd",
+        status: "PAID",
+        stripe_checkout_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent as string | null,
+        stripe_customer_id: session.customer as string | null,
+        paid_at: paidAt,
+      })
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      throw new Error(`Failed to create order for payment link: ${orderError?.message || "Unknown error"}`);
+    }
+
+    // Update payment link with payment details
+    const { error: linkUpdateError } = await adminSupabase
+      .from("payment_links")
+      .update({
+        status: "PAID",
+        paid_at: paidAt,
+        stripe_customer_id: session.customer as string | null,
+        amount_paid: amountPaid,
+        order_id: order.id,
+        // updated_at: paidAt, // TODO: Uncomment after migration
+      })
+      .eq("id", paymentLink.id);
+
+    if (linkUpdateError) {
+      console.error("Failed to update payment link:", linkUpdateError);
+      // Non-critical error, continue
+    }
+
+    // Create PAYMENT_RECEIVED event for payment link
+    const { error: paymentEventError } = await adminSupabase.from("events").insert({
+      entity_type: "payment_link",
+      entity_id: paymentLink.id,
+      event_type: "PAYMENT_RECEIVED",
+      actor_type: "SYSTEM",
+      actor_id: null,
+      payload: {
+        payment_link_token: paymentLinkToken,
+        order_id: order.id,
+        amount_paid: amountPaid,
+        currency: session.currency || "usd",
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent,
+        prospect_email: paymentLink.prospect_email,
+      },
+    });
+
+    if (paymentEventError) {
+      console.error("Failed to create PAYMENT_RECEIVED event for payment link:", paymentEventError);
+      // Non-critical error, continue
+    }
+
+    console.log(`Successfully processed payment link payment ${session.id} for token ${paymentLinkToken}`);
+    return;
+  }
+
+  // Handle traditional registration flow (existing logic)
   if (!orderId || !userId || !productId) {
     throw new Error("Missing required metadata in checkout session");
   }
@@ -98,9 +188,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Update order record
-  const paidAt = new Date().toISOString();
-  const amountPaid = session.amount_total || 0;
-
   const { data: updatedOrder, error: orderUpdateError } = await adminSupabase
     .from("orders")
     .update({
@@ -155,7 +242,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       status: product.initial_status || "QUALIFICATION",
       metadata: {
         order_id: orderId,
-        created_via: "payment_link",
+        created_via: "traditional_registration",
       },
     })
     .select()
@@ -202,7 +289,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         .from("dossiers")
         .update({
           current_step_instance_id: firstInstance.id,
-          updated_at: paidAt,
+          // updated_at: paidAt, // TODO: Uncomment after migration
         })
         .eq("id", dossier.id);
 
@@ -267,5 +354,5 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Non-critical error, continue
   }
 
-  console.log(`Successfully processed checkout session ${session.id} for order ${orderId}`);
+  console.log(`Successfully processed traditional checkout session ${session.id} for order ${orderId}`);
 }

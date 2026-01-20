@@ -25,6 +25,7 @@ export async function GET(
         dossier_id,
         started_at,
         completed_at,
+        validation_status,
         step:steps!inner (
           id,
           label,
@@ -58,6 +59,7 @@ export async function GET(
         dossier_id: si.dossier_id,
         started_at: si.started_at,
         completed_at: si.completed_at,
+        validation_status: si.validation_status,
         step: Array.isArray(si.step) ? si.step[0] : si.step,
       })),
     });

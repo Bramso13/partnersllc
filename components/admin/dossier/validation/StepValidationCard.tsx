@@ -30,25 +30,27 @@ export function StepValidationCard({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
+  const hasFields = stepInstance.total_fields_count > 0;
+  const hasDocuments = stepInstance.total_documents_count > 0;
+
   const allFieldsApproved =
-    stepInstance.total_fields_count > 0 &&
-    stepInstance.approved_fields_count === stepInstance.total_fields_count;
+    !hasFields || stepInstance.approved_fields_count === stepInstance.total_fields_count;
 
   const allDocumentsApproved =
-    stepInstance.total_documents_count > 0 &&
-    stepInstance.approved_documents_count === stepInstance.total_documents_count;
+    !hasDocuments || stepInstance.approved_documents_count === stepInstance.total_documents_count;
 
-  const allItemsApproved = allFieldsApproved && (stepInstance.total_documents_count === 0 || allDocumentsApproved);
+  // Au moins un type d'item doit exister, et tous doivent être approuvés
+  const allItemsApproved = (hasFields || hasDocuments) && allFieldsApproved && allDocumentsApproved;
 
   const handleApproveStep = async () => {
-    if (!allFieldsApproved) {
+    if (hasFields && !allFieldsApproved) {
       toast.error(
         "Tous les champs doivent être approuvés avant de valider l'étape"
       );
       return;
     }
 
-    if (stepInstance.total_documents_count > 0 && !allDocumentsApproved) {
+    if (hasDocuments && !allDocumentsApproved) {
       toast.error(
         "Tous les documents doivent être approuvés avant de valider l'étape"
       );
@@ -284,9 +286,9 @@ export function StepValidationCard({
 
                 {!allItemsApproved && (
                   <span className="text-sm text-brand-text-secondary">
-                    {!allFieldsApproved && "Tous les champs doivent être approuvés"}
-                    {!allFieldsApproved && stepInstance.total_documents_count > 0 && !allDocumentsApproved && " et "}
-                    {stepInstance.total_documents_count > 0 && !allDocumentsApproved && "tous les documents doivent être approuvés"}
+                    {hasFields && !allFieldsApproved && "Tous les champs doivent être approuvés"}
+                    {hasFields && !allFieldsApproved && hasDocuments && !allDocumentsApproved && " et "}
+                    {hasDocuments && !allDocumentsApproved && "tous les documents doivent être approuvés"}
                   </span>
                 )}
               </div>

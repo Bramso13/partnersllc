@@ -104,11 +104,11 @@ export function AgentAssignmentDropdown({
         className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-stroke rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="">Non assigné</option>
-        {agents.map((agent) => (
+        {agents && agents.length > 0 ? agents.map((agent) => (
           <option key={agent.id} value={agent.id}>
             {agent.name}
           </option>
-        ))}
+        )) : null}
       </select>
       {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
       {isUpdating && (

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     // Get step instance
     const { data: stepInstance, error } = await supabase
       .from("step_instances")
-      .select("id, validation_status, rejection_reason")
+      .select("id, validation_status, rejection_reason, completed_at, started_at")
       .eq("dossier_id", dossierId)
       .eq("step_id", stepId)
       .single();

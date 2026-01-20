@@ -98,6 +98,7 @@ export function WorkflowStepper({
         if (instanceResponse.ok) {
           stepInstance = await instanceResponse.json();
           if (stepInstance) {
+            console.log("[WORKFLOW STEPPER] Step instance:", stepInstance);
             setCurrentStepInstance(stepInstance);
           }
         }

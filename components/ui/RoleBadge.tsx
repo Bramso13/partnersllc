@@ -8,17 +8,20 @@ interface RoleBadgeProps {
 const roleConfig = {
   CLIENT: {
     label: "Client",
-    color: "bg-blue-100 text-blue-800 border-blue-200",
+    // Gray (#6B7280) for dark theme
+    color: "bg-gray-500/20 text-gray-400 border-gray-500/30",
     icon: "fa-user",
   },
   AGENT: {
     label: "Agent",
-    color: "bg-green-100 text-green-800 border-green-200",
+    // Cyan (#00F0FF) for dark theme
+    color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
     icon: "fa-user-tie",
   },
   ADMIN: {
     label: "Admin",
-    color: "bg-purple-100 text-purple-800 border-purple-200",
+    // Purple (#A78BFA) for dark theme
+    color: "bg-purple-500/20 text-purple-400 border-purple-500/30",
     icon: "fa-shield-halved",
   },
 };
