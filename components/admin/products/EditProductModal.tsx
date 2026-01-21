@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Product, ProductType } from "@/types/products";
 
 interface EditProductModalProps {
@@ -25,13 +25,43 @@ export function EditProductModal({
 }: EditProductModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullProducts, setFullProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [formData, setFormData] = useState({
     name: product.name,
     description: product.description || "",
     type: product.dossier_type as ProductType,
     price: product.price_amount / 100, // Convert cents to dollars
     active: product.active,
+    is_deposit: product.is_deposit || false,
+    full_product_id: product.full_product_id || null,
   });
+
+  // Charger les produits non-acomptes pour le dropdown
+  useEffect(() => {
+    const fetchFullProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const response = await fetch("/api/admin/products");
+        if (response.ok) {
+          const data = await response.json();
+          // Filtrer les produits non-acomptes et exclure le produit actuel
+          const nonDepositProducts = data.products.filter(
+            (p: Product) => !p.is_deposit && p.id !== product.id
+          );
+          setFullProducts(nonDepositProducts);
+        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    if (formData.is_deposit) {
+      fetchFullProducts();
+    }
+  }, [formData.is_deposit, product.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +76,11 @@ export function EditProductModal({
 
       if (formData.price < 0.01) {
         throw new Error("Price must be at least $0.01");
+      }
+
+      // Validation : si is_deposit = true, full_product_id est requis
+      if (formData.is_deposit && !formData.full_product_id) {
+        throw new Error("Un produit acompte doit être associé à un produit complet");
       }
 
       const response = await fetch(`/api/admin/products/${product.id}`, {
@@ -176,6 +211,63 @@ export function EditProductModal({
               ⚠️ Changing price does not affect existing orders
             </p>
           </div>
+
+          {/* Is Deposit */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_deposit"
+              checked={formData.is_deposit}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  is_deposit: e.target.checked,
+                  full_product_id: e.target.checked ? formData.full_product_id : null,
+                })
+              }
+              className="w-4 h-4 rounded border-brand-border bg-brand-dark-bg text-brand-accent focus:ring-2 focus:ring-brand-accent"
+            />
+            <label
+              htmlFor="is_deposit"
+              className="text-sm text-brand-text-primary cursor-pointer"
+            >
+              Produit acompte
+            </label>
+          </div>
+
+          {/* Full Product Selection (si is_deposit = true) */}
+          {formData.is_deposit && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">
+                Produit complet associé <span className="text-red-400">*</span>
+              </label>
+              {loadingProducts ? (
+                <div className="text-sm text-brand-text-secondary">Chargement...</div>
+              ) : (
+                <select
+                  required
+                  value={formData.full_product_id || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      full_product_id: e.target.value || null,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                >
+                  <option value="">Sélectionner un produit complet</option>
+                  {fullProducts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} - ${(p.price_amount / 100).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="mt-1 text-xs text-brand-text-secondary">
+                Sélectionnez le produit complet auquel cet acompte est associé
+              </p>
+            </div>
+          )}
 
           {/* Stripe IDs (Read-only) */}
           <div className="bg-brand-dark-bg/50 border border-brand-border rounded-lg p-4 space-y-2">

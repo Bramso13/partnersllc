@@ -19,6 +19,8 @@ export interface Product {
   price_amount: number; // in cents
   currency: string;
   active: boolean;
+  is_deposit: boolean;
+  full_product_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +33,8 @@ export interface ProductFormData {
   stripe_product_id: string;
   stripe_price_id: string;
   active: boolean;
+  is_deposit?: boolean;
+  full_product_id?: string | null;
 }
 
 export interface Step {

@@ -81,6 +81,23 @@ export async function PATCH(
     if (body.active !== undefined) {
       updateData.active = body.active;
     }
+    if (body.is_deposit !== undefined) {
+      updateData.is_deposit = body.is_deposit;
+      // Si on désactive is_deposit, on supprime aussi full_product_id
+      if (!body.is_deposit) {
+        updateData.full_product_id = null;
+      }
+    }
+    if (body.full_product_id !== undefined) {
+      // Validation : si is_deposit = true, full_product_id est requis
+      if (body.is_deposit && !body.full_product_id) {
+        return NextResponse.json(
+          { error: "Un produit acompte doit être associé à un produit complet" },
+          { status: 400 }
+        );
+      }
+      updateData.full_product_id = body.full_product_id || null;
+    }
 
     updateData.updated_at = new Date().toISOString();
 

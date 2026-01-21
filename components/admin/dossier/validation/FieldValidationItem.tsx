@@ -4,6 +4,9 @@ import { useState } from "react";
 import { StepFieldValue } from "./StepValidationSection";
 import { toast } from "sonner";
 
+// TODO: Feature flag pour simplification - garder pour réactivation future
+const SIMPLIFIED_VALIDATION = true;
+
 interface FieldValidationItemProps {
   field: StepFieldValue;
   dossierId: string;
@@ -132,7 +135,8 @@ export function FieldValidationItem({
         </div>
 
         {/* Actions */}
-        {field.validation_status !== "APPROVED" && !showRejectInput && (
+        {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+        {!SIMPLIFIED_VALIDATION && field.validation_status !== "APPROVED" && !showRejectInput && (
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={handleApprove}
@@ -162,7 +166,8 @@ export function FieldValidationItem({
       </div>
 
       {/* Reject Input */}
-      {showRejectInput && (
+      {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+      {!SIMPLIFIED_VALIDATION && showRejectInput && (
         <div className="mt-4 pt-4 border-t border-brand-stroke">
           <label className="block text-sm font-medium text-brand-text-primary mb-2">
             Raison du rejet (minimum 10 caractères)

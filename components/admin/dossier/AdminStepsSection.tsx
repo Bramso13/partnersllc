@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { SendDocumentsModal } from "./SendDocumentsModal";
+import { toast } from "sonner";
+
+// TODO: Feature flag pour simplification - garder pour réactivation future
+const SIMPLIFIED_VALIDATION = true;
 
 type ValidationStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
 
@@ -49,6 +53,7 @@ export function AdminStepsSection({
     { id: string; name: string; email: string; agent_type: "VERIFICATEUR" | "CREATEUR" }[]
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
+  const [validatingStepId, setValidatingStepId] = useState<string | null>(null);
 
   const fetchAdminSteps = async () => {
     try {
@@ -165,6 +170,73 @@ export function AdminStepsSection({
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
       setUpdatingStepId(null);
+    }
+  };
+
+  const handleValidateStep = async (stepInstanceId: string, dossierId: string) => {
+    try {
+      setValidatingStepId(stepInstanceId);
+
+      // En mode simplifié, approuver automatiquement tous les champs et documents
+      if (SIMPLIFIED_VALIDATION) {
+        // Récupérer les champs et documents de cette étape
+        const validationResponse = await fetch(
+          `/api/admin/dossiers/${dossierId}/validation`
+        );
+
+        if (validationResponse.ok) {
+          const validationData = await validationResponse.json();
+          const stepInstance = validationData.stepInstances?.find(
+            (si: { id: string }) => si.id === stepInstanceId
+          );
+
+          if (stepInstance) {
+            // Approuver tous les champs non approuvés
+            const fieldsToApprove = stepInstance.fields?.filter(
+              (field: { validation_status: string }) =>
+                field.validation_status !== "APPROVED"
+            ) || [];
+
+            for (const field of fieldsToApprove) {
+              await fetch(
+                `/api/admin/dossiers/${dossierId}/fields/${field.id}/approve`,
+                { method: "POST" }
+              );
+            }
+
+            // Approuver tous les documents non approuvés
+            const documentsToApprove = stepInstance.documents?.filter(
+              (doc: { status: string }) => doc.status !== "APPROVED"
+            ) || [];
+
+            for (const doc of documentsToApprove) {
+              await fetch(
+                `/api/admin/dossiers/${dossierId}/documents/${doc.id}/approve`,
+                { method: "POST" }
+              );
+            }
+          }
+        }
+      }
+
+      // Maintenant approuver l'étape
+      const response = await fetch(
+        `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/approve`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.error || error?.message || "Erreur lors de la validation");
+      }
+
+      toast.success("Étape validée avec succès");
+      await fetchAdminSteps();
+    } catch (err) {
+      console.error("Error validating step:", err);
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la validation");
+    } finally {
+      setValidatingStepId(null);
     }
   };
 
@@ -313,15 +385,36 @@ export function AdminStepsSection({
                       </p>
                     )}
                   </div>
-                  {currentStatus !== "APPROVED" && (
-                    <button
-                      onClick={() => handleSendDocuments(stepInstance)}
-                      className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium ml-4"
-                    >
-                      <i className="fas fa-paper-plane mr-2"></i>
-                      Envoyer des documents
-                    </button>
-                  )}
+                  <div className="ml-4 flex items-center gap-2">
+                    {SIMPLIFIED_VALIDATION && !isCompleted && (
+                      <button
+                        onClick={() => handleValidateStep(stepInstance.id, dossierId)}
+                        disabled={validatingStepId === stepInstance.id}
+                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {validatingStepId === stepInstance.id ? (
+                          <>
+                            <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                            Validation...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fa-solid fa-check mr-2"></i>
+                            Valider l&apos;étape
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {currentStatus !== "APPROVED" && (
+                      <button
+                        onClick={() => handleSendDocuments(stepInstance)}
+                        className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
+                      >
+                        <i className="fas fa-paper-plane mr-2"></i>
+                        Envoyer des documents
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

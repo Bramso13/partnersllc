@@ -4,6 +4,9 @@ import { useState } from "react";
 import { StepDocument } from "./StepValidationSection";
 import { toast } from "sonner";
 
+// TODO: Feature flag pour simplification - garder pour réactivation future
+const SIMPLIFIED_VALIDATION = true;
+
 interface DocumentValidationItemProps {
   document: StepDocument;
   dossierId: string;
@@ -224,7 +227,8 @@ export function DocumentValidationItem({
             </button>
           )}
 
-          {document.status !== "APPROVED" && !showRejectInput && (
+          {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+          {!SIMPLIFIED_VALIDATION && document.status !== "APPROVED" && !showRejectInput && (
             <>
               <button
                 onClick={handleApprove}
@@ -255,7 +259,8 @@ export function DocumentValidationItem({
       </div>
 
       {/* Reject Input */}
-      {showRejectInput && (
+      {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+      {!SIMPLIFIED_VALIDATION && showRejectInput && (
         <div className="mt-4 pt-4 border-t border-brand-stroke">
           <label className="block text-sm font-medium text-brand-text-primary mb-2">
             Raison du rejet (minimum 10 caractères)

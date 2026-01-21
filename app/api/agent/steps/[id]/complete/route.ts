@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { sendStepCompletedNotifications } from "@/lib/notifications/step-notifications";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -159,26 +160,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Create STEP_COMPLETED event
-    await supabase.from("events").insert({
-      entity_type: "step_instance",
-      entity_id: stepInstanceId,
-      event_type: "STEP_COMPLETED",
-      actor_type: "AGENT",
-      actor_id: agent.id,
-      payload: {
-        manual: !!manual,
-        agent_type: agent.agent_type,
-        agent_name: agent.name || user.email,
-        step_code: step?.code,
-        step_label: step?.label,
-        dossier_id: stepInstance.dossier_id,
-      },
-    });
+    const { data: eventData } = await supabase
+      .from("events")
+      .insert({
+        entity_type: "step_instance",
+        entity_id: stepInstanceId,
+        event_type: "STEP_COMPLETED",
+        actor_type: "AGENT",
+        actor_id: agent.id,
+        payload: {
+          manual: !!manual,
+          agent_type: agent.agent_type,
+          agent_name: agent.name || user.email,
+          step_code: step?.code,
+          step_label: step?.label,
+          dossier_id: stepInstance.dossier_id,
+        },
+      })
+      .select("id")
+      .single();
 
     // Avancer le workflow du dossier - trouver la prochaine step
     const { data: dossier } = await supabase
       .from("dossiers")
-      .select("id, product_id, current_step_instance_id")
+      .select("id, product_id, current_step_instance_id, user_id")
       .eq("id", stepInstance.dossier_id)
       .single();
 
@@ -242,6 +247,62 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           // No more steps - workflow complete
           // Could update dossier status to COMPLETED here if needed
         }
+      }
+
+      // Get next step name for notification
+      let nextStepName: string | null = null;
+      if (currentProductStep) {
+        const { data: nextProductStep } = await supabase
+          .from("product_steps")
+          .select("step_id, step:steps(label)")
+          .eq("product_id", dossier.product_id)
+          .gt("position", currentProductStep.position)
+          .order("position", { ascending: true })
+          .limit(1)
+          .single();
+
+        if (nextProductStep) {
+          const nextStep = Array.isArray(nextProductStep.step)
+            ? nextProductStep.step[0]
+            : nextProductStep.step;
+          nextStepName = nextStep?.label || null;
+        }
+      }
+
+      // Create notification for step completed
+      const { data: notification } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: dossier.user_id,
+          dossier_id: stepInstance.dossier_id,
+          event_id: eventData?.id || null,
+          title: "Étape terminée",
+          message: `L'étape "${step?.label}" a été terminée avec succès.`,
+          template_code: "STEP_COMPLETED",
+          payload: {
+            step_name: step?.label,
+            step_code: step?.code,
+            dossier_id: stepInstance.dossier_id,
+            next_step_name: nextStepName,
+          },
+          action_url: `/dashboard/dossiers/${stepInstance.dossier_id}`,
+        })
+        .select("id")
+        .single();
+
+      // Send notifications in background (don't block the response)
+      if (notification) {
+        sendStepCompletedNotifications(
+          notification.id,
+          stepInstance.dossier_id,
+          dossier.user_id
+        ).catch((error) => {
+          console.error(
+            "[POST /api/agent/steps/complete] Error sending step completed notifications:",
+            error
+          );
+          // Don't throw - we don't want to block the step completion
+        });
       }
     }
 

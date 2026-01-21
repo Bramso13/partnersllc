@@ -12,6 +12,9 @@ import { StepValidationSection } from "@/components/admin/dossier/validation/Ste
 import { AdminStepsSection } from "@/components/admin/dossier/AdminStepsSection";
 import { AdminDeliveryHistorySection } from "@/components/admin/dossier/AdminDeliveryHistorySection";
 
+// TODO: Feature flag pour simplification - garder pour réactivation future
+const SIMPLIFIED_VALIDATION = true;
+
 interface AdminDossierDetailContentProps {
   dossier: DossierWithDetails;
   productSteps: ProductStep[];
@@ -76,7 +79,8 @@ export function AdminDossierDetailContent({
           <StepValidationSection dossierId={dossier.id} />
 
           {/* Event Log */}
-          <EventLogSection dossierId={dossier.id} />
+          {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+          {!SIMPLIFIED_VALIDATION && <EventLogSection dossierId={dossier.id} />}
 
           {/* Document History */}
           <DocumentHistorySection dossierId={dossier.id} />
@@ -85,7 +89,8 @@ export function AdminDossierDetailContent({
           <AdminDeliveryHistorySection dossierId={dossier.id} />
 
           {/* Audit Trail */}
-          <AuditTrailSection dossierId={dossier.id} />
+          {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+          {!SIMPLIFIED_VALIDATION && <AuditTrailSection dossierId={dossier.id} />}
         </div>
 
         {/* Right side - Admin Actions Sidebar (1 column) */}

@@ -39,6 +39,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
 import { DateRangeSelector } from "./DateRangeSelector";
+import { RevenueMetrics } from "./RevenueMetrics";
 
 const COLORS = ["#00F0FF", "#4ADE80", "#FACC15", "#F95757", "#8B5CF6"];
 
@@ -133,6 +134,9 @@ export function AnalyticsDashboardContent() {
 
   return (
     <div id="analytics-dashboard" className="space-y-8 pb-12">
+      {/* Revenue Metrics Section */}
+      <RevenueMetrics />
+
       {/* Header Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">

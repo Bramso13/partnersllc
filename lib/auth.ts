@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { User, Session, UserProfile } from "@/types/auth";
 
@@ -18,6 +18,20 @@ export async function getUser(): Promise<User | null> {
   }
 
   return user;
+}
+
+export async function getAgentId(email: string): Promise<string | null> {
+  const supabase = createAdminClient();
+  const {data: agent, error: agentError} = await supabase
+    .from("agents")
+    .select("id")
+    .eq("email", email)
+    .single();
+  if (agentError) {
+    console.error("Error fetching agent:", agentError);
+    return null;
+  }
+  return agent?.id || null;
 }
 
 /**

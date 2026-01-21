@@ -1,6 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, type EmailError } from "./email";
 import {
+  sendWhatsAppMessage,
+  formatToE164,
+  generateStepCompletedWhatsApp,
+  type WhatsAppError,
+} from "./whatsapp";
+import {
   generateWelcomeEmail,
   generateDocumentUploadConfirmationEmail,
   generateDocumentApprovedEmail,
@@ -79,6 +85,26 @@ async function getUserProfile(userId: string): Promise<UserEmail | null> {
     email,
     full_name: profile.full_name,
   };
+}
+
+/**
+ * Get user phone number from profile
+ */
+async function getUserPhone(userId: string): Promise<string | null> {
+  const supabase = createAdminClient();
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", userId)
+    .single();
+
+  if (error || !profile?.phone) {
+    console.error(`Error fetching phone for user ${userId}:`, error);
+    return null;
+  }
+
+  return profile.phone;
 }
 
 /**
@@ -414,6 +440,259 @@ export async function processEmailNotification(
     }
   } catch (error: any) {
     console.error("Error processing email notification:", error);
+    return {
+      success: false,
+      error: error.message || "Unknown error",
+    };
+  }
+}
+
+// =========================================================
+// WHATSAPP PROCESSOR
+// =========================================================
+
+/**
+ * Generate WhatsApp message content based on template_code
+ */
+function generateWhatsAppContent(
+  notification: NotificationWithUser,
+  userName: string
+): string | null {
+  const templateCode = notification.template_code;
+  const payload = notification.payload || {};
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const dossierUrl = notification.dossier_id
+    ? `${baseUrl}/dashboard/dossiers/${notification.dossier_id}`
+    : baseUrl;
+
+  switch (templateCode) {
+    case "STEP_COMPLETED":
+      return generateStepCompletedWhatsApp({
+        stepName: payload.step_name || "étape",
+        dossierId: notification.dossier_id || "",
+        nextStepName: payload.next_step_name,
+        dossierUrl,
+      });
+
+    case "DOCUMENT_APPROVED":
+      return `✅ Document approuvé\n\nBonjour ${userName},\n\nVotre document "${payload.document_type || "document"}" a été approuvé.\n\nVoir votre dossier : ${dossierUrl}`;
+
+    case "DOCUMENT_REJECTED":
+      return `⚠️ Document à corriger\n\nBonjour ${userName},\n\nVotre document "${payload.document_type || "document"}" nécessite des corrections.\n\nRaison : ${payload.rejection_reason || "Non conforme"}\n\nVoir votre dossier : ${dossierUrl}`;
+
+    case "ADMIN_DOCUMENT_DELIVERED":
+      return `📄 Nouveaux documents\n\nBonjour ${userName},\n\nVotre conseiller vous a envoyé ${payload.document_count || 1} document(s).\n\nVoir votre dossier : ${dossierUrl}`;
+
+    case "ADMIN_STEP_COMPLETED":
+      return `✅ Étape terminée\n\nBonjour ${userName},\n\nVotre conseiller a terminé l'étape "${payload.step_name || "admin"}".\n\nVoir votre dossier : ${dossierUrl}`;
+
+    default:
+      // Fallback: use notification message
+      return `${notification.title}\n\n${notification.message}`;
+  }
+}
+
+/**
+ * Process a single WhatsApp notification
+ */
+export async function processWhatsAppNotification(
+  notificationId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createAdminClient();
+
+  try {
+    // Fetch notification
+    const { data: notification, error: notifError } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("id", notificationId)
+      .single();
+
+    if (notifError || !notification) {
+      return {
+        success: false,
+        error: `Notification not found: ${notifError?.message || "Unknown error"}`,
+      };
+    }
+
+    const notif = notification as NotificationWithUser;
+
+    // Get user phone
+    const phone = await getUserPhone(notif.user_id);
+    if (!phone) {
+      return {
+        success: false,
+        error: `User phone not found for user ${notif.user_id}`,
+      };
+    }
+
+    // Validate E.164 format
+    const formattedPhone = formatToE164(phone);
+    if (!formattedPhone) {
+      return {
+        success: false,
+        error: `Invalid phone number format: ${phone}`,
+      };
+    }
+
+    // Get user profile for name
+    const userProfile = await getUserProfile(notif.user_id);
+    const userName = userProfile?.full_name || userProfile?.email?.split("@")[0] || "Client";
+
+    // Check if delivery already exists
+    const { data: existingDelivery } = await supabase
+      .from("notification_deliveries")
+      .select("id, status, provider_response")
+      .eq("notification_id", notificationId)
+      .eq("channel", "WHATSAPP")
+      .single();
+
+    let deliveryId: string;
+    let retryCount = 0;
+
+    if (existingDelivery) {
+      // Get retry count from provider_response
+      if (existingDelivery.provider_response && typeof existingDelivery.provider_response === "object") {
+        retryCount = (existingDelivery.provider_response as any).retry_count || 0;
+      }
+
+      // Update existing delivery to PENDING if it failed (for retry)
+      if (existingDelivery.status === "FAILED") {
+        retryCount += 1;
+        const { error: updateError } = await supabase
+          .from("notification_deliveries")
+          .update({
+            status: "PENDING",
+            failed_at: null,
+            provider_response: {
+              ...((existingDelivery.provider_response as object) || {}),
+              retry_count: retryCount,
+            },
+          })
+          .eq("id", existingDelivery.id);
+
+        if (updateError) {
+          return {
+            success: false,
+            error: `Failed to update delivery: ${updateError.message}`,
+          };
+        }
+      }
+      deliveryId = existingDelivery.id;
+    } else {
+      // Create new delivery record
+      const { data: newDelivery, error: deliveryError } = await supabase
+        .from("notification_deliveries")
+        .insert({
+          notification_id: notificationId,
+          channel: "WHATSAPP",
+          recipient: formattedPhone,
+          status: "PENDING",
+          provider: "whatsapp_api",
+          provider_response: {
+            retry_count: 0,
+          },
+        })
+        .select("id")
+        .single();
+
+      if (deliveryError || !newDelivery) {
+        return {
+          success: false,
+          error: `Failed to create delivery: ${deliveryError?.message || "Unknown error"}`,
+        };
+      }
+
+      deliveryId = newDelivery.id;
+    }
+
+    // Generate WhatsApp content
+    const messageContent = generateWhatsAppContent(notif, userName);
+    if (!messageContent) {
+      return {
+        success: false,
+        error: "Failed to generate WhatsApp message content",
+      };
+    }
+
+    // Send WhatsApp message
+    try {
+      const result = await sendWhatsAppMessage({
+        to: formattedPhone,
+        message: messageContent,
+      });
+
+      // Update delivery record on success
+      const { data: currentDelivery } = await supabase
+        .from("notification_deliveries")
+        .select("provider_response")
+        .eq("id", deliveryId)
+        .single();
+
+      const currentResponse = (currentDelivery?.provider_response as any) || {};
+      const currentRetryCount = currentResponse.retry_count || 0;
+
+      const { error: updateError } = await supabase
+        .from("notification_deliveries")
+        .update({
+          status: "SENT",
+          sent_at: new Date().toISOString(),
+          provider_message_id: result.messageId,
+          provider_response: {
+            ...currentResponse,
+            retry_count: currentRetryCount,
+            message_status: result.status,
+            sent_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", deliveryId);
+
+      if (updateError) {
+        console.error("Failed to update WhatsApp delivery record:", updateError);
+        // Message was sent but DB update failed - log but don't fail
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      const whatsappError = error as WhatsAppError;
+
+      // Update delivery record on failure
+      const { data: currentDelivery } = await supabase
+        .from("notification_deliveries")
+        .select("provider_response")
+        .eq("id", deliveryId)
+        .single();
+
+      const currentResponse = (currentDelivery?.provider_response as any) || {};
+      const currentRetryCount = currentResponse.retry_count || retryCount;
+
+      const { error: updateError } = await supabase
+        .from("notification_deliveries")
+        .update({
+          status: "FAILED",
+          failed_at: new Date().toISOString(),
+          provider_response: {
+            ...currentResponse,
+            retry_count: currentRetryCount,
+            error_message: whatsappError.message,
+            error_code: whatsappError.code,
+            error_response: whatsappError.response,
+            last_attempt_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", deliveryId);
+
+      if (updateError) {
+        console.error("Failed to update WhatsApp delivery record on failure:", updateError);
+      }
+
+      return {
+        success: false,
+        error: whatsappError.message || "Failed to send WhatsApp message",
+      };
+    }
+  } catch (error: any) {
+    console.error("Error processing WhatsApp notification:", error);
     return {
       success: false,
       error: error.message || "Unknown error",

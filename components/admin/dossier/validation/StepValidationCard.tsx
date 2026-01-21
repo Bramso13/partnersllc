@@ -8,6 +8,9 @@ import { FieldValidationList } from "./FieldValidationList";
 import { DocumentValidationList } from "./DocumentValidationList";
 import { RejectionModal } from "./RejectionModal";
 
+// TODO: Feature flag pour simplification - garder pour réactivation future
+const SIMPLIFIED_VALIDATION = true;
+
 interface StepValidationCardProps {
   stepInstance: StepInstanceWithFields;
   onRefresh: () => void;
@@ -43,22 +46,54 @@ export function StepValidationCard({
   const allItemsApproved = (hasFields || hasDocuments) && allFieldsApproved && allDocumentsApproved;
 
   const handleApproveStep = async () => {
-    if (hasFields && !allFieldsApproved) {
-      toast.error(
-        "Tous les champs doivent être approuvés avant de valider l'étape"
-      );
-      return;
-    }
+    // TODO: Vérifications masquées pour simplification - garder pour réactivation future
+    if (!SIMPLIFIED_VALIDATION) {
+      if (hasFields && !allFieldsApproved) {
+        toast.error(
+          "Tous les champs doivent être approuvés avant de valider l'étape"
+        );
+        return;
+      }
 
-    if (hasDocuments && !allDocumentsApproved) {
-      toast.error(
-        "Tous les documents doivent être approuvés avant de valider l'étape"
-      );
-      return;
+      if (hasDocuments && !allDocumentsApproved) {
+        toast.error(
+          "Tous les documents doivent être approuvés avant de valider l'étape"
+        );
+        return;
+      }
     }
 
     try {
       setIsApproving(true);
+
+      // En mode simplifié, approuver automatiquement tous les champs et documents
+      if (SIMPLIFIED_VALIDATION) {
+        // Approuver tous les champs non approuvés
+        const fieldsToApprove = stepInstance.fields.filter(
+          (field) => field.validation_status !== "APPROVED"
+        );
+
+        for (const field of fieldsToApprove) {
+          await fetch(
+            `/api/admin/dossiers/${stepInstance.dossier_id}/fields/${field.id}/approve`,
+            { method: "POST" }
+          );
+        }
+
+        // Approuver tous les documents non approuvés
+        const documentsToApprove = stepInstance.documents.filter(
+          (doc) => doc.status !== "APPROVED"
+        );
+
+        for (const doc of documentsToApprove) {
+          await fetch(
+            `/api/admin/dossiers/${stepInstance.dossier_id}/documents/${doc.id}/approve`,
+            { method: "POST" }
+          );
+        }
+      }
+
+      // Maintenant approuver l'étape
       const response = await fetch(
         `/api/admin/dossiers/${stepInstance.dossier_id}/steps/${stepInstance.id}/approve`,
         { method: "POST" }
@@ -256,11 +291,13 @@ export function StepValidationCard({
               <div className="mt-4 pt-4 border-t border-brand-stroke flex items-center gap-3 flex-wrap">
                 <button
                   onClick={handleApproveStep}
-                  disabled={!allItemsApproved || isApproving}
+                  disabled={SIMPLIFIED_VALIDATION ? isApproving : (!allItemsApproved || isApproving)}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    allItemsApproved && !isApproving
-                      ? "bg-green-500 hover:bg-green-600 text-white"
-                      : "bg-gray-500/30 text-gray-500 cursor-not-allowed"
+                    SIMPLIFIED_VALIDATION
+                      ? (isApproving ? "bg-gray-500/30 text-gray-500 cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white")
+                      : (allItemsApproved && !isApproving
+                          ? "bg-green-500 hover:bg-green-600 text-white"
+                          : "bg-gray-500/30 text-gray-500 cursor-not-allowed")
                   }`}
                 >
                   {isApproving ? (
@@ -276,15 +313,18 @@ export function StepValidationCard({
                   )}
                 </button>
 
-                <button
-                  onClick={() => setShowRejectModal(true)}
-                  className="px-4 py-2 rounded-lg font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
-                >
-                  <i className="fa-solid fa-times mr-2"></i>
-                  Rejeter l&apos;étape
-                </button>
+                {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+                {!SIMPLIFIED_VALIDATION && (
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    className="px-4 py-2 rounded-lg font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+                  >
+                    <i className="fa-solid fa-times mr-2"></i>
+                    Rejeter l&apos;étape
+                  </button>
+                )}
 
-                {!allItemsApproved && (
+                {!SIMPLIFIED_VALIDATION && !allItemsApproved && (
                   <span className="text-sm text-brand-text-secondary">
                     {hasFields && !allFieldsApproved && "Tous les champs doivent être approuvés"}
                     {hasFields && !allFieldsApproved && hasDocuments && !allDocumentsApproved && " et "}
@@ -298,7 +338,8 @@ export function StepValidationCard({
       </div>
 
       {/* Rejection Modal */}
-      {showRejectModal && (
+      {/* TODO: Masqué pour simplification - garder pour réactivation future */}
+      {!SIMPLIFIED_VALIDATION && showRejectModal && (
         <RejectionModal
           title="Rejeter l'étape"
           message="Veuillez indiquer la raison du rejet de cette étape. Le client recevra cette information."

@@ -78,6 +78,14 @@ export async function POST(request: NextRequest) {
     // Generate product code from name
     const code = generateProductCode(body.name);
 
+    // Validation : si is_deposit = true, full_product_id est requis
+    if (body.is_deposit && !body.full_product_id) {
+      return NextResponse.json(
+        { error: "Un produit acompte doit être associé à un produit complet" },
+        { status: 400 }
+      );
+    }
+
     // Create product
     const { data, error } = await supabase
       .from("products")
@@ -91,6 +99,8 @@ export async function POST(request: NextRequest) {
         price_amount: dollarsToCents(body.price),
         currency: "USD",
         active: body.active ?? true,
+        is_deposit: body.is_deposit ?? false,
+        full_product_id: body.is_deposit ? body.full_product_id : null,
       })
       .select()
       .single();
