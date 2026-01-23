@@ -6,6 +6,7 @@ import type { ClientWithDossierCount, ClientFilters } from "@/lib/clients";
 import { ClientsFilters } from "./ClientsFilters";
 import { ClientsTable } from "./ClientsTable";
 import { ClientProfileSlideOver } from "./ClientProfileSlideOver";
+import { CreateClientModal } from "./CreateClientModal";
 
 export function AdminClientsContent() {
   const [clients, setClients] = useState<ClientWithDossierCount[]>([]);
@@ -16,6 +17,7 @@ export function AdminClientsContent() {
   const [filters, setFilters] = useState<ClientFilters>({});
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const CLIENTS_PER_PAGE = 25;
 
@@ -124,9 +126,18 @@ export function AdminClientsContent() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[#F9F9F9] mb-2">
-            Gestion des Clients
-          </h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold text-[#F9F9F9]">
+              Gestion des Clients
+            </h1>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-2 bg-[#50B88A] hover:bg-[#4ADE80] rounded-lg text-white font-medium transition-colors flex items-center gap-2"
+            >
+              <i className="fa-solid fa-plus"></i>
+              Créer un client
+            </button>
+          </div>
           <p className="text-[#B7B7B7]">
             Vue d'ensemble de tous les clients de la plateforme
           </p>
@@ -158,6 +169,13 @@ export function AdminClientsContent() {
             onStatusChanged={handleRefresh}
           />
         )}
+
+        {/* Create Client Modal */}
+        <CreateClientModal
+          open={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onClientCreated={handleRefresh}
+        />
       </div>
     </div>
   );

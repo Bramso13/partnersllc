@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendStepCompletedNotifications } from "@/lib/notifications/step-notifications";
+// Note: sendStepCompletedNotifications removed - notifications now handled
+// by event-to-notification orchestration system (Story 3.9)
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -160,6 +161,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Create STEP_COMPLETED event
+    // Note: Event-to-notification orchestration system will automatically
+    // create and send notifications based on configured rules (Story 3.9)
     const { data: eventData } = await supabase
       .from("events")
       .insert({
@@ -249,7 +252,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // Get next step name for notification
+      // Get next step name for event payload
       let nextStepName: string | null = null;
       if (currentProductStep) {
         const { data: nextProductStep } = await supabase
@@ -269,41 +272,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // Create notification for step completed
-      const { data: notification } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: dossier.user_id,
-          dossier_id: stepInstance.dossier_id,
-          event_id: eventData?.id || null,
-          title: "Étape terminée",
-          message: `L'étape "${step?.label}" a été terminée avec succès.`,
-          template_code: "STEP_COMPLETED",
-          payload: {
-            step_name: step?.label,
-            step_code: step?.code,
-            dossier_id: stepInstance.dossier_id,
-            next_step_name: nextStepName,
-          },
-          action_url: `/dashboard/dossiers/${stepInstance.dossier_id}`,
-        })
-        .select("id")
-        .single();
-
-      // Send notifications in background (don't block the response)
-      if (notification) {
-        sendStepCompletedNotifications(
-          notification.id,
-          stepInstance.dossier_id,
-          dossier.user_id
-        ).catch((error) => {
-          console.error(
-            "[POST /api/agent/steps/complete] Error sending step completed notifications:",
-            error
-          );
-          // Don't throw - we don't want to block the step completion
-        });
+      // Update event payload with next_step_name
+      if (eventData?.id && nextStepName) {
+        await supabase
+          .from("events")
+          .update({
+            payload: {
+              manual: !!manual,
+              agent_type: agent.agent_type,
+              agent_name: agent.name || user.email,
+              step_code: step?.code,
+              step_label: step?.label,
+              step_name: step?.label,
+              dossier_id: stepInstance.dossier_id,
+              next_step_name: nextStepName,
+            },
+          })
+          .eq("id", eventData.id);
       }
+
+      // Note: Notification creation and delivery is now handled automatically
+      // by the event-to-notification orchestration system (Story 3.9)
+      // The STEP_COMPLETED event above will trigger notifications based on
+      // configured rules in the notification_rules table
     }
 
     return NextResponse.json({

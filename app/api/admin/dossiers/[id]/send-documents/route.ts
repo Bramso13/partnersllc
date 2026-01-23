@@ -297,6 +297,8 @@ export async function POST(
     }
 
     // Create DOCUMENT_DELIVERED event
+    // Note: Event-to-notification orchestration system (Story 3.9) will automatically
+    // create and send notifications based on configured rules
     await supabase.from("events").insert({
       entity_type: "DOSSIER",
       entity_id: dossierId,
@@ -313,40 +315,10 @@ export async function POST(
       },
     });
 
-    // Create notification for client
-    const notificationTitle = stepCompleted && step
-      ? `Étape "${step.label}" terminée`
-      : "Nouveaux documents disponibles";
-    const notificationMessage = stepCompleted && step
-      ? `Votre conseiller a terminé l'étape "${step.label}" et vous a envoyé ${documentIds.length} document(s).`
-      : `Votre conseiller vous a envoyé ${documentIds.length} document(s). Consultez-les dans votre dossier.`;
-
-    const { data: notification, error: notifError } = await supabase
-      .from("notifications")
-      .insert({
-        user_id: dossier.user_id,
-        dossier_id: dossierId,
-        title: notificationTitle,
-        message: notificationMessage,
-        template_code: stepCompleted
-          ? "ADMIN_STEP_COMPLETED"
-          : "ADMIN_DOCUMENT_DELIVERED",
-        payload: {
-          document_ids: documentIds,
-          document_count: documentIds.length,
-          step_instance_id: stepInstanceId || null,
-          step_name: step?.label || null,
-          message: message || null,
-        },
-        action_url: `/dashboard/dossier/${dossierId}`,
-      })
-      .select()
-      .single();
-
-    if (notifError) {
-      console.error("Error creating notification:", notifError);
-      // Don't fail the request if notification creation fails
-    }
+    // Note: Notification creation and delivery is now handled automatically
+    // by the event-to-notification orchestration system (Story 3.9)
+    // The DOCUMENT_DELIVERED event above will trigger notifications based on
+    // configured rules in the notification_rules table
 
     return NextResponse.json({
       success: true,

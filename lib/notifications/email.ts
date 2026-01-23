@@ -34,20 +34,20 @@ export interface EmailError {
  * Get SMTP configuration from environment variables
  */
 function getSmtpConfig() {
-  const isTestMode = process.env.NODE_ENV === "development" && process.env.EMAIL_TEST_MODE === "true";
+  // const isTestMode = process.env.NODE_ENV === "development" && process.env.EMAIL_TEST_MODE === "true";
 
-  if (isTestMode) {
-    // Use Ethereal for testing
-    return {
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.ETHEREAL_USER || "test@ethereal.email",
-        pass: process.env.ETHEREAL_PASS || "test",
-      },
-    };
-  }
+  // if (isTestMode) {
+  //   // Use Ethereal for testing
+  //   return {
+  //     host: "smtp.ethereal.email",
+  //     port: 587,
+  //     secure: false,
+  //     auth: {
+  //       user: process.env.ETHEREAL_USER || "test@ethereal.email",
+  //       pass: process.env.ETHEREAL_PASS || "test",
+  //     },
+  //   };
+  // }
 
   // Production SMTP configuration
   return {
@@ -56,7 +56,7 @@ function getSmtpConfig() {
     secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      pass: process.env.SMTP_PASSWORD,
     },
   };
 }
