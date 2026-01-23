@@ -160,6 +160,27 @@ insert into notification_rules (
 -- For now, the processor will fall back to generic notification format
 
 -- =========================================================
+-- RULE: MANUAL_CLIENT_CREATED
+-- =========================================================
+insert into notification_rules (
+  event_type,
+  template_code,
+  channels,
+  is_active,
+  priority,
+  conditions,
+  description
+) values (
+  'MANUAL_CLIENT_CREATED',
+  'WELCOME',
+  array['EMAIL', 'IN_APP']::text[],
+  true,
+  100,
+  null,
+  'Message de bienvenue envoyé au client quand il est créé manuellement par un admin (email et notification in-app)'
+);
+
+-- =========================================================
 -- RULE: DOSSIER_CREATED
 -- =========================================================
 insert into notification_rules (
@@ -190,8 +211,8 @@ declare
 begin
   select count(*) into v_rule_count from notification_rules;
 
-  if v_rule_count < 8 then
-    raise exception 'Failed to seed all default notification rules. Expected 8, got %', v_rule_count;
+  if v_rule_count < 9 then
+    raise exception 'Failed to seed all default notification rules. Expected 9, got %', v_rule_count;
   end if;
 
   raise notice 'Successfully seeded % default notification rules', v_rule_count;
