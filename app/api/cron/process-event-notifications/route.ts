@@ -16,24 +16,36 @@ import { BaseEvent } from "@/lib/events";
  *
  * Security: Protected by CRON_SECRET environment variable
  */
-export async function POST(request: {headers: {authorization: string}}) {
+export async function POST(request: NextRequest) {
   const startTime = Date.now();
   console.log("[CRON] process-event-notifications: Starting execution");
 
   try {
     // Verify cron secret for security
-    const authHeader = request.headers.authorization;
+    // Read authorization from request body instead of headers
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      // Body might be empty or invalid, continue with empty object
+    }
+
+    console.log("[CRON] Body:", body);
+
+    const authFromBody = body.Authorization || body.authorization;
     const cronSecret = process.env.CRON_SECRET;
 
     console.log("[CRON] Auth check:", {
-      hasAuthHeader: !!authHeader,
+      hasAuthInBody: !!authFromBody,
       hasCronSecret: !!cronSecret,
-      authHeaderPrefix: authHeader?.substring(0, 10) + "...",
-      requestHeaders: JSON.stringify(request.headers),
+      authPrefix: authFromBody?.substring(0, 20) + "...",
     });
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.error("[CRON] Unauthorized access attempt");
+    if (cronSecret && authFromBody !== `Bearer ${cronSecret}`) {
+      console.error("[CRON] Unauthorized access attempt", {
+        expected: `Bearer ${cronSecret?.substring(0, 10)}...`,
+        received: authFromBody?.substring(0, 20) + "..." || "none",
+      });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
