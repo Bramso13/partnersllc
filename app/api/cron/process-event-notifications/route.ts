@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       hasAuthHeader: !!authHeader,
       hasCronSecret: !!cronSecret,
       authHeaderPrefix: authHeader?.substring(0, 10) + "...",
+      requestHeaders: JSON.stringify(Object.fromEntries(request.headers.entries())),
     });
 
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
