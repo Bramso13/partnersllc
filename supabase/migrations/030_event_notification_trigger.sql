@@ -55,11 +55,12 @@ begin
     select 1 from pg_extension where extname = 'pg_net'
   ) then
     -- Call webhook asynchronously using pg_net
+    -- Use X-Cron-Secret header instead of Authorization to avoid Vercel header transformation
     select net.http_post(
       url := v_webhook_url,
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || coalesce(v_cron_secret, '')
+        'X-Cron-Secret', coalesce(v_cron_secret, '')
       ),
       body := jsonb_build_object(
         'event_id', new.id,

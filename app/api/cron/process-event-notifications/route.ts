@@ -16,20 +16,20 @@ import { BaseEvent } from "@/lib/events";
  *
  * Security: Protected by CRON_SECRET environment variable
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: {headers: {authorization: string}}) {
   const startTime = Date.now();
   console.log("[CRON] process-event-notifications: Starting execution");
 
   try {
     // Verify cron secret for security
-    const authHeader = request.headers.get("authorization");
+    const authHeader = request.headers.authorization;
     const cronSecret = process.env.CRON_SECRET;
 
     console.log("[CRON] Auth check:", {
       hasAuthHeader: !!authHeader,
       hasCronSecret: !!cronSecret,
       authHeaderPrefix: authHeader?.substring(0, 10) + "...",
-      requestHeaders: JSON.stringify(Object.fromEntries(request.headers.entries())),
+      requestHeaders: JSON.stringify(request.headers),
     });
 
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
