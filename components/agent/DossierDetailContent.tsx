@@ -8,6 +8,7 @@ import { DossierStepFieldsSection } from "./DossierStepFieldsSection";
 import { DossierDocumentsSection } from "./DossierDocumentsSection";
 import { AdminStepCompletionSection } from "./AdminStepCompletionSection";
 import { AdminStepWithoutInstance } from "./AdminStepWithoutInstance";
+import { AdminDocumentUploadSection } from "./createur/AdminDocumentUploadSection";
 
 
 interface DossierDetailContentProps {
@@ -37,7 +38,9 @@ export function DossierDetailContent({
   const renderStepInstance = (stepInstance: DossierAllData["step_instances"][number]) => {
     const isAdminStep = stepInstance.step.step_type === "ADMIN";
     const isAssigned = stepInstance.assigned_to === agentId;
-    const canCompleteAdmin = isAdminStep && isAssigned && agentType === "CREATEUR";
+    const isCreateur = agentType === "CREATEUR";
+    const canManageAdminDocs = isAdminStep && isAssigned && isCreateur;
+    const canCompleteAdmin = canManageAdminDocs;
 
     return (
       <div
@@ -95,11 +98,23 @@ export function DossierDetailContent({
           </div>
         )}
 
-        {/* Documents Section */}
-        {stepInstance.documents && stepInstance.documents.length > 0 && (
+        {/* Documents Section - Differentiate between CLIENT and ADMIN steps */}
+        {isAdminStep && canManageAdminDocs && stepInstance.admin_documents && stepInstance.admin_documents.length > 0 ? (
+          // ADMIN Step - Show upload section
           <div className="px-5 py-4 border-t border-[#363636]">
-            <DossierDocumentsSection documents={stepInstance.documents} />
+            <AdminDocumentUploadSection
+              stepInstanceId={stepInstance.id}
+              adminDocuments={stepInstance.admin_documents}
+              agentId={agentId}
+            />
           </div>
+        ) : (
+          // CLIENT Step or read-only - Show documents list
+          stepInstance.documents && stepInstance.documents.length > 0 && (
+            <div className="px-5 py-4 border-t border-[#363636]">
+              <DossierDocumentsSection documents={stepInstance.documents} />
+            </div>
+          )
         )}
 
         {/* Admin Step Completion Section */}

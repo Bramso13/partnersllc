@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const loginSchema = z.object({
@@ -20,10 +20,21 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  useEffect(() => {
+    // Vérifier si l'utilisateur vient de réinitialiser son mot de passe
+    if (searchParams.get("reset") === "success") {
+      setSuccessMessage(
+        "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter."
+      );
+    }
+  }, [searchParams]);
 
   const {
     register,
@@ -63,6 +74,11 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {successMessage && (
+        <div className="bg-success/10 border border-success/20 text-success px-4 py-3 rounded">
+          {successMessage}
+        </div>
+      )}
       {error && (
         <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded">
           {error}

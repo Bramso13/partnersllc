@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload file to Supabase Storage
+    // Upload file to Supabase Storage (use dossier-documents bucket so clients can access)
     const fileExt = file.name.split('.').pop();
-    const fileName = `${stepInstanceId}_${documentTypeId}_${Date.now()}.${fileExt}`;
+    const fileName = `admin/${stepInstanceId}_${documentTypeId}_${Date.now()}.${fileExt}`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('admin-documents')
+      .from('dossier-documents')
       .upload(fileName, file, {
         contentType: file.type,
         upsert: false
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fileUrl = supabase.storage
-      .from('admin-documents')
+      .from('dossier-documents')
       .getPublicUrl(fileName).data.publicUrl;
 
     // Créer ou mettre à jour le document avec source = 'ADMIN'

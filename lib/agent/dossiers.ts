@@ -58,6 +58,27 @@ export interface DossierAllData {
       file_name: string | null;
       uploaded_at: string | null;
     }>;
+    // ADMIN documents for step type ADMIN
+    admin_documents?: Array<{
+      document_type: {
+        id: string;
+        code: string;
+        label: string;
+        description: string;
+      };
+      document?: {
+        id: string;
+        status: 'PENDING' | 'DELIVERED';
+        source: 'ADMIN';
+        current_version: {
+          id: string;
+          file_url: string;
+          file_name: string;
+          uploaded_at: string;
+        };
+        delivered_at?: string;
+      };
+    }>;
   }>;
   admin_steps_without_instance: Array<{
     step: {
@@ -444,6 +465,121 @@ export async function getDossierAllData(
     }
   }
 
+  // For each ADMIN step instance, fetch admin_documents
+  const stepInstancesWithDocuments: DossierAllData["step_instances"] = await Promise.all(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (stepInstances || []).map(async (si: any) => {
+      const step = Array.isArray(si.step) ? si.step[0] : si.step;
+      let admin_documents: DossierAllData["step_instances"][number]["admin_documents"] = undefined;
+
+      // If step is ADMIN type, fetch required document types and existing documents
+      if (step?.step_type === "ADMIN") {
+        // 1. Get document types required for this step
+        const { data: stepDocTypes, error: stepDocTypesError } = await supabase
+          .from("step_document_types")
+          .select(`
+            document_type:document_types (
+              id,
+              code,
+              label,
+              description
+            )
+          `)
+          .eq("step_id", step.id);
+
+        if (!stepDocTypesError && stepDocTypes && stepDocTypes.length > 0) {
+          admin_documents = [];
+
+          // 2. For each document type, find existing ADMIN document
+          for (const sdt of stepDocTypes) {
+            const docType = Array.isArray(sdt.document_type)
+              ? sdt.document_type[0]
+              : sdt.document_type;
+
+            if (!docType) continue;
+
+            // Find ADMIN document for this type
+            const { data: docData } = await supabase
+              .from("documents")
+              .select(`
+                id,
+                status,
+                source,
+                delivered_at,
+                current_version_id,
+                versions:document_versions (
+                  id,
+                  file_url,
+                  file_name,
+                  uploaded_at,
+                  version_number
+                )
+              `)
+              .eq("dossier_id", dossierId)
+              .eq("document_type_id", docType.id)
+              .eq("source", "ADMIN")
+              .maybeSingle();
+
+            let document: NonNullable<DossierAllData["step_instances"][number]["admin_documents"]>[number]["document"] = undefined;
+            if (docData && docData.versions) {
+              const versions = Array.isArray(docData.versions)
+                ? docData.versions
+                : [docData.versions];
+
+              // Sort by version desc
+              type DocumentVersion = {
+                id: string;
+                file_url: string;
+                file_name: string | null;
+                uploaded_at: string;
+                version_number: number;
+              };
+              const sortedVersions = (versions as DocumentVersion[]).sort(
+                (a, b) => b.version_number - a.version_number
+              );
+              const currentVersion = sortedVersions[0];
+
+              document = {
+                id: docData.id as string,
+                status: docData.status === "DELIVERED" ? ("DELIVERED" as const) : ("PENDING" as const),
+                source: "ADMIN" as const,
+                current_version: {
+                  id: currentVersion.id,
+                  file_url: currentVersion.file_url,
+                  file_name: currentVersion.file_name || "",
+                  uploaded_at: currentVersion.uploaded_at,
+                },
+                delivered_at: docData.delivered_at ? (docData.delivered_at as string) : undefined,
+              };
+            }
+
+            admin_documents.push({
+              document_type: docType,
+              document: document,
+            });
+          }
+        }
+      }
+
+      return {
+        id: si.id,
+        step: {
+          id: step.id,
+          label: step.label,
+          code: step.code,
+          position: step.position,
+          step_type: step.step_type || "CLIENT",
+        },
+        started_at: si.started_at,
+        completed_at: si.completed_at,
+        assigned_to: si.assigned_to,
+        fields: fieldsByStepInstance.get(si.id) || [],
+        documents: documentsByStepInstance.get(si.id) || [],
+        admin_documents: admin_documents,
+      };
+    })
+  );
+
   // Build the final result
   const result: DossierAllData = {
     dossier: {
@@ -460,22 +596,7 @@ export async function getDossierAllData(
       full_name: client.full_name,
       phone: client.phone,
     },
-    step_instances:
-      stepInstances?.map((si: any) => ({
-        id: si.id,
-        step: {
-          id: si.step.id,
-          label: si.step.label,
-          code: si.step.code,
-          position: si.step.position,
-          step_type: si.step.step_type || "CLIENT",
-        },
-        started_at: si.started_at,
-        completed_at: si.completed_at,
-        assigned_to: si.assigned_to,
-        fields: fieldsByStepInstance.get(si.id) || [],
-        documents: documentsByStepInstance.get(si.id) || [],
-      })) || [],
+    step_instances: stepInstancesWithDocuments,
     admin_steps_without_instance: adminStepsWithoutInstance,
   };
 
