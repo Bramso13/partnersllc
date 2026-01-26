@@ -80,7 +80,7 @@ export function EmptyState({
         </div>
 
         {/* Status Message */}
-        {validationStatus === "SUBMITTED" ||
+        {/* {validationStatus === "SUBMITTED" ||
         validationStatus === "UNDER_REVIEW" ? (
           <div className="bg-brand-warning/10 border border-brand-warning rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export function EmptyState({
               </span>
             </div>
           </div>
-        ) : null}
+        ) : null} */}
 
         <WorkflowContainer
           dossierId={selectedDossierId}

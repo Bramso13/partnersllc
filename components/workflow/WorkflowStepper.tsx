@@ -214,11 +214,7 @@ export function WorkflowStepper({
       // Allow editing all fields when rejected, not just rejected ones
       return true;
     }
-    if (status === "SUBMITTED" || status === "UNDER_REVIEW") {
-      // Allow editing even when submitted or under review
-      return true;
-    }
-    // APPROVED: no editing (keep this restriction)
+    // SUBMITTED, UNDER_REVIEW, and APPROVED: no editing
     return false;
   };
 
@@ -338,8 +334,14 @@ export function WorkflowStepper({
           );
         }
 
-        // Reload step data to get updated validation status
-        window.location.reload();
+        // Navigate to next step after successful resubmission
+        if (currentStepIndex < totalSteps - 1) {
+          setCurrentStepIndex(currentStepIndex + 1);
+          lastLoadedStepIdRef.current = null; // Reset to allow loading next step
+        } else {
+          // If this was the last step, redirect to dashboard
+          window.location.href = "/dashboard";
+        }
       } catch (error) {
         console.error("Error resubmitting step:", error);
         alert(
@@ -347,6 +349,7 @@ export function WorkflowStepper({
             ? error.message
             : "Erreur lors de la resoumission"
         );
+      } finally {
         setIsSubmitting(false);
       }
     } else {
@@ -368,8 +371,14 @@ export function WorkflowStepper({
       try {
         await onStepComplete(currentStep.step_id, formData);
 
-        // Reload step data to get updated validation status
-        window.location.reload();
+        // Navigate to next step after successful submission
+        if (currentStepIndex < totalSteps - 1) {
+          setCurrentStepIndex(currentStepIndex + 1);
+          lastLoadedStepIdRef.current = null; // Reset to allow loading next step
+        } else {
+          // If this was the last step, redirect to dashboard
+          window.location.href = "/dashboard";
+        }
       } catch (error) {
         console.error("Error submitting step:", error);
         alert(
@@ -377,6 +386,7 @@ export function WorkflowStepper({
             ? error.message
             : "Erreur lors de la soumission"
         );
+      } finally {
         setIsSubmitting(false);
       }
     }
@@ -393,14 +403,12 @@ export function WorkflowStepper({
 
   const formIsValid = isFormValid(formData, currentStepFields);
   const stepMessage = getStepMessage();
-  // Allow editing regardless of validation status, except for APPROVED steps
-  // This gives users freedom to work on any step without dependencies
+  // Allow editing only for DRAFT and REJECTED steps
+  // SUBMITTED and UNDER_REVIEW steps should show a message instead of the form
   const canEdit =
     !currentStepInstance ||
     currentStepInstance.validation_status === "DRAFT" ||
-    currentStepInstance.validation_status === "REJECTED" ||
-    currentStepInstance.validation_status === "SUBMITTED" ||
-    currentStepInstance.validation_status === "UNDER_REVIEW";
+    currentStepInstance.validation_status === "REJECTED";
   
   // Check if current step is an admin step
   const isAdminStep = currentStep?.step?.step_type === "ADMIN";
@@ -911,12 +919,52 @@ export function WorkflowStepper({
           </div>
         </form>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-brand-text-secondary mb-4">
-            {currentStepInstance?.validation_status === "APPROVED"
-              ? "Cette étape a été approuvée et ne peut plus être modifiée."
-              : "Cette étape est en cours de validation. Vous ne pouvez pas la modifier pour le moment."}
-          </p>
+        <div className="bg-brand-card border border-brand-border rounded-lg p-8">
+          <div className="text-center mb-6">
+            {currentStepInstance?.validation_status === "APPROVED" ? (
+              <>
+                <div className="w-16 h-16 bg-brand-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-check-circle text-brand-success text-3xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
+                  Étape approuvée
+                </h3>
+                <p className="text-brand-text-secondary">
+                  Cette étape a été validée par notre équipe et ne peut plus être modifiée.
+                </p>
+              </>
+            ) : currentStepInstance?.validation_status === "UNDER_REVIEW" || 
+              currentStepInstance?.validation_status === "SUBMITTED" ? (
+              <>
+                <div className="w-16 h-16 bg-brand-warning/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-clock text-brand-warning text-3xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
+                  Étape en cours de validation
+                </h3>
+                <p className="text-brand-text-secondary mb-4">
+                  Votre soumission est en cours de vérification par notre équipe. Vous recevrez une notification une fois la validation terminée.
+                </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-dark-surface rounded-lg text-sm text-brand-text-secondary">
+                  <i className="fas fa-info-circle text-brand-accent"></i>
+                  <span>Vous pouvez continuer avec les étapes suivantes en attendant</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-brand-dark-surface rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-lock text-brand-text-secondary text-3xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
+                  Étape non disponible
+                </h3>
+                <p className="text-brand-text-secondary">
+                  Cette étape n'est pas encore disponible pour modification.
+                </p>
+              </>
+            )}
+          </div>
+          
           <div className="pt-6 border-t border-brand-dark-border flex items-center justify-between">
             {currentStepIndex > 0 && (
               <button
