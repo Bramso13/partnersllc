@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
       // 12. Create events
 
       // MANUAL_CLIENT_CREATED event
-      await adminSupabase.from("events").insert({
+      const { error: manualClientCreatedError } = await adminSupabase.from("events").insert({
         entity_type: "profile",
         entity_id: newUserId,
         event_type: "MANUAL_CLIENT_CREATED",
@@ -231,11 +231,16 @@ export async function POST(request: NextRequest) {
           email: email,
           product_id: product_id,
         },
-      });
+      }); 
+
+      if (manualClientCreatedError) {
+        console.error("Error creating manual client created event:", manualClientCreatedError);
+        throw new Error("Erreur lors de la création de l'événement client manuel créé");
+      }
 
 
       // DOSSIER_CREATED event
-      await adminSupabase.from("events").insert({
+      const { error: dossierCreatedError } = await adminSupabase.from("events").insert({
         entity_type: "dossier",
         entity_id: dossier.id,
         event_type: "DOSSIER_CREATED",
@@ -250,7 +255,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      
+      if (dossierCreatedError) {
+        console.error("Error creating dossier created event:", dossierCreatedError);
+        throw new Error("Erreur lors de la création de l'événement dossier créé");
+      }
 
       // 13. Send invitation email
       // const { error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(

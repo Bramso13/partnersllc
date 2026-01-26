@@ -103,27 +103,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // For CREATEUR agents, verify all required admin documents are delivered
     if (agent.agent_type === "CREATEUR") {
-      // Get all required document types for this step
+      // Get all required document types for this step (directly via step_id)
       const { data: requiredDocTypes } = await supabase
         .from("step_document_types")
         .select(`
           document_type_id,
           document_type:document_types(id)
         `)
-        .eq("product_step_id", (
-          await supabase
-            .from("product_steps")
-            .select("id")
-            .eq("product_id", (
-              await supabase
-                .from("dossiers")
-                .select("product_id")
-                .eq("id", stepInstance.dossier_id)
-                .single()
-            ).data?.product_id)
-            .eq("step_id", stepInstance.step_id)
-            .single()
-        ).data?.id);
+        .eq("step_id", stepInstance.step_id);
 
       if (requiredDocTypes && requiredDocTypes.length > 0) {
         // Check that all required documents exist and are delivered

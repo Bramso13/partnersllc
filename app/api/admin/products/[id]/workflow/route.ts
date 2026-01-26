@@ -39,7 +39,7 @@ export async function GET(
     // For each product step, fetch document types and custom fields
     const workflowSteps = await Promise.all(
       (productSteps || []).map(async (productStep) => {
-        // Fetch document types for this step
+        // Fetch document types for this step (using step_id directly)
         const { data: docTypes } = await supabase
           .from("step_document_types")
           .select(
@@ -48,7 +48,7 @@ export async function GET(
             document_type:document_types(*)
           `
           )
-          .eq("product_step_id", productStep.id);
+          .eq("step_id", productStep.step_id);
 
         // Fetch custom fields for this step
         const { data: customFields } = await supabase
@@ -132,28 +132,30 @@ export async function POST(
     // Create document type associations and custom fields
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
-      const productStep = createdProductSteps[i];
 
-      // Insert document types
+      // Insert document types (using step_id directly with upsert to avoid duplicates)
       if (step.document_type_ids && step.document_type_ids.length > 0) {
         console.log(
-          `Inserting document types for product_step_id ${productStep.id}:`,
+          `Upserting document types for step_id ${step.step_id}:`,
           step.document_type_ids
         );
 
-        const docTypesToInsert = step.document_type_ids.map(
+        const docTypesToUpsert = step.document_type_ids.map(
           (docTypeId: string) => ({
-            product_step_id: productStep.id,
+            step_id: step.step_id,
             document_type_id: docTypeId,
           })
         );
 
         const { error: docTypesError } = await supabase
           .from("step_document_types")
-          .insert(docTypesToInsert);
+          .upsert(docTypesToUpsert, {
+            onConflict: 'step_id,document_type_id',
+            ignoreDuplicates: true,
+          });
 
         if (docTypesError) {
-          console.error("Error inserting document types:", docTypesError);
+          console.error("Error upserting document types:", docTypesError);
           return NextResponse.json(
             { error: "Failed to save document types for workflow steps" },
             { status: 500 }
@@ -161,11 +163,11 @@ export async function POST(
         }
 
         console.log(
-          `Successfully inserted ${step.document_type_ids.length} document types`
+          `Successfully upserted ${step.document_type_ids.length} document types`
         );
       } else {
         console.log(
-          `No document types to insert for product_step_id ${productStep.id}`
+          `No document types to upsert for step_id ${step.step_id}`
         );
       }
 

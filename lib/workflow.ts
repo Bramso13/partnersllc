@@ -81,10 +81,12 @@ export async function getProductSteps(
     firstItem: productSteps?.[0] || null,
   });
 
-  // For each product step, fetch its required document types
+  // For each product step, fetch its required document types via step_id
   const stepsWithDocuments = await Promise.all(
     (productSteps || []).map(async (ps) => {
-      // Fetch document types for this product step
+      const step = (Array.isArray(ps.step) ? ps.step[0] : ps.step) as Step;
+
+      // Fetch document types for this step (using step_id directly)
       const { data: stepDocTypes, error: docTypesError } = await supabase
         .from("step_document_types")
         .select(
@@ -99,9 +101,9 @@ export async function getProductSteps(
           )
         `
         )
-        .eq("product_step_id", ps.id);
+        .eq("step_id", step.id);
 
-      console.log(`[getProductSteps] Document types for product_step ${ps.id}:`, {
+      console.log(`[getProductSteps] Document types for step ${step.id}:`, {
         count: stepDocTypes?.length || 0,
         error: docTypesError,
         stepDocTypes
@@ -111,7 +113,7 @@ export async function getProductSteps(
         .map((sdt: any) => sdt.document_type)
         .filter((dt: any) => dt !== null) as DocumentType[];
 
-      console.log(`[getProductSteps] Filtered document types for product_step ${ps.id}:`, documentTypes);
+      console.log(`[getProductSteps] Filtered document types for step ${step.id}:`, documentTypes);
 
       const mappedItem: ProductStep = {
         id: ps.id,
@@ -120,7 +122,7 @@ export async function getProductSteps(
         position: ps.position,
         is_required: ps.is_required,
         estimated_duration_hours: ps.estimated_duration_hours,
-        step: (Array.isArray(ps.step) ? ps.step[0] : ps.step) as Step,
+        step: step,
         document_types: documentTypes,
       };
 

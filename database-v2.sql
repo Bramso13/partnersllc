@@ -240,6 +240,31 @@ create table product_steps (
 );
 
 -- =========================================================
+-- STEP DOCUMENT TYPES (many-to-many join table)
+-- =========================================================
+-- Maps which document types are required for which workflow steps.
+-- Documents are defined at the STEP level, shared across all products.
+-- All products using the same step will have the same document requirements.
+--
+-- Example: Step "QUALIFICATION" always requires [Passport, Proof of Address]
+--          regardless of product (LLC, CORP, DUBAI, etc.)
+-- =========================================================
+
+create table if not exists step_document_types (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Relations
+  step_id uuid not null references steps(id) on delete cascade,
+  document_type_id uuid not null references document_types(id) on delete cascade,
+
+  -- Timestamps
+  created_at timestamptz default now() not null,
+
+  -- Constraints
+  unique(step_id, document_type_id)
+);
+
+-- =========================================================
 -- DOCUMENT TYPES
 -- =========================================================
 create table document_types (
@@ -731,6 +756,10 @@ create index idx_product_steps_step_id on product_steps(step_id);
 create index idx_steps_code on steps(code);
 create index idx_steps_position on steps(position);
 
+-- Step Document Types
+create index idx_step_document_types_step_id on step_document_types(step_id);
+create index idx_step_document_types_document_type on step_document_types(document_type_id);
+
 -- Document Types
 create index idx_document_types_code on document_types(code);
 create index idx_document_types_required_step_id on document_types(required_step_id);
@@ -929,6 +958,7 @@ create trigger document_version_created after insert on document_versions
 
 -- Enable RLS on all user-facing tables
 alter table profiles enable row level security;
+alter table step_document_types enable row level security;
 alter table dossiers enable row level security;
 alter table step_instances enable row level security;
 alter table step_field_values enable row level security;
@@ -950,6 +980,25 @@ create policy "Users can view own profile"
 create policy "Users can update own profile"
   on profiles for update
   using (auth.uid() = id);
+
+-- Step Document Types: Admins can manage, authenticated users can view
+create policy "Admins can manage step document types"
+  on step_document_types
+  for all
+  to authenticated
+  using (
+    exists (
+      select 1 from agents
+      where agents.id = auth.uid()
+      and agents.active = true
+    )
+  );
+
+create policy "Authenticated users can view step document types"
+  on step_document_types
+  for select
+  to authenticated
+  using (true);
 
 -- Dossiers: Users can only see their own dossiers
 create policy "Users can view own dossiers"
@@ -1211,6 +1260,7 @@ comment on table agents is 'Internal agents/admins who manage dossiers';
 comment on table products is 'Services/products that clients can purchase';
 comment on table steps is 'Workflow step definitions';
 comment on table product_steps is 'Defines which steps belong to which products';
+comment on table step_document_types is 'Maps document types to workflow steps (shared across all products using the same step)';
 comment on table document_types is 'Types of documents that can be uploaded';
 comment on table step_fields is 'Custom form fields configuration for each step';
 comment on table step_field_values is 'User-submitted values for custom step fields';

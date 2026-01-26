@@ -72,7 +72,7 @@ export interface DocumentType {
 
 export interface StepDocumentType {
   id: string;
-  product_step_id: string;
+  step_id: string;
   document_type_id: string;
   created_at: string;
   document_type?: DocumentType;

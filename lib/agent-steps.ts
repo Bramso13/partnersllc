@@ -423,124 +423,115 @@ export async function getVerificateurStepDetails(
     .eq("product_id", dossier.product_id);
 
   // 3. Fetch documents requis pour cette step via step_document_types
-  // D'abord, trouver le product_step correspondant
-  const { data: productStep } = await supabase
-    .from("product_steps")
-    .select("id")
-    .eq("product_id", dossier.product_id)
-    .eq("step_id", step.id)
-    .single();
-
   const requiredDocuments: VerificateurStepDetails["required_documents"] = [];
 
-  if (productStep) {
-    // Fetch document types requis
-    const { data: stepDocTypes } = await supabase
-      .from("step_document_types")
-      .select(
-        `
-        document_type:document_types (
-          id,
-          code,
-          label
-        )
+  // Fetch document types requis directement via step_id
+  const { data: stepDocTypes } = await supabase
+    .from("step_document_types")
+    .select(
       `
+      document_type:document_types (
+        id,
+        code,
+        label
       )
-      .eq("product_step_id", productStep.id);
+    `
+    )
+    .eq("step_id", step.id);
 
-    if (stepDocTypes) {
-      // Pour chaque type de document, chercher le document uploadé
-      for (const sdt of stepDocTypes) {
-        const docType = Array.isArray(sdt.document_type)
-          ? sdt.document_type[0]
-          : sdt.document_type;
+  if (stepDocTypes) {
 
-        if (!docType) continue;
+    // Pour chaque type de document, chercher le document uploadé
+    for (const sdt of stepDocTypes) {
+      const docType = Array.isArray(sdt.document_type)
+        ? sdt.document_type[0]
+        : sdt.document_type;
 
-        // Chercher document existant pour ce type
-        const { data: docData } = await supabase
-          .from("documents")
-          .select(
-            `
-            id,
-            status,
-            current_version_id,
-            versions:document_versions (
-              id,
-              file_url,
-              file_name,
-              uploaded_at,
-              version_number
-            )
+      if (!docType) continue;
+
+      // Chercher document existant pour ce type
+      const { data: docData } = await supabase
+        .from("documents")
+        .select(
           `
+          id,
+          status,
+          current_version_id,
+          versions:document_versions (
+            id,
+            file_url,
+            file_name,
+            uploaded_at,
+            version_number
           )
-          .eq("dossier_id", dossier.id)
-          .eq("document_type_id", docType.id)
-          .eq("step_instance_id", stepInstanceId)
-          .single();
+        `
+        )
+        .eq("dossier_id", dossier.id)
+        .eq("document_type_id", docType.id)
+        .eq("step_instance_id", stepInstanceId)
+        .single();
 
-        if (docData && docData.versions) {
-          const versions = Array.isArray(docData.versions)
-            ? docData.versions
-            : [docData.versions];
+      if (docData && docData.versions) {
+        const versions = Array.isArray(docData.versions)
+          ? docData.versions
+          : [docData.versions];
 
-          // Trier par version number desc
-          const sortedVersions = versions.sort(
-            (a: { version_number: number }, b: { version_number: number }) =>
-              b.version_number - a.version_number
-          );
+        // Trier par version number desc
+        const sortedVersions = versions.sort(
+          (a: { version_number: number }, b: { version_number: number }) =>
+            b.version_number - a.version_number
+        );
 
-          const currentVersion = sortedVersions[0];
-          const previousVersions = sortedVersions.slice(1);
+        const currentVersion = sortedVersions[0];
+        const previousVersions = sortedVersions.slice(1);
 
-          // Fetch reviews pour les versions précédentes
-          const previousWithReviews = await Promise.all(
-            previousVersions.map(async (v: {
-              id: string;
-              version_number: number;
-              uploaded_at: string;
-              file_url: string;
-            }) => {
-              const { data: review } = await supabase
-                .from("document_reviews")
-                .select("status, reason")
-                .eq("document_version_id", v.id)
-                .order("reviewed_at", { ascending: false })
-                .limit(1)
-                .single();
+        // Fetch reviews pour les versions précédentes
+        const previousWithReviews = await Promise.all(
+          previousVersions.map(async (v: {
+            id: string;
+            version_number: number;
+            uploaded_at: string;
+            file_url: string;
+          }) => {
+            const { data: review } = await supabase
+              .from("document_reviews")
+              .select("status, reason")
+              .eq("document_version_id", v.id)
+              .order("reviewed_at", { ascending: false })
+              .limit(1)
+              .single();
 
-              return {
-                id: v.id,
-                version_number: v.version_number,
-                uploaded_at: v.uploaded_at,
-                file_url: v.file_url,
-                review_status: review?.status as "APPROVED" | "REJECTED" | null,
-                review_reason: review?.reason || null,
-              };
-            })
-          );
+            return {
+              id: v.id,
+              version_number: v.version_number,
+              uploaded_at: v.uploaded_at,
+              file_url: v.file_url,
+              review_status: review?.status as "APPROVED" | "REJECTED" | null,
+              review_reason: review?.reason || null,
+            };
+          })
+        );
 
-          requiredDocuments.push({
-            document_type: docType,
-            document: {
-              id: docData.id,
-              status: docData.status as "PENDING" | "APPROVED" | "REJECTED",
-              current_version: {
-                id: currentVersion.id,
-                file_url: currentVersion.file_url,
-                file_name: currentVersion.file_name || "",
-                uploaded_at: currentVersion.uploaded_at,
-                version_number: currentVersion.version_number,
-              },
-              previous_versions: previousWithReviews,
+        requiredDocuments.push({
+          document_type: docType,
+          document: {
+            id: docData.id,
+            status: docData.status as "PENDING" | "APPROVED" | "REJECTED",
+            current_version: {
+              id: currentVersion.id,
+              file_url: currentVersion.file_url,
+              file_name: currentVersion.file_name || "",
+              uploaded_at: currentVersion.uploaded_at,
+              version_number: currentVersion.version_number,
             },
-          });
-        } else {
-          // Document non soumis
-          requiredDocuments.push({
-            document_type: docType,
-          });
-        }
+            previous_versions: previousWithReviews,
+          },
+        });
+      } else {
+        // Document non soumis
+        requiredDocuments.push({
+          document_type: docType,
+        });
       }
     }
   }
@@ -823,98 +814,89 @@ export async function getCreateurStepDetails(
   }
 
   // 4. Fetch document types requis pour cette step ADMIN
-  // D'abord, trouver le product_step correspondant
-  const { data: productStep } = await supabase
-    .from("product_steps")
-    .select("id")
-    .eq("product_id", dossier.product_id)
-    .eq("step_id", step.id)
-    .single();
-
   const admin_documents: CreateurStepDetails["admin_documents"] = [];
 
-  if (productStep) {
-    // Fetch document types requis
-    const { data: stepDocTypes } = await supabase
-      .from("step_document_types")
-      .select(
-        `
-        document_type:document_types (
-          id,
-          code,
-          label,
-          description
-        )
+  // Fetch document types requis directement via step_id
+  const { data: stepDocTypes } = await supabase
+    .from("step_document_types")
+    .select(
       `
+      document_type:document_types (
+        id,
+        code,
+        label,
+        description
       )
-      .eq("product_step_id", productStep.id);
+    `
+    )
+    .eq("step_id", step.id);
 
-    if (stepDocTypes) {
-      // Pour chaque type de document, chercher le document admin existant
-      for (const sdt of stepDocTypes) {
-        const docType = Array.isArray(sdt.document_type)
-          ? sdt.document_type[0]
-          : sdt.document_type;
+  if (stepDocTypes) {
 
-        if (!docType) continue;
+    // Pour chaque type de document, chercher le document admin existant
+    for (const sdt of stepDocTypes) {
+      const docType = Array.isArray(sdt.document_type)
+        ? sdt.document_type[0]
+        : sdt.document_type;
 
-        // Chercher document admin existant pour ce type
-        const { data: docData } = await supabase
-          .from("documents")
-          .select(
-            `
-            id,
-            status,
-            current_version_id,
-            source,
-            delivered_at,
-            versions:document_versions (
-              id,
-              file_url,
-              file_name,
-              uploaded_at,
-              version_number
-            )
+      if (!docType) continue;
+
+      // Chercher document admin existant pour ce type
+      const { data: docData } = await supabase
+        .from("documents")
+        .select(
           `
+          id,
+          status,
+          current_version_id,
+          source,
+          delivered_at,
+          versions:document_versions (
+            id,
+            file_url,
+            file_name,
+            uploaded_at,
+            version_number
           )
-          .eq("dossier_id", dossier.id)
-          .eq("document_type_id", docType.id)
-          .eq("source", "ADMIN") // Uniquement les documents créés par les agents
-          .single();
+        `
+        )
+        .eq("dossier_id", dossier.id)
+        .eq("document_type_id", docType.id)
+        .eq("source", "ADMIN") // Uniquement les documents créés par les agents
+        .single();
 
-        let document;
-        if (docData && docData.versions) {
-          const versions = Array.isArray(docData.versions)
-            ? docData.versions
-            : [docData.versions];
+      let document;
+      if (docData && docData.versions) {
+        const versions = Array.isArray(docData.versions)
+          ? docData.versions
+          : [docData.versions];
 
-          // Trier par version number desc
-          const sortedVersions = versions.sort(
-            (a: { version_number: number }, b: { version_number: number }) =>
-              b.version_number - a.version_number
-          );
+        // Trier par version number desc
+        const sortedVersions = versions.sort(
+          (a: { version_number: number }, b: { version_number: number }) =>
+            b.version_number - a.version_number
+        );
 
-          const currentVersion = sortedVersions[0];
+        const currentVersion = sortedVersions[0];
 
-          document = {
-            id: docData.id,
-            status: docData.status === "DELIVERED" ? "DELIVERED" : "PENDING",
-            source: "ADMIN" as const,
-            current_version: {
-              id: currentVersion.id,
-              file_url: currentVersion.file_url,
-              file_name: currentVersion.file_name || "",
-              uploaded_at: currentVersion.uploaded_at,
-            },
-            delivered_at: docData.delivered_at,
-          };
-        }
-
-        admin_documents.push({
-          document_type: docType,
-          document: document ? (document as CreateurStepDetails["admin_documents"][0]["document"]) : undefined,
-        });
+        document = {
+          id: docData.id,
+          status: docData.status === "DELIVERED" ? "DELIVERED" : "PENDING",
+          source: "ADMIN" as const,
+          current_version: {
+            id: currentVersion.id,
+            file_url: currentVersion.file_url,
+            file_name: currentVersion.file_name || "",
+            uploaded_at: currentVersion.uploaded_at,
+          },
+          delivered_at: docData.delivered_at,
+        };
       }
+
+      admin_documents.push({
+        document_type: docType,
+        document: document ? (document as CreateurStepDetails["admin_documents"][0]["document"]) : undefined,
+      });
     }
   }
 
