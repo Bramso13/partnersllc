@@ -49,7 +49,10 @@ export async function GET(
       .eq("dossier_id", dossierId);
 
     if (error) {
-      console.error("[GET /api/admin/dossiers/[id]/dossier-agent-assignments]", error);
+      console.error(
+        "[GET /api/admin/dossiers/[id]/dossier-agent-assignments]",
+        error
+      );
       return NextResponse.json(
         { error: "Failed to fetch dossier agent assignments" },
         { status: 500 }
@@ -58,35 +61,46 @@ export async function GET(
 
     // 4. Transform to expected format
     const result = {
-      verificateur: null as { id: string; full_name: string; email: string } | null,
+      verificateur: null as {
+        id: string;
+        full_name: string;
+        email: string;
+      } | null,
       createur: null as { id: string; full_name: string; email: string } | null,
     };
 
-    assignments?.forEach((assignment: { assignment_type: string; agent: { id: string; email: string; name?: string } | { id: string; email: string; name?: string }[] }) => {
-      const agent = Array.isArray(assignment.agent)
-        ? assignment.agent[0]
-        : assignment.agent;
+    assignments?.forEach(
+      (assignment: {
+        assignment_type: string;
+        agent:
+          | { id: string; email: string; name?: string }
+          | { id: string; email: string; name?: string }[];
+      }) => {
+        const agent = Array.isArray(assignment.agent)
+          ? assignment.agent[0]
+          : assignment.agent;
 
-      if (!agent) return;
+        if (!agent) return;
 
-      const agentData = {
-        id: agent.id,
-        full_name: agent.name || agent.email || "Inconnu",
-        email: agent.email,
-      };
+        const agentData = {
+          id: agent.id,
+          full_name: agent.name || agent.email || "Inconnu",
+          email: agent.email,
+        };
 
-      if (assignment.assignment_type === "VERIFICATEUR") {
-        result.verificateur = agentData;
-      } else if (assignment.assignment_type === "CREATEUR") {
-        result.createur = agentData;
+        if (assignment.assignment_type === "VERIFICATEUR") {
+          result.verificateur = agentData;
+        } else if (assignment.assignment_type === "CREATEUR") {
+          result.createur = agentData;
+        }
       }
-    });
+    );
 
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid dossier ID", details: error.errors },
+        { error: "Invalid dossier ID", details: error.message },
         { status: 400 }
       );
     }
@@ -132,10 +146,7 @@ export async function PUT(
       .single();
 
     if (dossierError || !dossier) {
-      return NextResponse.json(
-        { error: "Dossier not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Dossier not found" }, { status: 404 });
     }
 
     // 5. If agentId is null, remove assignment
@@ -147,7 +158,10 @@ export async function PUT(
         .eq("assignment_type", assignmentType);
 
       if (deleteError) {
-        console.error("[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Delete error:", deleteError);
+        console.error(
+          "[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Delete error:",
+          deleteError
+        );
         return NextResponse.json(
           { error: "Failed to remove assignment" },
           { status: 500 }
@@ -179,10 +193,7 @@ export async function PUT(
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json(
-        { error: "Agent not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
     // 7. Verify agent type matches assignment type
@@ -228,7 +239,10 @@ export async function PUT(
       );
 
     if (upsertError) {
-      console.error("[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Upsert error:", upsertError);
+      console.error(
+        "[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Upsert error:",
+        upsertError
+      );
       return NextResponse.json(
         { error: "Failed to assign agent" },
         { status: 500 }
@@ -238,7 +252,9 @@ export async function PUT(
     // 10. Log event
     await supabase.from("events").insert({
       dossier_id: dossierId,
-      event_type: existingAssignment ? "DOSSIER_AGENT_REASSIGNED" : "DOSSIER_AGENT_ASSIGNED",
+      event_type: existingAssignment
+        ? "DOSSIER_AGENT_REASSIGNED"
+        : "DOSSIER_AGENT_ASSIGNED",
       event_data: {
         assignment_type: assignmentType,
         old_agent_id: oldAgentId,
@@ -249,7 +265,9 @@ export async function PUT(
     });
 
     return NextResponse.json({
-      message: existingAssignment ? "Agent reassigned successfully" : "Agent assigned successfully",
+      message: existingAssignment
+        ? "Agent reassigned successfully"
+        : "Agent assigned successfully",
       assignment: {
         dossier_id: dossierId,
         agent_id: agentId,
@@ -259,7 +277,7 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
+        { error: "Invalid request data", details: error.message },
         { status: 400 }
       );
     }

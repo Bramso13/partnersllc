@@ -9,6 +9,7 @@ const STATUS_STYLES: Record<DocumentStatus, string> = {
   APPROVED: "text-brand-success bg-brand-success/10",
   REJECTED: "text-brand-danger bg-brand-danger/10",
   OUTDATED: "text-brand-text-secondary bg-brand-dark-surface",
+  DELIVERED: "text-brand-success bg-brand-success/10",
 };
 
 const STATUS_LABELS: Record<DocumentStatus, string> = {
@@ -16,6 +17,7 @@ const STATUS_LABELS: Record<DocumentStatus, string> = {
   APPROVED: "Validé",
   REJECTED: "Rejeté",
   OUTDATED: "Obsolète",
+  DELIVERED: "Livré",
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
