@@ -108,3 +108,48 @@ export async function getDocumentVersions(
   return (versions || []) as DocumentVersion[];
 }
 
+/**
+ * Get documents delivered to user (uploaded by agents with DELIVERED status)
+ * These are documents ready for the user to download
+ */
+export async function getDeliveredDocuments(): Promise<DocumentWithDetails[]> {
+  const supabase = await createClient();
+
+  // Fetch documents uploaded by agents that are marked as delivered
+  const { data: documents, error: documentsError } = await supabase
+    .from("documents")
+    .select(
+      `
+      *,
+      document_type:document_types(*),
+      current_version:document_versions!fk_current_version(*),
+      dossier:dossiers(
+        id,
+        product:products(name)
+      ),
+      step_instance:step_instances(
+        id,
+        step:steps(label, step_type)
+      )
+    `
+    )
+    .eq("status", "DELIVERED")
+    .order("created_at", { ascending: false });
+
+  if (documentsError) {
+    console.error("Error fetching delivered documents:", documentsError);
+    throw documentsError;
+  }
+
+  if (!documents || documents.length === 0) {
+    return [];
+  }
+
+  // Filter to only include documents uploaded by agents
+  const deliveredDocs = documents.filter((doc: any) => {
+    return doc.current_version?.uploaded_by_type === "AGENT";
+  });
+
+  return deliveredDocs as DocumentWithDetails[];
+}
+

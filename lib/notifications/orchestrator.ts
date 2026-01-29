@@ -14,7 +14,7 @@ import { processEmailNotification, processWhatsAppNotification } from "./process
 export async function processEventForNotifications(
   event: BaseEvent
 ): Promise<{ processed: number; succeeded: number; failed: number }> {
-  const supabase = createAdminClient();
+
 
   let processed = 0;
   let succeeded = 0;

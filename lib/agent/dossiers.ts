@@ -13,7 +13,6 @@ export interface AgentDossierListItem {
   current_step_label: string | null;
   client_full_name: string | null;
   client_company_name: string | null;
-  has_assigned_steps: boolean;
 }
 
 export interface DossierAllData {
@@ -69,7 +68,6 @@ export interface DossierAllData {
       document?: {
         id: string;
         status: 'PENDING' | 'DELIVERED';
-        source: 'ADMIN';
         current_version: {
           id: string;
           file_url: string;
@@ -97,7 +95,7 @@ export interface DossierAllData {
 // =========================================================
 
 /**
- * Get all dossiers where the agent has assigned step_instances
+ * Get all dossiers where the agent is assigned via dossier_agent_assignments
  * @param agentId The agent's id
  * @returns List of dossiers with basic info
  */
@@ -106,40 +104,19 @@ export async function getAgentDossiers(
 ): Promise<AgentDossierListItem[]> {
   const supabase = createAdminClient();
 
-  // Get all unique dossiers where agent has assigned steps
-  // Use explicit relationship to avoid ambiguity (two FKs between dossiers and step_instances)
-  const { data: stepInstances, error } = await supabase
-    .from("step_instances")
-    .select(
-      `
-      id,
-      dossier_id
-    `
-    )
-    .eq("assigned_to", agentId)
-    .order("created_at", { ascending: false });
-
-    console.log("stepInstances", stepInstances, agentId);
-
-    const { data: dossiers, error: dossiersError } = await supabase
-    .from("dossiers")
-    .select("id")
-    .in("id", stepInstances?.map((si: any) => si.dossier_id) || []);
-
-  if (dossiersError) {
-    console.error("Error fetching dossiers:", dossiersError);
-    throw dossiersError;
-  }
+  // Get all dossiers where agent is assigned via dossier_agent_assignments
+  const { data: assignments, error } = await supabase
+    .from("dossier_agent_assignments")
+    .select("dossier_id")
+    .eq("agent_id", agentId);
 
   if (error) {
-    console.error("Error fetching agent dossiers:", error);
+    console.error("Error fetching agent dossier assignments:", error);
     throw error;
   }
 
   // Get unique dossier IDs
-  const uniqueDossierIds = [
-    ...new Set(dossiers?.map((d: any) => d.id) || []),
-  ];
+  const uniqueDossierIds = assignments?.map((a: any) => a.dossier_id) || [];
 
   // Fetch full dossier details with client info and current step
   const { data: dossiersWithDetails, error: detailsError } = await supabase
@@ -212,7 +189,6 @@ export async function getAgentDossiers(
       current_step_label: d.current_step_instance?.step?.label || null,
       client_full_name: d.profiles?.full_name || null,
       client_company_name: companyNameMap.get(d.id) || null,
-      has_assigned_steps: true,
     })) || [];
 
   return result;
@@ -230,14 +206,14 @@ export async function getDossierAllData(
 ): Promise<DossierAllData | null> {
     const supabase = createAdminClient();
 
-  // First, verify the agent has access to this dossier
+  // First, verify the agent has access to this dossier via dossier_agent_assignments
   const { data: accessCheck } = await supabase
-    .from("step_instances")
+    .from("dossier_agent_assignments")
     .select("id")
     .eq("dossier_id", dossierId)
-    .eq("assigned_to", agentId)
+    .eq("agent_id", agentId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!accessCheck) {
     throw new Error("Agent does not have access to this dossier");
@@ -498,16 +474,15 @@ export async function getDossierAllData(
 
             if (!docType) continue;
 
-            // Find ADMIN document for this type
+            // Find document for this type in this step instance
             const { data: docData } = await supabase
               .from("documents")
               .select(`
                 id,
                 status,
-                source,
                 delivered_at,
                 current_version_id,
-                versions:document_versions (
+                versions:document_versions!fk_current_version (
                   id,
                   file_url,
                   file_name,
@@ -517,7 +492,7 @@ export async function getDossierAllData(
               `)
               .eq("dossier_id", dossierId)
               .eq("document_type_id", docType.id)
-              .eq("source", "ADMIN")
+              .eq("step_instance_id", si.id)
               .maybeSingle();
 
             let document: NonNullable<DossierAllData["step_instances"][number]["admin_documents"]>[number]["document"] = undefined;
@@ -542,7 +517,6 @@ export async function getDossierAllData(
               document = {
                 id: docData.id as string,
                 status: docData.status === "DELIVERED" ? ("DELIVERED" as const) : ("PENDING" as const),
-                source: "ADMIN" as const,
                 current_version: {
                   id: currentVersion.id,
                   file_url: currentVersion.file_url,

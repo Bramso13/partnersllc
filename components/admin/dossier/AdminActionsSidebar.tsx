@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DossierWithDetails, StepInstance, Step } from "@/lib/dossiers";
 import { StatusChangeDropdown } from "./StatusChangeDropdown";
 import { AgentAssignmentDropdown } from "./AgentAssignmentDropdown";
+import { DossierAgentAssignmentSection } from "./DossierAgentAssignmentSection";
 import { InternalNotesSection } from "./InternalNotesSection";
 import { CompleteStepButton } from "./CompleteStepButton";
 import { CancelDossierButton } from "./CancelDossierButton";
@@ -46,15 +47,23 @@ export function AdminActionsSidebar({
           />
         </div>
 
-        {/* Agent Assignment */}
+        {/* Agent Assignment (Step Level) */}
         <div className="border-t border-brand-stroke pt-4">
           <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-            Assigné à
+            Assigné à (Étape courante)
           </label>
           <AgentAssignmentDropdown
             dossierId={dossier.id}
             currentStepInstance={currentStepInstance}
           />
+        </div>
+
+        {/* Dossier-Level Agent Assignment */}
+        <div className="border-t border-brand-stroke pt-4">
+          <h3 className="text-sm font-medium text-brand-text-secondary mb-3">
+            Assignation Dossier
+          </h3>
+          <DossierAgentAssignmentSection dossierId={dossier.id} />
         </div>
 
         {/* Complete Step Button */}

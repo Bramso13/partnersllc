@@ -3,11 +3,13 @@ import { getProfile } from "@/lib/profile";
 import { getUserDossiers, getDossierAdvisor } from "@/lib/dossiers";
 import { getProductSteps, ProductStep } from "@/lib/workflow";
 import { getUserOrders } from "@/lib/orders";
+import { getDeliveredDocuments } from "@/lib/documents";
 import { syncPaymentStatus } from "@/lib/sync-payment-status";
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { DossierAccordion } from "@/components/dashboard/DossierAccordion";
 import { OrderCard } from "@/components/dashboard/OrderCard";
+import { DeliveredDocuments } from "@/components/dashboard/DeliveredDocuments";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { needsPayment } from "@/types/orders";
 import { LoadingSkeleton } from "@/components/dashboard/LoadingSkeleton";
@@ -131,17 +133,18 @@ export default async function DashboardPage() {
 
 async function DashboardContent() {
   try {
-    // Fetch dossiers and orders in parallel
-    const [dossiers, orders] = await Promise.all([
+    // Fetch dossiers, orders, and delivered documents in parallel
+    const [dossiers, orders, deliveredDocuments] = await Promise.all([
       getUserDossiers(),
       getUserOrders(),
+      getDeliveredDocuments(),
     ]);
 
     // Filter unpaid orders (PENDING/FAILED)
     const unpaidOrders = orders.filter(needsPayment);
 
-    // If no dossier and no unpaid orders, show EmptyState
-    if (dossiers.length === 0 && unpaidOrders.length === 0) {
+    // If no dossier, no unpaid orders, and no delivered documents, show EmptyState
+    if (dossiers.length === 0 && unpaidOrders.length === 0 && deliveredDocuments.length === 0) {
       return <EmptyState />;
     }
 
@@ -192,6 +195,11 @@ async function DashboardContent() {
           </div>
         )}
 
+        {/* Delivered Documents Section */}
+        {deliveredDocuments.length > 0 && (
+          <DeliveredDocuments documents={deliveredDocuments} />
+        )}
+
         {/* Dossiers Section */}
         {dossiersData.length > 0 && (
           <div>
@@ -209,7 +217,7 @@ async function DashboardContent() {
         )}
 
         {/* If only unpaid orders and no dossiers */}
-        {dossiersData.length === 0 && unpaidOrders.length > 0 && (
+        {dossiersData.length === 0 && unpaidOrders.length > 0 && deliveredDocuments.length === 0 && (
           <div className="bg-brand-dark-bg rounded-2xl p-6 text-center">
             <i className="fa-solid fa-info-circle text-brand-text-secondary text-3xl mb-3"></i>
             <p className="text-brand-text-secondary">

@@ -1,24 +1,78 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileText, CheckCircle, Clock } from "lucide-react";
+import { Upload, FileText, CheckCircle, Clock, Loader2, AlertCircle, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
+import { revalidateDossier } from "@/app/actions/revalidate-dossier";
 
 interface AdminDocumentUploadSectionProps {
   stepInstanceId: string;
   adminDocuments: CreateurStepDetails["admin_documents"];
   agentId: string;
+  dossierId: string;
 }
+
+type UploadStatus = {
+  documentTypeId: string;
+  status: 'uploading' | 'success' | 'error';
+  progress: number;
+  message: string;
+  fileName?: string;
+};
+
+type DeliveryStatus = {
+  documentId: string;
+  status: 'delivering' | 'success' | 'error';
+  message: string;
+};
 
 export function AdminDocumentUploadSection({
   stepInstanceId,
   adminDocuments,
   agentId,
+  dossierId,
 }: AdminDocumentUploadSectionProps) {
-  const [uploading, setUploading] = useState<string | null>(null);
+  const router = useRouter();
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus | null>(null);
 
-  const handleFileUpload = async (documentTypeId: string, file: File) => {
-    setUploading(documentTypeId);
+  const handleFileUpload = async (documentTypeId: string, documentTypeLabel: string, file: File) => {
+    // Validation de la taille du fichier
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setUploadStatus({
+        documentTypeId,
+        status: 'error',
+        progress: 0,
+        message: 'Le fichier est trop volumineux (max 10MB)',
+        fileName: file.name,
+      });
+      setTimeout(() => setUploadStatus(null), 5000);
+      return;
+    }
+
+    // Validation du type de fichier
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadStatus({
+        documentTypeId,
+        status: 'error',
+        progress: 0,
+        message: 'Type de fichier non autorisé (PDF, DOC, DOCX uniquement)',
+        fileName: file.name,
+      });
+      setTimeout(() => setUploadStatus(null), 5000);
+      return;
+    }
+
+    setUploadStatus({
+      documentTypeId,
+      status: 'uploading',
+      progress: 0,
+      message: `Préparation de l'upload de "${file.name}"...`,
+      fileName: file.name,
+    });
 
     try {
       const formData = new FormData();
@@ -26,40 +80,99 @@ export function AdminDocumentUploadSection({
       formData.append('document_type_id', documentTypeId);
       formData.append('step_instance_id', stepInstanceId);
 
+      // Simulation de progression pour une meilleure UX
+      const progressInterval = setInterval(() => {
+        setUploadStatus(prev => prev && prev.status === 'uploading' ? {
+          ...prev,
+          progress: Math.min(prev.progress + 10, 90),
+          message: prev.progress < 30 ? `Upload de "${file.name}" en cours...` :
+                   prev.progress < 60 ? `Envoi des données au serveur...` :
+                   `Finalisation de l'upload...`,
+        } : prev);
+      }, 300);
+
       const response = await fetch('/api/agent/admin-documents/upload', {
         method: 'POST',
         body: formData,
       });
 
+      clearInterval(progressInterval);
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || 'Upload échoué');
       }
 
-      // Refresh the page to show updated state
-      window.location.reload();
+      const result = await response.json();
+
+      setUploadStatus({
+        documentTypeId,
+        status: 'success',
+        progress: 100,
+        message: `✓ "${file.name}" uploadé avec succès pour ${documentTypeLabel}`,
+        fileName: file.name,
+      });
+
+      // Revalider les données du dossier et attendre un peu avant de fermer le modal
+      await revalidateDossier(dossierId);
+      
+      setTimeout(() => {
+        setUploadStatus(null);
+        router.refresh();
+      }, 1500);
+
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Erreur lors de l\'upload du document');
-    } finally {
-      setUploading(null);
+      setUploadStatus({
+        documentTypeId,
+        status: 'error',
+        progress: 0,
+        message: error instanceof Error ? error.message : 'Erreur lors de l\'upload du document',
+        fileName: file.name,
+      });
+      setTimeout(() => setUploadStatus(null), 5000);
     }
   };
 
-  const handleDeliver = async (documentId: string) => {
+  const handleDeliver = async (documentId: string, documentTypeLabel: string) => {
+    setDeliveryStatus({
+      documentId,
+      status: 'delivering',
+      message: `Livraison du document "${documentTypeLabel}" au client...`,
+    });
+
     try {
       const response = await fetch(`/api/agent/admin-documents/${documentId}/deliver`, {
         method: 'POST',
       });
 
       if (!response.ok) {
-        throw new Error('Delivery failed');
+        const errorData = await response.json().catch(() => ({ error: 'Delivery failed' }));
+        throw new Error(errorData.error || 'Livraison échouée');
       }
 
-      // Refresh the page to show updated state
-      window.location.reload();
+      setDeliveryStatus({
+        documentId,
+        status: 'success',
+        message: `✓ Document "${documentTypeLabel}" livré au client avec succès`,
+      });
+
+      // Revalider les données du dossier
+      await revalidateDossier(dossierId);
+
+      setTimeout(() => {
+        setDeliveryStatus(null);
+        router.refresh();
+      }, 1500);
+
     } catch (error) {
       console.error('Delivery error:', error);
-      alert('Erreur lors de la livraison du document');
+      setDeliveryStatus({
+        documentId,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Erreur lors de la livraison du document',
+      });
+      setTimeout(() => setDeliveryStatus(null), 5000);
     }
   };
 
@@ -79,11 +192,104 @@ export function AdminDocumentUploadSection({
         Documents à Créer et Livrer
       </h3>
 
+      {/* Modal de statut d'upload */}
+      {uploadStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#191A1D] border border-[#363636] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {uploadStatus.status === 'uploading' && (
+                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                )}
+                {uploadStatus.status === 'success' && (
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                )}
+                {uploadStatus.status === 'error' && (
+                  <AlertCircle className="w-6 h-6 text-red-500" />
+                )}
+                <div>
+                  <h4 className="text-brand-text-primary font-semibold">
+                    {uploadStatus.status === 'uploading' && 'Upload en cours'}
+                    {uploadStatus.status === 'success' && 'Upload réussi'}
+                    {uploadStatus.status === 'error' && 'Erreur d\'upload'}
+                  </h4>
+                  <p className="text-brand-text-secondary text-sm mt-1">
+                    {uploadStatus.message}
+                  </p>
+                </div>
+              </div>
+              {uploadStatus.status !== 'uploading' && (
+                <button
+                  onClick={() => setUploadStatus(null)}
+                  className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            
+            {uploadStatus.status === 'uploading' && (
+              <div className="space-y-2">
+                <div className="w-full bg-[#2A2B2F] rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                    style={{ width: `${uploadStatus.progress}%` }}
+                  />
+                </div>
+                <p className="text-brand-text-secondary text-xs text-center">
+                  {uploadStatus.progress}% complété
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de statut de livraison */}
+      {deliveryStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#191A1D] border border-[#363636] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {deliveryStatus.status === 'delivering' && (
+                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                )}
+                {deliveryStatus.status === 'success' && (
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                )}
+                {deliveryStatus.status === 'error' && (
+                  <AlertCircle className="w-6 h-6 text-red-500" />
+                )}
+                <div>
+                  <h4 className="text-brand-text-primary font-semibold">
+                    {deliveryStatus.status === 'delivering' && 'Livraison en cours'}
+                    {deliveryStatus.status === 'success' && 'Document livré'}
+                    {deliveryStatus.status === 'error' && 'Erreur de livraison'}
+                  </h4>
+                  <p className="text-brand-text-secondary text-sm mt-1">
+                    {deliveryStatus.message}
+                  </p>
+                </div>
+              </div>
+              {deliveryStatus.status !== 'delivering' && (
+                <button
+                  onClick={() => setDeliveryStatus(null)}
+                  className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         {adminDocuments.map((docItem) => {
           const statusInfo = getStatusInfo(docItem.document);
           const StatusIcon = statusInfo.icon;
-          const isUploading = uploading === docItem.document_type.id;
+          const isCurrentlyUploading = uploadStatus?.documentTypeId === docItem.document_type.id && uploadStatus.status === 'uploading';
+          const isCurrentlyDelivering = deliveryStatus?.documentId === docItem.document?.id && deliveryStatus?.status === 'delivering';
 
           return (
             <div key={docItem.document_type.id} className="border border-[#363636] rounded-lg bg-[#1A1B1E] p-4">
@@ -102,10 +308,14 @@ export function AdminDocumentUploadSection({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StatusIcon
-                    className="w-4 h-4"
-                    style={{ color: statusInfo.color }}
-                  />
+                  {isCurrentlyUploading ? (
+                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  ) : (
+                    <StatusIcon
+                      className="w-4 h-4"
+                      style={{ color: statusInfo.color }}
+                    />
+                  )}
                   <span
                     className="text-xs px-2 py-1 rounded"
                     style={{
@@ -114,7 +324,7 @@ export function AdminDocumentUploadSection({
                       border: `1px solid ${statusInfo.color}30`
                     }}
                   >
-                    {statusInfo.label}
+                    {isCurrentlyUploading ? 'Upload...' : statusInfo.label}
                   </span>
                 </div>
               </div>
@@ -124,10 +334,18 @@ export function AdminDocumentUploadSection({
                   // Zone d'upload
                   <div className="flex-1">
                     <label className="block">
-                      <div className="border-2 border-dashed border-[#363636] rounded-lg p-4 text-center cursor-pointer hover:border-brand-text-secondary transition-colors">
-                        <Upload className="w-8 h-8 mx-auto mb-2 text-brand-text-secondary" />
-                        <p className="text-brand-text-secondary text-sm mb-1">
-                          Glisser-déposer un fichier ici ou cliquer pour sélectionner
+                      <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-all ${
+                        isCurrentlyUploading
+                          ? 'border-blue-500 bg-blue-500/5 cursor-not-allowed'
+                          : 'border-[#363636] cursor-pointer hover:border-blue-500 hover:bg-blue-500/5'
+                      }`}>
+                        {isCurrentlyUploading ? (
+                          <Loader2 className="w-8 h-8 mx-auto mb-2 text-blue-500 animate-spin" />
+                        ) : (
+                          <Upload className="w-8 h-8 mx-auto mb-2 text-brand-text-secondary" />
+                        )}
+                        <p className="text-brand-text-secondary text-sm mb-1 font-medium">
+                          {isCurrentlyUploading ? 'Upload en cours...' : 'Cliquez pour sélectionner un fichier'}
                         </p>
                         <p className="text-brand-text-secondary text-xs">
                           PDF, DOC, DOCX (max 10MB)
@@ -136,14 +354,15 @@ export function AdminDocumentUploadSection({
                       <input
                         type="file"
                         className="hidden"
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            handleFileUpload(docItem.document_type.id, file);
+                            handleFileUpload(docItem.document_type.id, docItem.document_type.label, file);
+                            e.target.value = ''; // Reset input
                           }
                         }}
-                        disabled={isUploading}
+                        disabled={isCurrentlyUploading}
                       />
                     </label>
                   </div>
@@ -151,35 +370,53 @@ export function AdminDocumentUploadSection({
                   // Document uploadé
                   <div className="flex-1 flex items-center justify-between bg-[#2A2B2F] rounded-lg p-3">
                     <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-brand-text-secondary" />
-                      <div>
-                        <p className="text-brand-text-primary text-sm font-medium">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-400" />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-brand-text-primary text-sm font-medium truncate">
                           {docItem.document.current_version.file_name}
                         </p>
                         <p className="text-brand-text-secondary text-xs">
-                          Uploadé le {new Date(docItem.document.current_version.uploaded_at).toLocaleDateString('fr-FR')}
+                          Uploadé le {new Date(docItem.document.current_version.uploaded_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-4">
                       <button
                         onClick={() => window.open(docItem.document!.current_version.file_url, '_blank')}
-                        className="px-3 py-1 text-xs bg-[#363636] hover:bg-[#404040] text-brand-text-primary rounded transition-colors"
+                        className="px-3 py-1.5 text-xs bg-[#363636] hover:bg-[#404040] text-brand-text-primary rounded-lg transition-colors font-medium"
+                        title="Voir le document"
                       >
                         Voir
                       </button>
                       {docItem.document.status !== "DELIVERED" && (
-                        <>
-                          <button className="px-3 py-1 text-xs bg-[#363636] hover:bg-[#404040] text-brand-text-primary rounded transition-colors">
-                            Remplacer
-                          </button>
-                          <button
-                            onClick={() => handleDeliver(docItem.document!.id)}
-                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                          >
-                            Livrer au client
-                          </button>
-                        </>
+                        <button
+                          onClick={() => handleDeliver(docItem.document!.id, docItem.document_type.label)}
+                          disabled={isCurrentlyDelivering}
+                          className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1.5"
+                          title="Livrer au client"
+                        >
+                          {isCurrentlyDelivering ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Livraison...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              Livrer au client
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   </div>

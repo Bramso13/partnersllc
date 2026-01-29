@@ -1,4 +1,4 @@
-export type DocumentStatus = "PENDING" | "APPROVED" | "REJECTED" | "OUTDATED";
+export type DocumentStatus = "PENDING" | "APPROVED" | "REJECTED" | "OUTDATED" | "DELIVERED";
 
 export interface DocumentType {
   id: string;
@@ -43,6 +43,13 @@ export interface DocumentWithDetails extends Document {
     id: string;
     product?: {
       name: string;
+    } | null;
+  } | null;
+  step_instance?: {
+    id: string;
+    step?: {
+      label: string;
+      step_type: string;
     } | null;
   } | null;
 }

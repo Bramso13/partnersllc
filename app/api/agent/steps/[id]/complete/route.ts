@@ -117,10 +117,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         for (const reqDoc of requiredDocTypes) {
           const { data: document } = await supabase
             .from("documents")
-            .select("status")
+            .select("status, step_instance_id")
             .eq("dossier_id", stepInstance.dossier_id)
             .eq("document_type_id", reqDoc.document_type_id)
-            .eq("source", "ADMIN")
+            .eq("step_instance_id", stepInstanceId)
             .single();
 
           if (!document || document.status !== "DELIVERED") {

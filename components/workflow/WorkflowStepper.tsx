@@ -7,6 +7,7 @@ import { DynamicFormField } from "@/components/qualification/DynamicFormField";
 import { validateForm, isFormValid } from "@/lib/validation";
 import { StepDocuments } from "./StepDocuments";
 import { StepInstance } from "@/lib/dossiers";
+import { toast } from "sonner";
 
 interface WorkflowStepperProps {
   productSteps: ProductStep[];
@@ -61,6 +62,10 @@ export function WorkflowStepper({
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
   const lastLoadedStepIdRef = useRef<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<any>(null);
 
   const currentStep = productSteps[currentStepIndex];
   console.log(
@@ -202,6 +207,9 @@ export function WorkflowStepper({
     loadStepData();
   }, [currentStepIndex, dossierId]);
 
+  // Check if current step is an admin step
+  const isAdminStep = currentStep?.step?.step_type === "ADMIN";
+
   const canProceedToNext = () => {
     // Allow users to proceed to next step regardless of validation status
     return true;
@@ -219,6 +227,9 @@ export function WorkflowStepper({
   };
 
   const getStepMessage = () => {
+    // Don't show message for admin steps (they have their own display)
+    if (isAdminStep) return null;
+    
     const status = currentStepInstance?.validation_status;
     if (!status || status === "DRAFT") return null;
 
@@ -228,19 +239,19 @@ export function WorkflowStepper({
         return {
           type: "info",
           icon: "⏳",
-          text: "En attente de validation par notre équipe",
+          text: "Votre soumission est en cours de vérification par notre équipe",
         };
       case "APPROVED":
         return {
           type: "success",
           icon: "✓",
-          text: "Étape validée",
+          text: "Étape validée avec succès",
         };
       case "REJECTED":
         return {
           type: "error",
-          icon: "❌",
-          text: "Cette étape nécessite des corrections. Veuillez corriger les champs rejetés.",
+          icon: "⚠️",
+          text: "Des corrections sont nécessaires. Veuillez modifier les champs indiqués ci-dessous.",
         };
       default:
         return null;
@@ -401,17 +412,61 @@ export function WorkflowStepper({
     }
   };
 
+  const handleViewDocument = async (doc: any) => {
+    try {
+      setPreviewLoading(true);
+      setShowPreview(true);
+      setPreviewDocument(doc);
+
+      // Utiliser l'endpoint de téléchargement existant pour récupérer le document
+      const viewUrl = `/api/dossiers/${dossierId}/documents/${doc.id}/download`;
+      
+      const response = await fetch(viewUrl);
+      
+      if (!response.ok) {
+        throw new Error("Erreur lors du chargement du document");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+    } catch (err) {
+      console.error("Error viewing document:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Erreur lors du chargement du document"
+      );
+      setShowPreview(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    setShowPreview(false);
+    setPreviewDocument(null);
+  };
+
   const formIsValid = isFormValid(formData, currentStepFields);
   const stepMessage = getStepMessage();
-  // Allow editing only for DRAFT and REJECTED steps
-  // SUBMITTED and UNDER_REVIEW steps should show a message instead of the form
-  const canEdit =
-    !currentStepInstance ||
-    currentStepInstance.validation_status === "DRAFT" ||
-    currentStepInstance.validation_status === "REJECTED";
   
-  // Check if current step is an admin step
-  const isAdminStep = currentStep?.step?.step_type === "ADMIN";
+  // Determine if user can edit based on step type and validation status
+  const canEdit = () => {
+    // Admin steps are never editable by client
+    if (isAdminStep) return false;
+    
+    // Client steps: allow editing only for DRAFT and REJECTED
+    if (!currentStepInstance) return true;
+    return (
+      currentStepInstance.validation_status === "DRAFT" ||
+      currentStepInstance.validation_status === "REJECTED"
+    );
+  };
+  
+  const isEditable = canEdit();
 
   if (isLoading) {
     return (
@@ -525,79 +580,73 @@ export function WorkflowStepper({
 
       {/* Admin Step Display */}
       {isAdminStep && (
-        <div className="bg-brand-card border border-brand-border rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
+        <div className="bg-brand-card border border-brand-border rounded-lg p-6">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-brand-warning/20 rounded-lg flex items-center justify-center">
+                <i className="fas fa-user-shield text-brand-warning text-xl"></i>
+              </div>
+            </div>
+            <div className="flex-1">
               <h3 className="text-lg font-semibold text-brand-text-primary mb-2">
-                Étape gérée par l'administrateur
+                Étape gérée par votre conseiller
               </h3>
               <p className="text-sm text-brand-text-secondary">
-                Cette étape est gérée par votre conseiller. Vous recevrez une notification lorsque des documents seront disponibles.
+                {currentStepInstance?.completed_at
+                  ? "Votre conseiller a complété cette étape. Les documents sont disponibles ci-dessous."
+                  : currentStepInstance?.started_at
+                    ? "Votre conseiller travaille actuellement sur cette étape. Vous recevrez une notification lorsque les documents seront disponibles."
+                    : "Cette étape sera traitée par votre conseiller. Vous recevrez une notification lorsqu'elle sera complétée."}
               </p>
             </div>
           </div>
 
           {/* Admin Step Status */}
           {currentStepInstance && (
-            <div className="mt-4">
-              <div className="flex items-center gap-2 mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-6">
                 <span
                   className={`px-3 py-1 rounded text-sm font-medium ${
                     currentStepInstance.completed_at
-                      ? "bg-green-500/20 text-green-400"
+                      ? "bg-brand-success/20 text-brand-success"
                       : currentStepInstance.started_at
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-gray-500/20 text-gray-400"
+                        ? "bg-brand-warning/20 text-brand-warning"
+                        : "bg-brand-dark-surface text-brand-text-secondary"
                   }`}
                 >
                   {currentStepInstance.completed_at
-                    ? "Terminé"
+                    ? "✓ Complété"
                     : currentStepInstance.started_at
-                      ? "En cours"
-                      : "En attente"}
+                      ? "⏳ En cours"
+                      : "⏸ En attente"}
                 </span>
                 {currentStepInstance.completed_at && (
                   <span className="text-sm text-brand-text-secondary">
-                    Complété le:{" "}
-                    {new Date(
-                      currentStepInstance.completed_at
-                    ).toLocaleDateString("fr-FR")}
+                    le {new Date(currentStepInstance.completed_at).toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </span>
                 )}
               </div>
 
               {/* Documents Received from Admin */}
               {currentStepInstance.completed_at && (
-                <div className="mt-4 border-t border-brand-border pt-4">
+                <div className="border-t border-brand-border pt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold text-brand-text-primary">
-                      Documents reçus
+                    <h4 className="text-base font-semibold text-brand-text-primary">
+                      Documents disponibles
                     </h4>
                     {uploadedDocuments.length > 0 && (
-                      <button
-                        onClick={() => {
-                          // Scroll to documents section
-                          const docsSection = document.getElementById("admin-step-documents");
-                          if (docsSection) {
-                            docsSection.scrollIntoView({ behavior: "smooth", block: "center" });
-                            // Highlight briefly
-                            docsSection.classList.add("ring-2", "ring-brand-accent");
-                            setTimeout(() => {
-                              docsSection.classList.remove("ring-2", "ring-brand-accent");
-                            }, 2000);
-                          }
-                        }}
-                        className="px-5 py-2.5 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors text-sm font-semibold shadow-lg"
-                      >
-                        <i className="fas fa-download mr-2"></i>
-                        Récupérer mes documents
-                      </button>
+                      <span className="text-sm text-brand-text-secondary">
+                        {uploadedDocuments.length} document{uploadedDocuments.length > 1 ? "s" : ""}
+                      </span>
                     )}
                   </div>
                   {uploadedDocuments.length > 0 ? (
                     <div id="admin-step-documents" className="space-y-3">
                       {uploadedDocuments.map((doc: any) => {
-                        // Handle both API response formats
                         const fileName = doc.current_version?.file_name || doc.file_name || "Document";
                         const uploadedAt = doc.current_version?.uploaded_at || doc.created_at;
                         const fileSize = doc.current_version?.file_size_bytes || doc.file_size_bytes;
@@ -609,21 +658,20 @@ export function WorkflowStepper({
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
                               <div className="flex-shrink-0">
-                                <div className="w-12 h-12 bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                                  <i className="fas fa-file text-brand-primary text-xl"></i>
+                                <div className="w-10 h-10 bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                                  <i className="fas fa-file-pdf text-brand-primary"></i>
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-brand-text-primary truncate">
                                   {fileName}
                                 </p>
-                                <div className="flex items-center gap-4 mt-1">
+                                <div className="flex items-center gap-3 mt-1">
                                   {uploadedAt && (
                                     <p className="text-xs text-brand-text-secondary">
-                                      Reçu le:{" "}
                                       {new Date(uploadedAt).toLocaleDateString("fr-FR", {
                                         day: "numeric",
-                                        month: "long",
+                                        month: "short",
                                         year: "numeric",
                                       })}
                                     </p>
@@ -637,23 +685,20 @@ export function WorkflowStepper({
                               </div>
                             </div>
                             <div className="flex items-center gap-2 ml-4">
-                              <a
-                                href={`/api/dossiers/${dossierId}/documents/${doc.id}/download`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 text-sm bg-brand-dark-surface text-brand-text-primary rounded hover:bg-brand-dark-surface/80 transition-colors"
-                                title="Voir"
+                              <button
+                                onClick={() => handleViewDocument(doc)}
+                                className="px-3 py-2 text-sm bg-brand-dark-surface text-brand-text-primary rounded-lg hover:bg-brand-dark-surface/80 transition-colors"
+                                title="Prévisualiser"
                               >
-                                <i className="fas fa-eye mr-1"></i>
-                                Voir
-                              </a>
+                                <i className="fas fa-eye"></i>
+                              </button>
                               <a
                                 href={`/api/dossiers/${dossierId}/documents/${doc.id}/download`}
                                 download
-                                className="px-3 py-1.5 text-sm bg-brand-accent text-white rounded hover:bg-brand-accent/90 transition-colors"
+                                className="px-4 py-2 text-sm bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
                                 title="Télécharger"
                               >
-                                <i className="fas fa-download mr-1"></i>
+                                <i className="fas fa-download mr-2"></i>
                                 Télécharger
                               </a>
                             </div>
@@ -662,13 +707,13 @@ export function WorkflowStepper({
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-8 bg-brand-dark-bg rounded-lg border border-brand-border">
-                      <i className="fas fa-file-circle-question text-4xl text-brand-text-secondary mb-4"></i>
-                      <p className="text-sm font-medium text-brand-text-secondary mb-2">
-                        Aucun document disponible pour le moment
+                    <div className="text-center py-8 bg-brand-dark-bg rounded-lg border border-brand-border border-dashed">
+                      <i className="fas fa-inbox text-3xl text-brand-text-secondary mb-3"></i>
+                      <p className="text-sm font-medium text-brand-text-secondary">
+                        Aucun document disponible
                       </p>
-                      <p className="text-xs text-brand-text-secondary">
-                        Les documents seront disponibles une fois envoyés par votre conseiller
+                      <p className="text-xs text-brand-text-secondary mt-1">
+                        Votre conseiller n'a pas encore ajouté de documents
                       </p>
                     </div>
                   )}
@@ -676,11 +721,53 @@ export function WorkflowStepper({
               )}
             </div>
           )}
+
+          {/* Navigation buttons for admin steps */}
+          <div className="pt-6 border-t border-brand-border flex items-center justify-between mt-6">
+            {currentStepIndex > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStepIndex(currentStepIndex - 1);
+                  lastLoadedStepIdRef.current = null;
+                }}
+                className="px-6 py-3 text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-2"></i>
+                Étape précédente
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (currentStepIndex < totalSteps - 1) {
+                  setCurrentStepIndex(currentStepIndex + 1);
+                  lastLoadedStepIdRef.current = null;
+                } else {
+                  window.location.href = "/dashboard";
+                }
+              }}
+              className="ml-auto px-8 py-3.5 rounded-xl font-semibold text-base
+                bg-brand-accent text-brand-dark-bg
+                transition-all duration-300
+                hover:opacity-90 hover:translate-y-[-2px] hover:shadow-[0_6px_20px_rgba(0,240,255,0.3)]
+                flex items-center justify-center gap-2"
+            >
+              {currentStepIndex === totalSteps - 1 ? (
+                "Retour au tableau de bord"
+              ) : (
+                <>
+                  Étape suivante
+                  <i className="fa-solid fa-arrow-right"></i>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Form */}
-      {!isAdminStep && canEdit ? (
+      {/* Form for Client Steps */}
+      {!isAdminStep && isEditable ? (
         <form onSubmit={handleSubmit} className="space-y-6">
           {currentStepFields.length === 0 ? (
             <div className="text-center py-8">
@@ -783,11 +870,13 @@ export function WorkflowStepper({
           )}
 
           {/* Required Documents Section (only for client steps) */}
-          {!isAdminStep &&
-            currentStep.document_types &&
+          {currentStep.document_types &&
             currentStep.document_types.length > 0 &&
             currentStepInstance && (
-              <div className="border-t border-brand-dark-border pt-6">
+              <div className="border-t border-brand-dark-border pt-6 mt-6">
+                <h3 className="text-lg font-semibold text-brand-text-primary mb-4">
+                  Documents requis
+                </h3>
                 <StepDocuments
                   dossierId={dossierId}
                   stepInstanceId={currentStepInstance.id}
@@ -865,11 +954,14 @@ export function WorkflowStepper({
             {currentStepIndex > 0 && (
               <button
                 type="button"
-                onClick={() => setCurrentStepIndex(currentStepIndex - 1)}
+                onClick={() => {
+                  setCurrentStepIndex(currentStepIndex - 1);
+                  lastLoadedStepIdRef.current = null;
+                }}
                 className="px-6 py-3 text-brand-text-secondary hover:text-brand-text-primary transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-2"></i>
-                Précédent
+                Étape précédente
               </button>
             )}
             <button
@@ -906,19 +998,31 @@ export function WorkflowStepper({
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  <span>Soumission...</span>
+                  <span>Soumission en cours...</span>
                 </>
               ) : currentStepInstance?.validation_status === "REJECTED" ? (
-                "Corriger et soumettre"
+                <>
+                  <i className="fas fa-check-circle mr-2"></i>
+                  Soumettre les corrections
+                </>
               ) : currentStepIndex === totalSteps - 1 ? (
-                "Terminer"
+                <>
+                  <i className="fas fa-flag-checkered mr-2"></i>
+                  Terminer le processus
+                </>
               ) : (
-                "Soumettre"
+                <>
+                  <i className="fas fa-paper-plane mr-2"></i>
+                  Soumettre cette étape
+                </>
               )}
             </button>
           </div>
         </form>
-      ) : (
+      ) : null}
+
+      {/* Read-only view for submitted/approved client steps */}
+      {!isAdminStep && !isEditable && (
         <div className="bg-brand-card border border-brand-border rounded-lg p-8">
           <div className="text-center mb-6">
             {currentStepInstance?.validation_status === "APPROVED" ? (
@@ -927,53 +1031,56 @@ export function WorkflowStepper({
                   <i className="fas fa-check-circle text-brand-success text-3xl"></i>
                 </div>
                 <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
-                  Étape approuvée
+                  Étape validée avec succès
                 </h3>
                 <p className="text-brand-text-secondary">
-                  Cette étape a été validée par notre équipe et ne peut plus être modifiée.
+                  Cette étape a été approuvée par notre équipe. Les informations ne peuvent plus être modifiées.
                 </p>
               </>
             ) : currentStepInstance?.validation_status === "UNDER_REVIEW" || 
               currentStepInstance?.validation_status === "SUBMITTED" ? (
               <>
                 <div className="w-16 h-16 bg-brand-warning/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-clock text-brand-warning text-3xl"></i>
+                  <i className="fas fa-hourglass-half text-brand-warning text-3xl"></i>
                 </div>
                 <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
-                  Étape en cours de validation
+                  Étape en cours de vérification
                 </h3>
                 <p className="text-brand-text-secondary mb-4">
-                  Votre soumission est en cours de vérification par notre équipe. Vous recevrez une notification une fois la validation terminée.
+                  Votre soumission est actuellement examinée par notre équipe. Vous recevrez une notification dès que la vérification sera terminée.
                 </p>
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-dark-surface rounded-lg text-sm text-brand-text-secondary">
-                  <i className="fas fa-info-circle text-brand-accent"></i>
-                  <span>Vous pouvez continuer avec les étapes suivantes en attendant</span>
+                  <i className="fas fa-lightbulb text-brand-accent"></i>
+                  <span>Vous pouvez continuer avec les étapes suivantes pendant ce temps</span>
                 </div>
               </>
             ) : (
               <>
                 <div className="w-16 h-16 bg-brand-dark-surface rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-lock text-brand-text-secondary text-3xl"></i>
+                  <i className="fas fa-info-circle text-brand-text-secondary text-3xl"></i>
                 </div>
                 <h3 className="text-xl font-semibold text-brand-text-primary mb-2">
-                  Étape non disponible
+                  Étape en lecture seule
                 </h3>
                 <p className="text-brand-text-secondary">
-                  Cette étape n'est pas encore disponible pour modification.
+                  Cette étape ne peut pas être modifiée pour le moment.
                 </p>
               </>
             )}
           </div>
           
-          <div className="pt-6 border-t border-brand-dark-border flex items-center justify-between">
+          <div className="pt-6 border-t border-brand-border flex items-center justify-between">
             {currentStepIndex > 0 && (
               <button
                 type="button"
-                onClick={() => setCurrentStepIndex(currentStepIndex - 1)}
+                onClick={() => {
+                  setCurrentStepIndex(currentStepIndex - 1);
+                  lastLoadedStepIdRef.current = null;
+                }}
                 className="px-6 py-3 text-brand-text-secondary hover:text-brand-text-primary transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-2"></i>
-                Précédent
+                Étape précédente
               </button>
             )}
             <button
@@ -985,14 +1092,91 @@ export function WorkflowStepper({
                 bg-brand-accent text-brand-dark-bg hover:opacity-90 hover:translate-y-[-2px] hover:shadow-[0_6px_20px_rgba(0,240,255,0.3)]"
             >
               {currentStepIndex === totalSteps - 1 ? (
-                "Terminer"
+                "Retour au tableau de bord"
               ) : (
                 <>
-                  Suivant
+                  Étape suivante
                   <i className="fa-solid fa-arrow-right"></i>
                 </>
               )}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-dark-surface rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-brand-dark-border">
+              <div>
+                <h2 className="text-xl font-bold text-brand-text-primary">
+                  {previewDocument?.current_version?.file_name || 
+                   previewDocument?.file_name || 
+                   "Document"}
+                </h2>
+                <p className="text-sm text-brand-text-secondary mt-1">
+                  {previewDocument?.document_type_label || "Document"}
+                </p>
+              </div>
+              <button
+                onClick={handleClosePreview}
+                className="text-brand-text-secondary hover:text-brand-text-primary transition-colors p-2"
+                aria-label="Fermer"
+              >
+                <i className="fa-solid fa-times text-xl"></i>
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {previewLoading ? (
+                <div className="flex items-center justify-center h-full min-h-[400px]">
+                  <div className="text-center">
+                    <i className="fa-solid fa-spinner fa-spin text-4xl text-brand-text-secondary mb-4"></i>
+                    <p className="text-brand-text-secondary">Chargement du document...</p>
+                  </div>
+                </div>
+              ) : previewUrl ? (
+                <div className="flex items-center justify-center h-full min-h-[400px]">
+                  {previewDocument?.current_version?.mime_type?.startsWith("image/") ||
+                   previewDocument?.mime_type?.startsWith("image/") ? (
+                    <img
+                      src={previewUrl}
+                      alt={previewDocument?.current_version?.file_name || 
+                           previewDocument?.file_name || 
+                           "Document"}
+                      className="max-w-full max-h-full object-contain rounded-lg"
+                    />
+                  ) : previewDocument?.current_version?.mime_type === "application/pdf" ||
+                       previewDocument?.mime_type === "application/pdf" ? (
+                    <iframe
+                      src={previewUrl}
+                      className="w-full h-full min-h-[600px] rounded-lg border border-brand-dark-border"
+                      title={previewDocument?.current_version?.file_name || 
+                             previewDocument?.file_name || 
+                             "Document PDF"}
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <i className="fa-solid fa-file text-6xl text-brand-text-secondary mb-4"></i>
+                      <p className="text-brand-text-primary mb-4">
+                        Aperçu non disponible pour ce type de fichier
+                      </p>
+                      <a
+                        href={`/api/dossiers/${dossierId}/documents/${previewDocument?.id}/download`}
+                        download
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-brand-accent text-brand-dark-bg rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        <i className="fa-solid fa-download"></i>
+                        <span>Télécharger le document</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

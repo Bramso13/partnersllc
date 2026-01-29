@@ -89,7 +89,6 @@ export interface CreateurStepDetails {
     document?: {
       id: string;
       status: 'PENDING' | 'DELIVERED';
-      source: 'ADMIN';
       current_version: {
         id: string;
         file_url: string;
@@ -862,7 +861,7 @@ export async function getCreateurStepDetails(
         )
         .eq("dossier_id", dossier.id)
         .eq("document_type_id", docType.id)
-        .eq("source", "ADMIN") // Uniquement les documents créés par les agents
+        .eq("step_instance_id", stepInstanceId)
         .single();
 
       let document;
@@ -882,7 +881,6 @@ export async function getCreateurStepDetails(
         document = {
           id: docData.id,
           status: docData.status === "DELIVERED" ? "DELIVERED" : "PENDING",
-          source: "ADMIN" as const,
           current_version: {
             id: currentVersion.id,
             file_url: currentVersion.file_url,

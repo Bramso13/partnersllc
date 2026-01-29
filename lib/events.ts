@@ -16,6 +16,7 @@ export type EventType =
   | "PAYMENT_RECEIVED"
   | "PAYMENT_FAILED"
   | "MESSAGE_SENT"
+  | "MANUAL_CLIENT_CREATED"
   | "ERROR";
 
 export type ActorType = "USER" | "AGENT" | "SYSTEM";

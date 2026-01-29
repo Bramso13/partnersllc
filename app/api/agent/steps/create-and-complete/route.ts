@@ -43,14 +43,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify dossier access (agent must have at least one step_instance assigned to this dossier)
+    // Verify dossier access (agent must be assigned to this dossier)
     const { data: accessCheck } = await supabase
-      .from("step_instances")
+      .from("dossier_agent_assignments")
       .select("id")
       .eq("dossier_id", dossier_id)
-      .eq("assigned_to", agent.id)
+      .eq("agent_id", agent.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!accessCheck && user.role !== "ADMIN") {
       return NextResponse.json(

@@ -106,6 +106,7 @@ export function DossierDetailContent({
               stepInstanceId={stepInstance.id}
               adminDocuments={stepInstance.admin_documents}
               agentId={agentId}
+              dossierId={dossierData.dossier.id}
             />
           </div>
         ) : (

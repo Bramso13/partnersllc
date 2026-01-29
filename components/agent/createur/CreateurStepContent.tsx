@@ -105,6 +105,7 @@ export function CreateurStepContent({
           stepInstanceId={stepDetails.id}
           adminDocuments={stepDetails.admin_documents}
           agentId={agentId}
+          dossierId={stepDetails.dossier.id}
         />
 
         {/* Notes Internes */}

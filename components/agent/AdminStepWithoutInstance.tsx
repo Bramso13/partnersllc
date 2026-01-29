@@ -25,9 +25,9 @@ export function AdminStepWithoutInstance({
 }: AdminStepWithoutInstanceProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateAndComplete = async () => {
+  const handleCreate = async () => {
     if (agentType !== "CREATEUR") {
-      toast.error("Seuls les agents CREATEUR peuvent compléter les steps ADMIN");
+      toast.error("Seuls les agents CREATEUR peuvent créer les steps ADMIN");
       return;
     }
 
@@ -35,7 +35,7 @@ export function AdminStepWithoutInstance({
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/agent/steps/create-and-complete", {
+      const res = await fetch("/api/agent/steps/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -45,16 +45,16 @@ export function AdminStepWithoutInstance({
       });
 
       if (res.ok) {
-        toast.success("Étape créée et complétée avec succès");
+        toast.success("Étape créée avec succès");
         onComplete();
       } else {
         const error = await res.json();
-        toast.error(error.error || "Erreur lors de la création/complétion");
+        toast.error(error.error || "Erreur lors de la création");
         setIsLoading(false);
       }
     } catch (err) {
-      console.error("Error creating and completing step", err);
-      toast.error("Erreur lors de la création/complétion");
+      console.error("Error creating step", err);
+      toast.error("Erreur lors de la création");
       setIsLoading(false);
     }
   };
@@ -91,18 +91,18 @@ export function AdminStepWithoutInstance({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-brand-text-primary">
-                Démarrer et compléter l&apos;étape ADMIN
+                Démarrer l&apos;étape ADMIN
               </h3>
               <p className="text-sm text-brand-text-secondary mt-1">
                 {canComplete
-                  ? "Créez cette étape et marquez-la comme complétée en un clic"
-                  : "Seuls les agents CREATEUR peuvent compléter les steps ADMIN"}
+                  ? "Créez cette étape pour la démarrer"
+                  : "Seuls les agents CREATEUR peuvent créer les steps ADMIN"}
               </p>
             </div>
 
             {canComplete && (
               <button
-                onClick={handleCreateAndComplete}
+                onClick={handleCreate}
                 disabled={isLoading}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
@@ -111,7 +111,7 @@ export function AdminStepWithoutInstance({
                 ) : (
                   <CheckCircle className="w-5 h-5" />
                 )}
-                Créer et compléter
+                Commencer
               </button>
             )}
           </div>

@@ -128,36 +128,22 @@ export async function GET(
       );
     }
 
-    // Download file from Supabase Storage using admin client
+    // Create a signed URL that expires in 1 hour
     const adminClient = createAdminClient();
-    const { data: fileData, error: downloadError } = await adminClient.storage
+    const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
       .from("dossier-documents")
-      .download(filePath);
+      .createSignedUrl(filePath, 3600); // 1 hour expiration
 
-    if (downloadError || !fileData) {
-      console.error("[DOWNLOAD DOC] Error downloading file:", downloadError);
+    if (signedUrlError || !signedUrlData) {
+      console.error("[DOWNLOAD DOC] Error creating signed URL:", signedUrlError);
       return NextResponse.json(
-        { error: "Erreur lors du téléchargement du fichier" },
+        { error: "Erreur lors de la génération du lien de téléchargement" },
         { status: 500 }
       );
     }
 
-    // Convert Blob to ArrayBuffer then to Buffer
-    const arrayBuffer = await fileData.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Determine Content-Type
-    const contentType = version.mime_type || "application/octet-stream";
-
-    // Return file with proper headers
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${version.file_name || "document"}"`,
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
+    // Redirect to the signed URL
+    return NextResponse.redirect(signedUrlData.signedUrl);
   } catch (error) {
     console.error("Error in download document endpoint:", error);
     return NextResponse.json(
