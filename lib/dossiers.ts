@@ -25,6 +25,7 @@ export interface Dossier {
   status: DossierStatus;
   current_step_instance_id: string | null;
   metadata: Record<string, any> | null;
+  is_test?: boolean;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { DossierWithDetailsAndClient } from "@/lib/dossiers";
@@ -24,7 +24,16 @@ export function AdminDossiersListContent({
     initialDossiers[0]
   );
 
-  const [dossiers] = useState(initialDossiers);
+  const [dossiers, setDossiers] = useState(initialDossiers);
+
+  const handleTestFlagChange = useCallback(
+    (dossierId: string, isTest: boolean) => {
+      setDossiers((prev) =>
+        prev.map((d) => (d.id === dossierId ? { ...d, is_test: isTest } : d))
+      );
+    },
+    []
+  );
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -107,7 +116,11 @@ export function AdminDossiersListContent({
         {filteredDossiers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDossiers.map((dossier) => (
-              <AdminDossierCard key={dossier.id} dossier={dossier} />
+              <AdminDossierCard
+                key={dossier.id}
+                dossier={dossier}
+                onTestFlagChange={handleTestFlagChange}
+              />
             ))}
           </div>
         ) : (

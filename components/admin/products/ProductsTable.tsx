@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Product } from "@/types/products";
 import { formatPrice } from "@/lib/products-client";
 import { format } from "date-fns";
@@ -27,7 +28,32 @@ export function ProductsTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [togglingTestId, setTogglingTestId] = useState<string | null>(null);
   const itemsPerPage = 10;
+
+  const handleTestToggle = useCallback(
+    async (product: Product) => {
+      const next = !product.is_test;
+      setTogglingTestId(product.id);
+      try {
+        const res = await fetch(`/api/admin/products/${product.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_test: next }),
+        });
+        if (!res.ok) throw new Error("Échec de la mise à jour");
+        toast.success(
+          next ? "Produit marqué comme test" : "Produit retiré du mode test"
+        );
+        onProductUpdated();
+      } catch {
+        toast.error("Impossible de modifier le flag test");
+      } finally {
+        setTogglingTestId(null);
+      }
+    },
+    [onProductUpdated]
+  );
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -67,9 +93,7 @@ export function ProductsTable({
     if (sortField !== field) {
       return <span className="text-gray-500 ml-1">⇅</span>;
     }
-    return (
-      <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
-    );
+    return <span className="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>;
   };
 
   if (products.length === 0) {
@@ -112,6 +136,9 @@ export function ProductsTable({
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
                   Active Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
+                  Test
                 </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider cursor-pointer hover:text-brand-text-primary"
@@ -160,13 +187,47 @@ export function ProductsTable({
                       {product.active ? "Active" : "Inactive"}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {product.is_test && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          Produit test
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-label={
+                          product.is_test
+                            ? "Retirer du mode test"
+                            : "Marquer comme produit test"
+                        }
+                        aria-checked={!!product.is_test}
+                        disabled={togglingTestId === product.id}
+                        onClick={() => handleTestToggle(product)}
+                        className={`relative inline-block w-10 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 disabled:opacity-50 ${
+                          product.is_test
+                            ? "bg-brand-accent/30"
+                            : "bg-gray-500/30"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                            product.is_test ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">
                     {format(new Date(product.created_at), "MMM d, yyyy")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => router.push(`/admin/products/${product.id}/workflow`)}
+                        onClick={() =>
+                          router.push(`/admin/products/${product.id}/workflow`)
+                        }
                         className="text-brand-accent hover:text-brand-accent/80 font-medium"
                       >
                         Workflow

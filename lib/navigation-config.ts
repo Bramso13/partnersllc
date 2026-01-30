@@ -129,6 +129,16 @@ export const adminNavConfig: NavConfig = {
           icon: "fa-file-invoice-dollar",
           label: "Facturation",
         },
+        {
+          href: "/admin/acomptes",
+          icon: "fa-money-bill-transfer",
+          label: "Acomptes",
+        },
+        {
+          href: "/admin/orders",
+          icon: "fa-shopping-cart",
+          label: "Commandes",
+        },
       ],
     },
     {

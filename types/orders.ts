@@ -1,4 +1,22 @@
-export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
+export type OrderStatus =
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED"
+  | "CANCELLED";
+
+export type PaymentMethod = "VIREMENT" | "CHEQUE" | "STRIPE" | "AUTRE";
+
+export interface OrderPayment {
+  id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  payment_method: PaymentMethod | null;
+  paid_at: string;
+  created_at: string;
+  created_by: string | null;
+}
 
 export interface Order {
   id: string;
@@ -51,4 +69,22 @@ export function formatOrderAmount(order: Order): string {
     style: "currency",
     currency: order.currency,
   }).format(amount);
+}
+
+/**
+ * Montant déjà payé pour une commande : somme des order_payments, ou order.amount si PAID sans paiements.
+ * @param order - La commande
+ * @param paymentsSum - Somme des order_payments.amount (centimes) pour cette commande, ou undefined si pas de lignes
+ */
+export function getAmountPaidForOrder(
+  order: Order,
+  paymentsSum: number | undefined
+): number {
+  if (paymentsSum !== undefined && paymentsSum > 0) {
+    return paymentsSum;
+  }
+  if (order.status === "PAID") {
+    return order.amount;
+  }
+  return 0;
 }

@@ -23,14 +23,19 @@ export async function getDashboardMetrics(filters?: {
     return q;
   };
 
-  // 1. Revenue Metrics
+  // 1. Revenue Metrics (exclude orders linked to test products)
   const { data: totalRevData } = await applyFilters(
-    supabase.from("orders").select("amount"),
+    supabase.from("orders").select("amount, products(is_test)"),
     "orders"
   ).eq("status", "PAID");
 
+  const notTestProduct = (o: { products?: { is_test?: boolean } | null }) =>
+    !o.products?.is_test;
+  const totalRevFiltered = (totalRevData || []).filter((o: unknown) =>
+    notTestProduct(o as { products?: { is_test?: boolean } | null })
+  );
   const totalRevenue =
-    (totalRevData || []).reduce(
+    totalRevFiltered.reduce(
       (sum: number, o: { amount: number }) => sum + (o.amount || 0),
       0
     ) / 100;
@@ -41,51 +46,60 @@ export async function getDashboardMetrics(filters?: {
 
   const { data: monthRevData } = await supabase
     .from("orders")
-    .select("amount")
+    .select("amount, products(is_test)")
     .eq("status", "PAID")
     .gte("created_at", startOfMonth.toISOString());
 
+  const monthRevFiltered = (monthRevData || []).filter((o: unknown) =>
+    notTestProduct(o as { products?: { is_test?: boolean } | null })
+  );
   const revenueThisMonth =
-    (monthRevData || []).reduce(
+    monthRevFiltered.reduce(
       (sum: number, o: { amount: number }) => sum + (o.amount || 0),
       0
     ) / 100;
 
   const avgOrderValue =
-    totalRevData && totalRevData.length > 0
-      ? totalRevenue / totalRevData.length
-      : 0;
+    totalRevFiltered.length > 0 ? totalRevenue / totalRevFiltered.length : 0;
 
-  // Revenue Trend (Daily last 90 days if no range)
+  // Revenue Trend (Daily last 90 days if no range) — exclude test products
   const trendStartDate =
     filters?.startDate ||
     new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const { data: trendData } = await supabase
     .from("orders")
-    .select("amount, created_at")
+    .select("amount, created_at, products(is_test)")
     .eq("status", "PAID")
     .gte("created_at", trendStartDate);
 
   const dailyTrend: Record<string, number> = {};
-  (trendData || []).forEach((o: { amount: number; created_at: string }) => {
-    const date = new Date(o.created_at).toISOString().split("T")[0];
-    dailyTrend[date] = (dailyTrend[date] || 0) + o.amount / 100;
-  });
+  (trendData || [])
+    .filter((o: unknown) =>
+      notTestProduct(o as { products?: { is_test?: boolean } | null })
+    )
+    .forEach((o: { amount: number; created_at: string }) => {
+      const date = new Date(o.created_at).toISOString().split("T")[0];
+      dailyTrend[date] = (dailyTrend[date] || 0) + o.amount / 100;
+    });
   const revenueTrend = Object.entries(dailyTrend)
     .map(([date, revenue]) => ({ date, revenue }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Revenue by Product
+  // Revenue by Product (exclude test products)
   const { data: revByProdData } = await applyFilters(
-    supabase.from("orders").select("amount, products(name)"),
+    supabase.from("orders").select("amount, products(name, is_test)"),
     "orders"
   ).eq("status", "PAID");
 
   const prodRevenue: Record<string, number> = {};
-  (revByProdData || []).forEach((o: any) => {
-    const name = o.products?.name || "Unknown";
-    prodRevenue[name] = (prodRevenue[name] || 0) + o.amount / 100;
-  });
+  (revByProdData || [])
+    .filter((o: unknown) =>
+      notTestProduct(o as { products?: { is_test?: boolean } | null })
+    )
+    .forEach((o: { amount: number; products?: { name?: string } | null }) => {
+      const name = o.products?.name || "Unknown";
+      prodRevenue[name] = (prodRevenue[name] || 0) + o.amount / 100;
+    });
   const revenueByProduct = Object.entries(prodRevenue).map(
     ([name, revenue]) => ({ name, revenue })
   );
@@ -124,25 +138,28 @@ export async function getDashboardMetrics(filters?: {
     { name: "Clients Actifs", value: paidProfiles || 0 },
   ];
 
-  // 3. Dossier Performance
+  // 3. Dossier Performance (exclude test dossiers)
   const { count: totalDossiers } = await applyFilters(
     supabase.from("dossiers").select("*", { count: "exact", head: true })
-  );
+  ).eq("is_test", false);
   const { count: activeDossiers } = await applyFilters(
     supabase.from("dossiers").select("*", { count: "exact", head: true })
   )
+    .eq("is_test", false)
     .neq("status", "COMPLETED")
     .neq("status", "CLOSED");
 
   const { count: completedThisMonth } = await supabase
     .from("dossiers")
     .select("*", { count: "exact", head: true })
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", startOfMonth.toISOString());
 
   const { data: completedDossiers } = await applyFilters(
     supabase.from("dossiers").select("created_at, completed_at")
   )
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .not("completed_at", "is", null);
 
@@ -160,19 +177,23 @@ export async function getDashboardMetrics(filters?: {
       ? totalDays / completedDossiers.length
       : 0;
 
-  // Completion rate by product
+  // Completion rate by product (exclude test dossiers and test products)
   const { data: dossiersByProd } = await applyFilters(
-    supabase.from("dossiers").select("status, products(name)"),
+    supabase.from("dossiers").select("status, products(name, is_test)"),
     "dossiers"
-  );
+  ).eq("is_test", false);
 
   const prodStats: Record<string, { total: number; completed: number }> = {};
-  (dossiersByProd || []).forEach((d: any) => {
-    const name = d.products?.name || "Unknown";
-    if (!prodStats[name]) prodStats[name] = { total: 0, completed: 0 };
-    prodStats[name].total++;
-    if (d.status === "COMPLETED") prodStats[name].completed++;
-  });
+  (dossiersByProd || [])
+    .filter(
+      (d: { products?: { is_test?: boolean } | null }) => !d.products?.is_test
+    )
+    .forEach((d: { status: string; products?: { name?: string } | null }) => {
+      const name = d.products?.name || "Unknown";
+      if (!prodStats[name]) prodStats[name] = { total: 0, completed: 0 };
+      prodStats[name].total++;
+      if (d.status === "COMPLETED") prodStats[name].completed++;
+    });
 
   const completion_rate_by_product = Object.entries(prodStats).map(
     ([name, s]) => ({
@@ -181,29 +202,38 @@ export async function getDashboardMetrics(filters?: {
     })
   );
 
-  // Bottlenecks
+  // Bottlenecks (exclude step_instances from test dossiers)
   const { data: stepsData } = await applyFilters(
     supabase
       .from("step_instances")
-      .select("started_at, completed_at, steps(label)"),
+      .select(
+        "started_at, completed_at, steps(label), dossiers!inner(is_test)"
+      ),
     "step_instances"
   )
+    .eq("dossiers.is_test", false)
     .not("completed_at", "is", null)
     .not("started_at", "is", null);
 
   const stepDurations: Record<string, { totalHours: number; count: number }> =
     {};
-  (stepsData || []).forEach((s: any) => {
-    const label = s.steps?.label || "Étape Inconnue";
-    const start = new Date(s.started_at);
-    const end = new Date(s.completed_at);
-    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  (stepsData || []).forEach(
+    (s: {
+      started_at: string;
+      completed_at: string;
+      steps?: { label: string } | null;
+    }) => {
+      const label = s.steps?.label || "Étape Inconnue";
+      const start = new Date(s.started_at);
+      const end = new Date(s.completed_at);
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-    if (!stepDurations[label])
-      stepDurations[label] = { totalHours: 0, count: 0 };
-    stepDurations[label].totalHours += hours;
-    stepDurations[label].count++;
-  });
+      if (!stepDurations[label])
+        stepDurations[label] = { totalHours: 0, count: 0 };
+      stepDurations[label].totalHours += hours;
+      stepDurations[label].count++;
+    }
+  );
 
   const bottlenecks = Object.entries(stepDurations)
     .map(([name, s]) => ({ name, avg_hours: s.totalHours / s.count }))

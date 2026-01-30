@@ -25,10 +25,7 @@ export async function GET(
       .single();
 
     if (error || !data) {
-      return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
     return NextResponse.json({ product: data });
@@ -92,11 +89,16 @@ export async function PATCH(
       // Validation : si is_deposit = true, full_product_id est requis
       if (body.is_deposit && !body.full_product_id) {
         return NextResponse.json(
-          { error: "Un produit acompte doit être associé à un produit complet" },
+          {
+            error: "Un produit acompte doit être associé à un produit complet",
+          },
           { status: 400 }
         );
       }
       updateData.full_product_id = body.full_product_id || null;
+    }
+    if (body.is_test !== undefined) {
+      updateData.is_test = body.is_test;
     }
 
     updateData.updated_at = new Date().toISOString();
