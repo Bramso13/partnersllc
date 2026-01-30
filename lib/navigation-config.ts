@@ -79,9 +79,9 @@ export const agentNavConfig: NavConfig = {
           label: "Tableau de bord",
         },
         {
-          href: "/agent/steps",
-          icon: "fa-list-check",
-          label: "Mes étapes",
+          href: "/agent/dossiers",
+          icon: "fa-folder-tree",
+          label: "Mes dossiers",
         },
       ],
     },
@@ -134,6 +134,11 @@ export const adminNavConfig: NavConfig = {
     {
       label: "Outils",
       items: [
+        {
+          href: "/admin/formations",
+          icon: "fa-graduation-cap",
+          label: "Formations",
+        },
         {
           href: "/admin/notifications",
           icon: "fa-bullhorn",
