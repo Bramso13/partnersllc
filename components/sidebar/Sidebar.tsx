@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types/auth";
@@ -20,13 +20,29 @@ export function Sidebar({ role, navConfig, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [overlayCanClose, setOverlayCanClose] = useState(false);
+  const prevPathnameRef = useRef(pathname);
 
-  // Close sidebar on route change (mobile)
+  // L'overlay ne doit pas recevoir les events tout de suite : le mouseup/touchend
+  // du geste "ouvrir" pourrait tomber dessus et fermer la sidebar. On le rend
+  // cliquable seulement après un court délai.
   useEffect(() => {
-    if (isOpen && window.innerWidth < 768) {
+    if (isOpen) {
+      setOverlayCanClose(false);
+      const t = setTimeout(() => setOverlayCanClose(true), 350);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
+
+  // Fermer la sidebar au changement de route (mobile uniquement).
+  // On ne ferme que quand pathname change (navigation), pas à l'ouverture.
+  useEffect(() => {
+    if (pathname === prevPathnameRef.current) return;
+    prevPathnameRef.current = pathname;
+    if (window.innerWidth < 768) {
       onClose();
     }
-  }, [pathname, isOpen, onClose]);
+  }, [pathname, onClose]);
 
   const handleLogout = async () => {
     try {
@@ -44,10 +60,13 @@ export function Sidebar({ role, navConfig, isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Overlay for mobile */}
+      {/* Overlay for mobile - pointer-events désactivés au début pour éviter
+          que le geste "ouvrir" (mouseup/touchend) ne ferme la sidebar */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className={`fixed inset-0 bg-black/50 z-30 md:hidden ${
+            overlayCanClose ? "" : "pointer-events-none"
+          }`}
           onClick={onClose}
           aria-hidden="true"
         />

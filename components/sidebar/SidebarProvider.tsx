@@ -44,7 +44,13 @@ export function SidebarProvider({
 
         {/* Mobile header with hamburger */}
         <div className="md:hidden p-4 border-b border-[#363636] flex items-center justify-between">
-          <HamburgerButton onClick={() => setIsSidebarOpen(true)} />
+          <HamburgerButton
+            onClick={() => {
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => setIsSidebarOpen(true));
+              });
+            }}
+          />
           <NotificationBell />
         </div>
 
