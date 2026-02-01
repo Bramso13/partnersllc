@@ -24,6 +24,9 @@ const STATUS_OPTIONS: { value: DossierStatus; label: string }[] = [
   { value: "ERROR", label: "Erreur" },
 ];
 
+const inputClass =
+  "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed";
+
 export function StatusChangeDropdown({
   dossierId,
   currentStatus,
@@ -34,27 +37,21 @@ export function StatusChangeDropdown({
 
   const handleStatusChange = async (newStatus: DossierStatus) => {
     if (newStatus === status) return;
-
     setIsUpdating(true);
     setError(null);
-
     try {
       const response = await fetch(`/api/admin/dossiers/${dossierId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Erreur lors du changement de statut");
       }
-
       setStatus(newStatus);
-      // Refresh the page to show updated data
       window.location.reload();
     } catch (err) {
-      console.error("Error changing status:", err);
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setIsUpdating(false);
@@ -62,25 +59,23 @@ export function StatusChangeDropdown({
   };
 
   return (
-    <div>
+    <div className="space-y-1.5">
       <select
         value={status}
         onChange={(e) => handleStatusChange(e.target.value as DossierStatus)}
         disabled={isUpdating}
-        className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-stroke rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        className={inputClass}
       >
-        {STATUS_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
+        {STATUS_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
           </option>
         ))}
       </select>
-      {error && (
-        <p className="text-red-400 text-sm mt-2">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
       {isUpdating && (
-        <p className="text-brand-text-secondary text-sm mt-2">
-          Mise à jour en cours...
+        <p className="text-xs text-[#b7b7b7] flex items-center gap-1">
+          <i className="fa-solid fa-spinner fa-spin" /> Mise à jour…
         </p>
       )}
     </div>

@@ -79,86 +79,57 @@ export function StepValidationSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStepInstances = async () => {
+  const fetchSteps = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      console.log("[STEP VALIDATION] Fetching validation data for dossier:", dossierId);
-
       const response = await fetch(
         `/api/admin/dossiers/${dossierId}/validation`
       );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des étapes");
-      }
-
+      if (!response.ok) throw new Error("Erreur chargement étapes");
       const data = await response.json();
-      console.log("[STEP VALIDATION] Received data:", data);
-      console.log("[STEP VALIDATION] Number of step instances:", data.stepInstances?.length || 0);
-      
-      if (data.stepInstances && data.stepInstances.length > 0) {
-        data.stepInstances.forEach((step: StepInstanceWithFields, index: number) => {
-          console.log(`[STEP VALIDATION] Step ${index + 1}: ${step.step_label}`, {
-            fields: step.total_fields_count,
-            documents: step.total_documents_count,
-            documents_list: step.documents,
-          });
-        });
-      }
-      
-      setStepInstances(data.stepInstances || []);
-    } catch (err) {
-      console.error("[STEP VALIDATION] Error fetching step instances:", err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      setStepInstances(data.stepInstances ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStepInstances();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchSteps();
   }, [dossierId]);
-
-  const handleRefresh = () => {
-    fetchStepInstances();
-  };
 
   if (loading) {
     return (
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-accent"></div>
-        </div>
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 flex items-center justify-center min-h-[120px]">
+        <i className="fa-solid fa-spinner fa-spin text-2xl text-[#50b989]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <div className="text-center py-8">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={handleRefresh}
-            className="text-brand-accent hover:text-brand-accent-hover"
-          >
-            Réessayer
-          </button>
-        </div>
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 text-center">
+        <p className="text-red-400 text-sm mb-3">{error}</p>
+        <button
+          type="button"
+          onClick={fetchSteps}
+          className="text-sm text-[#50b989] hover:underline"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }
 
   if (stepInstances.length === 0) {
     return (
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-brand-text-primary mb-4">
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6">
+        <h2 className="text-base font-semibold text-[#f9f9f9] mb-2">
           Validation des étapes
         </h2>
-        <p className="text-brand-text-secondary">
+        <p className="text-sm text-[#b7b7b7]">
           Aucune étape à valider pour ce dossier.
         </p>
       </div>
@@ -166,26 +137,26 @@ export function StepValidationSection({
   }
 
   return (
-    <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-brand-text-primary">
+    <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+      <div className="px-6 py-4 border-b border-[#363636] flex items-center justify-between">
+        <h2 className="text-base font-semibold text-[#f9f9f9]">
           Validation des étapes
         </h2>
         <button
-          onClick={handleRefresh}
-          className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+          type="button"
+          onClick={fetchSteps}
+          className="text-[#b7b7b7] hover:text-[#f9f9f9] transition-colors p-1"
           title="Actualiser"
         >
-          <i className="fa-solid fa-refresh"></i>
+          <i className="fa-solid fa-arrows-rotate" />
         </button>
       </div>
-
-      <div className="space-y-4">
-        {stepInstances.map((stepInstance) => (
+      <div className="p-4 space-y-4">
+        {stepInstances.map((step) => (
           <StepValidationCard
-            key={stepInstance.id}
-            stepInstance={stepInstance}
-            onRefresh={handleRefresh}
+            key={step.id}
+            stepInstance={step}
+            onRefresh={fetchSteps}
           />
         ))}
       </div>

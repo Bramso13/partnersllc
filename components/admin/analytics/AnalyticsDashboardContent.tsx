@@ -13,35 +13,27 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
   Funnel,
   FunnelChart,
   LabelList,
+  Cell,
 } from "recharts";
-import {
-  TrendingUp,
-  Users,
-  FileText,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Download,
-  RefreshCw,
-  Calendar,
-  ChevronRight,
-  Medal,
-  Activity,
-} from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
 import { DateRangeSelector } from "./DateRangeSelector";
 import { RevenueMetrics } from "./RevenueMetrics";
 
-const COLORS = ["#00F0FF", "#4ADE80", "#FACC15", "#F95757", "#8B5CF6"];
+const CHART_COLORS = ["#50b989", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+type TabId = "overview" | "revenue" | "conversion" | "team";
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: "overview", label: "Vue d’ensemble", icon: "fa-solid fa-chart-pie" },
+  { id: "revenue", label: "Revenus", icon: "fa-solid fa-euro-sign" },
+  { id: "conversion", label: "Conversion & dossiers", icon: "fa-solid fa-filter-circle-dollar" },
+  { id: "team", label: "Équipe & qualité", icon: "fa-solid fa-users" },
+];
 
 export function AnalyticsDashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -53,6 +45,7 @@ export function AnalyticsDashboardContent() {
     productId?: string;
     agentId?: string;
   }>({});
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   const fetchMetrics = async () => {
     setIsLoading(true);
@@ -69,15 +62,11 @@ export function AnalyticsDashboardContent() {
 
   useEffect(() => {
     fetchMetrics();
-
-    // Auto-refresh every 5 minutes
     const interval = setInterval(fetchMetrics, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [filters]);
 
-  const handleRangeChange = (
-    range: { startDate: string; endDate: string } | null
-  ) => {
+  const handleRangeChange = (range: { startDate: string; endDate: string } | null) => {
     setFilters((prev) => ({
       ...prev,
       startDate: range?.startDate,
@@ -85,38 +74,22 @@ export function AnalyticsDashboardContent() {
     }));
   };
 
-  const handleProductClick = (data: any) => {
-    // Basic drill-down: alert the user for now as we don't have product IDs in the chart data yet
-    // In a real app, we would update filters.productId and re-fetch
-    console.log("Drill down by product:", data.name);
-  };
-
   const exportPDF = async () => {
     const element = document.getElementById("analytics-dashboard");
     if (!element) return;
-
     try {
       const canvas = await html2canvas(element, {
-        backgroundColor: "#191A1D",
+        backgroundColor: "#191a1d",
         scale: 2,
         logging: false,
         useCORS: true,
       });
-
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
       pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-      pdf.save(
-        `partners-llc-analytics-${new Date().toISOString().split("T")[0]}.pdf`
-      );
+      pdf.save(`analytics-${new Date().toISOString().split("T")[0]}.pdf`);
     } catch (error) {
       console.error("Error exporting PDF:", error);
     }
@@ -124,8 +97,11 @@ export function AnalyticsDashboardContent() {
 
   if (isLoading && !metrics) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 text-brand-accent animate-spin" />
+      <div className="flex items-center justify-center min-h-[320px]">
+        <div className="flex flex-col items-center gap-3 text-[#b7b7b7]">
+          <i className="fa-solid fa-spinner fa-spin text-3xl text-[#50b989]" />
+          <span className="text-sm">Chargement des indicateurs…</span>
+        </div>
       </div>
     );
   }
@@ -133,391 +109,493 @@ export function AnalyticsDashboardContent() {
   if (!metrics) return null;
 
   return (
-    <div id="analytics-dashboard" className="space-y-8 pb-12">
-      {/* Revenue Metrics Section */}
-      <RevenueMetrics />
-
-      {/* Header Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <DateRangeSelector onRangeChange={handleRangeChange} />
-          <div className="flex items-center gap-2 text-brand-text-secondary text-sm">
-            <Clock className="w-4 h-4" />
-            Actualisé : {lastRefresh.toLocaleTimeString("fr-FR")}
+    <div className="space-y-6 pb-12">
+      {/* Header fixe : période + actions */}
+      <header className="sticky top-0 z-10 -mx-4 px-4 py-4 bg-[#191a1d]/95 backdrop-blur-sm border-b border-[#363636]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <DateRangeSelector onRangeChange={handleRangeChange} />
+            <span className="text-xs text-[#b7b7b7] flex items-center gap-1.5">
+              <i className="fa-solid fa-clock text-[10px]" />
+              Actualisé {lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchMetrics}
+              disabled={isLoading}
+              className="px-4 py-2 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 disabled:opacity-50 flex items-center gap-2 transition-colors"
+            >
+              <i className={`fa-solid fa-arrows-rotate ${isLoading ? "fa-spin" : ""}`} />
+              Rafraîchir
+            </button>
+            <button
+              type="button"
+              onClick={exportPDF}
+              className="px-4 py-2 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 flex items-center gap-2 transition-colors"
+            >
+              <i className="fa-solid fa-file-pdf" />
+              Export PDF
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+      </header>
+
+      {/* Onglets */}
+      <div className="flex gap-1 p-1 rounded-xl bg-[#252628] border border-[#363636] w-fit overflow-x-auto">
+        {TABS.map((tab) => (
           <button
-            onClick={fetchMetrics}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-dark-surface border border-brand-dark-border rounded-md text-brand-text-primary hover:bg-brand-dark-border transition-colors disabled:opacity-50"
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              activeTab === tab.id
+                ? "bg-[#2d3033] text-[#f9f9f9] shadow-sm"
+                : "text-[#b7b7b7] hover:text-[#f9f9f9] hover:bg-[#2d3033]/50"
+            }`}
           >
-            <RefreshCw
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Rafraîchir
+            <i className={tab.icon} />
+            {tab.label}
           </button>
-          <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-accent text-brand-dark-bg font-bold rounded-md hover:opacity-90 transition-opacity"
-          >
-            <Download className="w-4 h-4" />
-            Exporter PDF
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Metric Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Revenu Total"
+      {/* Contenu par onglet */}
+      <div id="analytics-dashboard">
+        {activeTab === "overview" && (
+          <OverviewTab metrics={metrics} onGoToTab={setActiveTab} />
+        )}
+        {activeTab === "revenue" && <RevenueTab metrics={metrics} />}
+        {activeTab === "conversion" && <ConversionTab metrics={metrics} />}
+        {activeTab === "team" && <TeamTab metrics={metrics} />}
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({
+  metrics,
+  onGoToTab,
+}: {
+  metrics: DashboardMetrics;
+  onGoToTab: (tab: TabId) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <RevenueMetrics />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Revenu total"
           value={`${metrics.revenue.total_revenue.toLocaleString("fr-FR")} €`}
-          icon={<TrendingUp className="w-6 h-6 text-brand-accent" />}
-          description={`Moyenne par commande : ${metrics.revenue.avg_order_value.toFixed(0)} €`}
+          sub={`Moy. commande : ${metrics.revenue.avg_order_value.toFixed(0)} €`}
+          icon="fa-solid fa-chart-line"
+          accent="text-[#50b989]"
         />
-        <MetricCard
-          title="Dossiers Actifs"
+        <KpiCard
+          title="Dossiers actifs"
           value={metrics.dossier.active_dossiers.toLocaleString("fr-FR")}
-          icon={<Activity className="w-6 h-6 text-brand-success" />}
-          description={`${metrics.dossier.completed_this_month} terminés ce mois`}
+          sub={`${metrics.dossier.completed_this_month} terminés ce mois`}
+          icon="fa-solid fa-folder-open"
+          accent="text-emerald-400"
         />
-        <MetricCard
-          title="Taux de Conversion"
-          value={`${metrics.conversion.payment_link_conversion_rate.toFixed(1)}%`}
-          icon={<CheckCircle className="w-6 h-6 text-brand-warning" />}
-          description="Liens de paiement -> Ventes"
+        <KpiCard
+          title="Taux de conversion"
+          value={`${metrics.conversion.payment_link_conversion_rate.toFixed(1)} %`}
+          sub="Liens → ventes"
+          icon="fa-solid fa-percent"
+          accent="text-amber-400"
         />
-        <MetricCard
-          title="Taux d'Approbation"
-          value={`${metrics.document.approval_rate.toFixed(1)}%`}
-          icon={<FileText className="w-6 h-6 text-brand-accent" />}
-          description="Validation dès la 1ère soumission"
+        <KpiCard
+          title="Taux d’approbation"
+          value={`${metrics.document.approval_rate.toFixed(1)} %`}
+          sub="Validation 1ère soumission"
+          icon="fa-solid fa-file-circle-check"
+          accent="text-[#50b989]"
         />
       </div>
 
-      {/* Revenue Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartCard title="Tendance du Revenu (90 jours)">
-          <ResponsiveContainer width="100%" height={300}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Tendance revenu (90 j)">
+          <ResponsiveContainer width="100%" height={240}>
             <LineChart data={metrics.revenue.revenue_trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#363636" />
               <XAxis
                 dataKey="date"
-                stroke="#B7B7B7"
-                fontSize={12}
+                stroke="#b7b7b7"
+                fontSize={11}
                 tickFormatter={(val) =>
-                  new Date(val).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })
+                  new Date(val).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
                 }
               />
-              <YAxis stroke="#B7B7B7" fontSize={12} />
+              <YAxis stroke="#b7b7b7" fontSize={11} tickFormatter={(v) => `${v} €`} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3033",
+                  backgroundColor: "#252628",
                   border: "1px solid #363636",
-                  color: "#F9F9F9",
+                  color: "#f9f9f9",
+                  borderRadius: "8px",
                 }}
-                itemStyle={{ color: "#00F0FF" }}
-                formatter={(value: any) => [`${value} €`, "Revenu"]}
+                formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
               />
               <Line
                 type="monotone"
                 dataKey="revenue"
-                stroke="#00F0FF"
-                strokeWidth={3}
+                stroke="#50b989"
+                strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 8 }}
+                activeDot={{ r: 6, fill: "#50b989" }}
               />
             </LineChart>
           </ResponsiveContainer>
+          <button
+            type="button"
+            onClick={() => onGoToTab("revenue")}
+            className="mt-2 text-xs text-[#50b989] hover:underline"
+          >
+            Voir détail revenus →
+          </button>
         </ChartCard>
 
-        <ChartCard title="Revenu par Produit">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={metrics.revenue.revenue_by_product}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="revenue"
-                label={({ name, percent }) =>
-                  `${name} ${(typeof percent === "number" ? percent * 100 : 0).toFixed(0)}%`
-                }
-                onClick={handleProductClick}
-                className="cursor-pointer"
-              >
-                {metrics.revenue.revenue_by_product.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                    className="hover:opacity-80 transition-opacity"
-                  />
-                ))}
-              </Pie>
+        <ChartCard title="Revenu par produit">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart
+              data={metrics.revenue.revenue_by_product}
+              layout="vertical"
+              margin={{ left: 0, right: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
+              <XAxis type="number" stroke="#b7b7b7" fontSize={11} tickFormatter={(v) => `${v} €`} />
+              <YAxis
+                dataKey="name"
+                type="category"
+                stroke="#b7b7b7"
+                fontSize={11}
+                width={90}
+                tick={{ fill: "#b7b7b7" }}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3033",
+                  backgroundColor: "#252628",
                   border: "1px solid #363636",
-                  color: "#F9F9F9",
+                  color: "#f9f9f9",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any) => [`${value} €`, "Revenu"]}
+                formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
               />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
+              <Bar dataKey="revenue" fill="#50b989" radius={[0, 4, 4, 0]} />
+            </BarChart>
           </ResponsiveContainer>
+          <button
+            type="button"
+            onClick={() => onGoToTab("revenue")}
+            className="mt-2 text-xs text-[#50b989] hover:underline"
+          >
+            Voir détail revenus →
+          </button>
         </ChartCard>
       </div>
 
-      {/* Conversion & Dossier Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <ChartCard title="Tunnel de Conversion">
-          <ResponsiveContainer width="100%" height={300}>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => onGoToTab("conversion")}
+          className="text-sm text-[#b7b7b7] hover:text-[#50b989] transition-colors flex items-center gap-1.5"
+        >
+          <i className="fa-solid fa-filter-circle-dollar" />
+          Conversion & dossiers
+        </button>
+        <button
+          type="button"
+          onClick={() => onGoToTab("team")}
+          className="text-sm text-[#b7b7b7] hover:text-[#50b989] transition-colors flex items-center gap-1.5"
+        >
+          <i className="fa-solid fa-users" />
+          Équipe & qualité
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RevenueTab({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <div className="space-y-6">
+      <RevenueMetrics />
+
+      <ChartCard title="Tendance du revenu">
+        <ResponsiveContainer width="100%" height={320}>
+          <LineChart data={metrics.revenue.revenue_trend}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#363636" />
+            <XAxis
+              dataKey="date"
+              stroke="#b7b7b7"
+              fontSize={12}
+              tickFormatter={(val) =>
+                new Date(val).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+              }
+            />
+            <YAxis stroke="#b7b7b7" fontSize={12} tickFormatter={(v) => `${v} €`} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#252628",
+                border: "1px solid #363636",
+                color: "#f9f9f9",
+                borderRadius: "8px",
+              }}
+              formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="#50b989"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 8, fill: "#50b989" }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      <ChartCard title="Revenu par produit">
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart
+            data={metrics.revenue.revenue_by_product}
+            layout="vertical"
+            margin={{ left: 0, right: 24 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
+            <XAxis type="number" stroke="#b7b7b7" fontSize={12} tickFormatter={(v) => `${v} €`} />
+            <YAxis
+              dataKey="name"
+              type="category"
+              stroke="#b7b7b7"
+              fontSize={12}
+              width={120}
+              tick={{ fill: "#b7b7b7" }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#252628",
+                border: "1px solid #363636",
+                color: "#f9f9f9",
+                borderRadius: "8px",
+              }}
+              formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+            />
+            <Bar dataKey="revenue" fill="#50b989" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </div>
+  );
+}
+
+function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ChartCard title="Tunnel de conversion">
+          <ResponsiveContainer width="100%" height={280}>
             <FunnelChart>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3033",
+                  backgroundColor: "#252628",
                   border: "1px solid #363636",
-                  color: "#F9F9F9",
+                  color: "#f9f9f9",
+                  borderRadius: "8px",
                 }}
               />
-              <Funnel
-                data={metrics.conversion.funnel_data}
-                dataKey="value"
-                nameKey="name"
-              >
-                <LabelList
-                  position="right"
-                  fill="#B7B7B7"
-                  stroke="none"
-                  dataKey="name"
-                />
-                {metrics.conversion.funnel_data.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
+              <Funnel data={metrics.conversion.funnel_data} dataKey="value" nameKey="name">
+                <LabelList position="right" fill="#b7b7b7" stroke="none" dataKey="name" />
+                {metrics.conversion.funnel_data.map((_, index) => (
+                  <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Funnel>
             </FunnelChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Taux de Complétion par Produit">
-          <ResponsiveContainer width="100%" height={300}>
+        <ChartCard title="Taux de complétion par produit">
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart
               layout="vertical"
               data={metrics.dossier.completion_rate_by_product}
+              margin={{ left: 0, right: 20 }}
             >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#363636"
-                horizontal={true}
-                vertical={false}
-              />
-              <XAxis type="number" stroke="#B7B7B7" fontSize={12} unit="%" />
-              <YAxis
-                dataKey="name"
-                type="category"
-                stroke="#B7B7B7"
-                fontSize={12}
-                width={100}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
+              <XAxis type="number" stroke="#b7b7b7" fontSize={11} unit=" %" domain={[0, 100]} />
+              <YAxis dataKey="name" type="category" stroke="#b7b7b7" fontSize={11} width={80} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3033",
+                  backgroundColor: "#252628",
                   border: "1px solid #363636",
-                  color: "#F9F9F9",
+                  color: "#f9f9f9",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any) => [
-                  `${value.toFixed(1)}%`,
-                  "Complétion",
-                ]}
+                formatter={(value: number | undefined) => [`${value != null ? value.toFixed(1) : 0} %`, "Complétion"]}
               />
-              <Bar dataKey="rate" fill="#4ADE80" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="rate" fill="#4ade80" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Performance des Étapes (Heures moy.)">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={metrics.dossier.bottlenecks}>
+        <ChartCard title="Durée moyenne par étape (h)">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={metrics.dossier.bottlenecks} margin={{ bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#363636" />
               <XAxis
                 dataKey="name"
-                stroke="#B7B7B7"
+                stroke="#b7b7b7"
                 fontSize={10}
-                angle={-45}
+                angle={-35}
                 textAnchor="end"
-                height={60}
+                height={50}
               />
-              <YAxis stroke="#B7B7B7" fontSize={12} />
+              <YAxis stroke="#b7b7b7" fontSize={11} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3033",
+                  backgroundColor: "#252628",
                   border: "1px solid #363636",
-                  color: "#F9F9F9",
+                  color: "#f9f9f9",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any) => [
-                  `${value.toFixed(1)}h`,
-                  "Durée Moyenne",
-                ]}
+                formatter={(value: number | undefined) => [`${value != null ? value.toFixed(1) : 0} h`, "Durée moy."]}
               />
-              <Bar dataKey="avg_hours" fill="#FACC15" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      {/* Agent & Document Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartCard title="Leaderboard Agents">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-brand-text-secondary text-sm border-b border-brand-dark-border">
-                  <th className="pb-3 font-medium">Agent</th>
-                  <th className="pb-3 font-medium">Documents Revus</th>
-                  <th className="pb-3 font-medium">Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-dark-border">
-                {metrics.agent.leaderboard.map((agent, i) => (
-                  <tr
-                    key={i}
-                    className="group hover:bg-white/5 transition-colors"
-                  >
-                    <td className="py-4 flex items-center gap-3">
-                      {i === 0 && (
-                        <Medal className="w-4 h-4 text-brand-warning" />
-                      )}
-                      {i === 1 && (
-                        <Medal className="w-4 h-4 text-brand-text-secondary" />
-                      )}
-                      {i === 2 && <Medal className="w-4 h-4 text-orange-400" />}
-                      {i > 2 && (
-                        <span className="w-4 text-center text-brand-text-secondary text-xs">
-                          {i + 1}
-                        </span>
-                      )}
-                      <span className="text-brand-text-primary font-medium">
-                        {agent.agent_name}
-                      </span>
-                    </td>
-                    <td className="py-4 text-brand-text-primary">
-                      {agent.reviews}
-                    </td>
-                    <td className="py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-brand-dark-bg h-1.5 rounded-full overflow-hidden max-w-[100px]">
-                          <div
-                            className="bg-brand-accent h-full"
-                            style={{
-                              width: `${(agent.reviews / metrics.agent.leaderboard[0].reviews) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-brand-accent text-xs font-bold">
-                          {(
-                            (agent.reviews /
-                              metrics.agent.leaderboard[0].reviews) *
-                            100
-                          ).toFixed(0)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {metrics.agent.leaderboard.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="py-8 text-center text-brand-text-secondary text-sm"
-                    >
-                      Aucune donnée d'agent disponible
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </ChartCard>
-
-        <ChartCard title="Principales Raisons de Rejet">
-          <div className="space-y-5">
-            {metrics.document.rejection_reasons.slice(0, 5).map((r, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-brand-text-primary font-medium">
-                    {r.reason}
-                  </span>
-                  <span className="text-brand-text-secondary">
-                    {r.count} rejets
-                  </span>
-                </div>
-                <div className="w-full bg-brand-dark-bg h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-brand-danger h-full"
-                    style={{
-                      width: `${(r.count / metrics.agent.documents_reviewed) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-            {metrics.document.rejection_reasons.length === 0 && (
-              <div className="text-center py-12 text-brand-text-secondary">
-                <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                <p>Aucun rejet enregistré pour cette période</p>
-              </div>
-            )}
-          </div>
         </ChartCard>
       </div>
     </div>
   );
 }
 
-function MetricCard({
+function TeamTab({ metrics }: { metrics: DashboardMetrics }) {
+  const maxReviews = Math.max(
+    ...metrics.agent.leaderboard.map((a) => a.reviews),
+    1
+  );
+  const totalReviewed = metrics.agent.documents_reviewed || 1;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#363636]">
+          <h3 className="text-base font-semibold text-[#f9f9f9]">Classement agents</h3>
+          <p className="text-xs text-[#b7b7b7] mt-0.5">Documents revus</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7] border-b border-[#363636]">
+                <th className="px-4 py-3">Agent</th>
+                <th className="px-4 py-3 w-24">Revus</th>
+                <th className="px-4 py-3 w-28">Score</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#363636]">
+              {metrics.agent.leaderboard.map((agent, i) => (
+                <tr key={i} className="hover:bg-[#1e1f22]/50 transition-colors">
+                  <td className="px-4 py-3 flex items-center gap-2">
+                    {i === 0 && <i className="fa-solid fa-trophy text-amber-400 text-sm" />}
+                    {i === 1 && <i className="fa-solid fa-medal text-[#b7b7b7] text-sm" />}
+                    {i === 2 && <i className="fa-solid fa-award text-amber-600 text-sm" />}
+                    {i > 2 && (
+                      <span className="w-5 text-center text-xs text-[#b7b7b7]">{i + 1}</span>
+                    )}
+                    <span className="font-medium text-[#f9f9f9]">{agent.agent_name}</span>
+                  </td>
+                  <td className="px-4 py-3 text-[#f9f9f9]">{agent.reviews}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-[#1e1f22] overflow-hidden max-w-[80px]">
+                        <div
+                          className="h-full bg-[#50b989] rounded-full transition-all"
+                          style={{
+                            width: `${(agent.reviews / maxReviews) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-[#50b989] w-8">
+                        {((agent.reviews / maxReviews) * 100).toFixed(0)} %
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {metrics.agent.leaderboard.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-[#b7b7b7]">
+                    Aucune donnée agent
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#363636]">
+          <h3 className="text-base font-semibold text-[#f9f9f9]">Principales raisons de rejet</h3>
+          <p className="text-xs text-[#b7b7b7] mt-0.5">Documents</p>
+        </div>
+        <div className="p-4 space-y-4">
+          {metrics.document.rejection_reasons.slice(0, 5).map((r, i) => (
+            <div key={i} className="space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-[#f9f9f9] truncate pr-2">{r.reason}</span>
+                <span className="text-[#b7b7b7] shrink-0">{r.count} rejets</span>
+              </div>
+              <div className="h-2 rounded-full bg-[#1e1f22] overflow-hidden">
+                <div
+                  className="h-full bg-red-500/80 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min((r.count / totalReviewed) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+          {metrics.document.rejection_reasons.length === 0 && (
+            <div className="py-12 text-center text-sm text-[#b7b7b7]">
+              <i className="fa-solid fa-circle-check text-2xl text-emerald-500/50 mb-3 block" />
+              Aucun rejet enregistré sur la période
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({
   title,
   value,
+  sub,
   icon,
-  trend,
-  description,
+  accent,
 }: {
   title: string;
   value: string;
-  icon: React.ReactNode;
-  trend?: string;
-  description?: string;
+  sub?: string;
+  icon: string;
+  accent: string;
 }) {
   return (
-    <div className="bg-brand-dark-surface border border-brand-dark-border p-6 rounded-xl hover:border-brand-accent/30 transition-all">
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-brand-dark-bg rounded-lg border border-brand-dark-border">
-          {icon}
-        </div>
-        {trend && (
-          <span className="text-brand-success text-sm font-bold bg-brand-success/10 px-2 py-1 rounded">
-            {trend}
-          </span>
-        )}
-      </div>
-      <div>
-        <h3 className="text-brand-text-secondary text-sm font-medium mb-1">
+    <div className="rounded-xl bg-[#252628] border border-[#363636] p-5">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7]">
           {title}
-        </h3>
-        <p className="text-3xl font-bold text-brand-text-primary mb-1">
-          {value}
-        </p>
-        {description && (
-          <p className="text-brand-text-secondary text-xs">{description}</p>
-        )}
+        </span>
+        <span className={`text-lg ${accent}`}>
+          <i className={icon} />
+        </span>
       </div>
+      <p className="text-2xl font-semibold text-[#f9f9f9]">{value}</p>
+      {sub && <p className="text-[10px] text-[#b7b7b7] mt-1.5">{sub}</p>}
     </div>
   );
 }
@@ -530,11 +608,11 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-brand-dark-surface border border-brand-dark-border p-6 rounded-xl">
-      <h3 className="text-brand-text-primary font-bold mb-6 text-lg">
-        {title}
-      </h3>
-      {children}
+    <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#363636]">
+        <h3 className="text-base font-semibold text-[#f9f9f9]">{title}</h3>
+      </div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }

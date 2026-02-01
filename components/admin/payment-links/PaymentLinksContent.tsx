@@ -13,6 +13,7 @@ import { PaymentLinksFilters } from "./PaymentLinksFilters";
 import { PaymentLinksTable } from "./PaymentLinksTable";
 import { ConversionFunnel } from "./ConversionFunnel";
 import { GeneratePaymentLinkModal } from "./GeneratePaymentLinkModal";
+import { toast } from "sonner";
 
 export function PaymentLinksContent() {
   const [paymentLinks, setPaymentLinks] = useState<PaymentLinkWithDetails[]>(
@@ -36,7 +37,7 @@ export function PaymentLinksContent() {
       const response = await fetch("/api/admin/products");
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products);
+        setProducts(data.products ?? []);
       }
     } catch (err) {
       console.error("Error fetching products:", err);
@@ -47,29 +48,20 @@ export function PaymentLinksContent() {
     try {
       setError(null);
       const params = new URLSearchParams();
-
-      if (filters.status && filters.status.length > 0) {
-        params.append("status", filters.status.join(","));
-      }
-      if (filters.product_id && filters.product_id.length > 0) {
-        params.append("product_id", filters.product_id.join(","));
-      }
-      if (filters.search) {
-        params.append("search", filters.search);
-      }
+      if (filters.status?.length) params.append("status", filters.status.join(","));
+      if (filters.product_id?.length) params.append("product_id", filters.product_id.join(","));
+      if (filters.search) params.append("search", filters.search);
       if (filters.date_range) {
         params.append("date_start", filters.date_range.start);
         params.append("date_end", filters.date_range.end);
       }
 
       const response = await fetch(`/api/admin/payment-links?${params}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch payment links");
-      }
+      if (!response.ok) throw new Error("Erreur chargement des liens");
       const data = await response.json();
-      setPaymentLinks(data.payment_links);
+      setPaymentLinks(data.payment_links ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
@@ -82,11 +74,10 @@ export function PaymentLinksContent() {
         params.append("date_start", filters.date_range.start);
         params.append("date_end", filters.date_range.end);
       }
-
       const response = await fetch(`/api/admin/payment-links/analytics?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setAnalytics(data.analytics);
+        setAnalytics(data.analytics ?? null);
       }
     } catch (err) {
       console.error("Error fetching analytics:", err);
@@ -100,14 +91,13 @@ export function PaymentLinksContent() {
         params.append("date_start", filters.date_range.start);
         params.append("date_end", filters.date_range.end);
       }
-
       const response = await fetch(`/api/admin/payment-links/funnel?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setFunnelData(data.funnel);
+        setFunnelData(data.funnel ?? null);
       }
     } catch (err) {
-      console.error("Error fetching funnel data:", err);
+      console.error("Error fetching funnel:", err);
     }
   };
 
@@ -128,33 +118,30 @@ export function PaymentLinksContent() {
 
   const handleBulkExpire = async () => {
     if (selectedLinks.length === 0) return;
-
     if (
       !confirm(
-        `Are you sure you want to expire ${selectedLinks.length} payment link(s)?`
+        `Expirer ${selectedLinks.length} lien(s) de paiement ? Cette action est irréversible.`
       )
     ) {
       return;
     }
-
     try {
       const response = await fetch("/api/admin/payment-links/bulk-expire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ link_ids: selectedLinks }),
       });
-
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        const data = await response.json();
-        alert(data.message);
+        toast.success(data.message ?? "Liens expirés");
         setSelectedLinks([]);
         fetchPaymentLinks();
         fetchAnalytics();
       } else {
-        alert("Failed to expire payment links");
+        toast.error(data.error ?? "Échec de l’expiration");
       }
     } catch (err) {
-      alert("Error expiring payment links");
+      toast.error("Erreur lors de l’expiration");
     }
   };
 
@@ -166,24 +153,26 @@ export function PaymentLinksContent() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `payment-links-export-${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = `payment-links-${new Date().toISOString().split("T")[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        toast.success("Export téléchargé");
       } else {
-        alert("Failed to export payment links");
+        toast.error("Échec de l’export");
       }
     } catch (err) {
-      alert("Error exporting payment links");
+      toast.error("Erreur lors de l’export");
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-brand-text-secondary">
-          Loading payment links...
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-3 text-[#b7b7b7]">
+          <i className="fa-solid fa-spinner fa-spin text-2xl text-[#50b989]" />
+          <span className="text-sm">Chargement des liens…</span>
         </div>
       </div>
     );
@@ -191,67 +180,76 @@ export function PaymentLinksContent() {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
-        {error}
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 text-center">
+        <p className="text-red-400 text-sm mb-4">{error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            fetchPaymentLinks();
+          }}
+          className="text-sm text-[#50b989] hover:underline"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Analytics Cards */}
       {analytics && <AnalyticsCards analytics={analytics} />}
-
-      {/* Conversion Funnel */}
       {funnelData && <ConversionFunnel data={funnelData} />}
 
-      {/* Filters */}
       <PaymentLinksFilters
         filters={filters}
         onFilterChange={handleFilterChange}
         products={products}
       />
 
-      {/* Action Bar */}
-      <div className="flex justify-between items-center">
-        <div className="text-brand-text-secondary">
-          {paymentLinks.length} payment link{paymentLinks.length !== 1 ? "s" : ""}{" "}
-          total
-          {selectedLinks.length > 0 &&
-            ` (${selectedLinks.length} selected)`}
-        </div>
-        <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <p className="text-sm text-[#b7b7b7]">
+          {paymentLinks.length} lien{paymentLinks.length !== 1 ? "s" : ""} au total
+          {selectedLinks.length > 0 && (
+            <span className="text-[#f9f9f9] font-medium ml-1">
+              ({selectedLinks.length} sélectionné{selectedLinks.length !== 1 ? "s" : ""})
+            </span>
+          )}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
           {selectedLinks.length > 0 && (
             <button
+              type="button"
               onClick={handleBulkExpire}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              className="px-4 py-2.5 rounded-lg bg-red-600/90 text-white text-sm font-medium hover:bg-red-600 transition-colors"
             >
-              Expire Selected ({selectedLinks.length})
+              Expirer la sélection ({selectedLinks.length})
             </button>
           )}
           <button
+            type="button"
             onClick={handleExport}
-            className="px-4 py-2 bg-brand-text-secondary/20 text-brand-text-primary rounded-lg hover:bg-brand-text-secondary/30 transition-colors font-medium"
+            className="px-4 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 transition-colors"
           >
             Export CSV
           </button>
           <button
+            type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
+            className="px-4 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 transition-colors flex items-center gap-2"
           >
-            + Generate Link
+            <i className="fa-solid fa-plus" />
+            Générer un lien
           </button>
         </div>
       </div>
 
-      {/* Payment Links Table */}
       <PaymentLinksTable
         paymentLinks={paymentLinks}
         selectedLinks={selectedLinks}
         onSelectionChange={setSelectedLinks}
       />
 
-      {/* Generate Link Modal */}
       {showGenerateModal && (
         <GeneratePaymentLinkModal
           onClose={() => setShowGenerateModal(false)}

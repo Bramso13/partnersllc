@@ -36,6 +36,7 @@
     "sonner": "^2.0.7",
     "stripe": "^20.1.2",
     "tailwind-merge": "^3.4.0",
+    "twilio": "^5.12.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "husky": "^9.1.7",
     "prettier": "^3.7.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

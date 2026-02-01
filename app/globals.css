@@ -25,6 +25,12 @@
   --color-brand-warning: #facc15;
   --color-brand-danger: #f95757;
   --color-client-green: #50b88a;
+  /* Aliases for admin/dossier components */
+  --color-brand-surface-light: #252628;
+  --color-brand-stroke: #363636;
+  --color-brand-card: #2d3033;
+  --color-brand-border: #363636;
+  --color-brand-card-bg: #2d3033;
 
   /* Typography */
   --font-family-sans: var(

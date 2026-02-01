@@ -31,153 +31,139 @@ interface DocumentHistorySectionProps {
 export function DocumentHistorySection({
   dossierId,
 }: DocumentHistorySectionProps) {
-  const [documentVersions, setDocumentVersions] = useState<DocumentVersion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (isExpanded) {
-      fetchDocumentHistory();
-    }
-  }, [dossierId, isExpanded]);
-
-  const fetchDocumentHistory = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/document-history`
-      );
-      if (!response.ok)
-        throw new Error("Erreur lors du chargement de l'historique des documents");
-
-      const data = await response.json();
-      setDocumentVersions(data);
-    } catch (err) {
-      console.error("Error fetching document history:", err);
-      setError("Erreur lors du chargement de l'historique des documents");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    if (!expanded) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/admin/dossiers/${dossierId}/document-history`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Erreur chargement historique");
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setVersions(Array.isArray(data) ? data : []);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, expanded]);
 
   return (
-    <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-brand-text-primary">
+    <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+      <button
+        type="button"
+        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[#2d3033]/50 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <h2 className="text-base font-semibold text-[#f9f9f9]">
           Historique des documents
         </h2>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <i
-            className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"}`}
-          ></i>
-        </button>
-      </div>
-
-      {isExpanded && (
-        <div>
-          {isLoading ? (
-            <p className="text-brand-text-secondary">
-              Chargement de l'historique...
+        <i
+          className={`fa-solid fa-chevron-${expanded ? "up" : "down"} text-[#b7b7b7]`}
+        />
+      </button>
+      {expanded && (
+        <div className="px-6 pb-6 border-t border-[#363636] pt-4">
+          {loading ? (
+            <p className="text-sm text-[#b7b7b7] flex items-center gap-2">
+              <i className="fa-solid fa-spinner fa-spin" />
+              Chargement…
             </p>
           ) : error ? (
-            <p className="text-red-400">{error}</p>
-          ) : documentVersions.length === 0 ? (
-            <p className="text-brand-text-secondary">Aucun document</p>
+            <p className="text-sm text-red-400">{error}</p>
+          ) : versions.length === 0 ? (
+            <p className="text-sm text-[#b7b7b7]">Aucun document</p>
           ) : (
-            <div className="space-y-4">
-              {documentVersions.map((version) => (
-                <DocumentVersionItem key={version.id} version={version} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DocumentVersionItem({ version }: { version: DocumentVersion }) {
-  return (
-    <div className="p-4 bg-brand-dark-bg border border-brand-stroke rounded-lg">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="text-brand-text-primary font-medium">
-            {version.document_type_label || "Document"}
-          </h3>
-          <p className="text-xs text-brand-text-secondary mt-1">
-            Version {version.version_number} •{" "}
-            {formatDistanceToNow(new Date(version.uploaded_at), {
-              addSuffix: true,
-              locale: fr,
-            })}
-          </p>
-        </div>
-        <a
-          href={version.file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-brand-primary hover:text-brand-primary/80 text-sm transition-colors"
-        >
-          <i className="fa-solid fa-external-link mr-1"></i>
-          Voir
-        </a>
-      </div>
-
-      {version.reviews && version.reviews.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <p className="text-xs font-medium text-brand-text-secondary">
-            Révisions :
-          </p>
-          {version.reviews.map((review) => (
-            <div
-              key={review.id}
-              className={`p-3 rounded border ${
-                review.status === "APPROVED"
-                  ? "bg-green-500/10 border-green-500/30"
-                  : review.status === "REJECTED"
-                    ? "bg-red-500/10 border-red-500/30"
-                    : "bg-yellow-500/10 border-yellow-500/30"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span
-                  className={`text-xs font-medium ${
-                    review.status === "APPROVED"
-                      ? "text-green-400"
-                      : review.status === "REJECTED"
-                        ? "text-red-400"
-                        : "text-yellow-400"
-                  }`}
+            <ul className="space-y-3">
+              {versions.map((v) => (
+                <li
+                  key={v.id}
+                  className="rounded-lg bg-[#1e1f22] border border-[#363636] p-4"
                 >
-                  {review.status === "APPROVED"
-                    ? "Approuvé"
-                    : review.status === "REJECTED"
-                      ? "Rejeté"
-                      : "En attente"}
-                </span>
-                <span className="text-xs text-brand-text-secondary">
-                  {formatDistanceToNow(new Date(review.reviewed_at), {
-                    addSuffix: true,
-                    locale: fr,
-                  })}
-                </span>
-              </div>
-              {review.reviewer_name && (
-                <p className="text-xs text-brand-text-secondary mb-1">
-                  Par : {review.reviewer_name}
-                </p>
-              )}
-              {review.reason && (
-                <p className="text-xs text-brand-text-secondary">
-                  Raison : {review.reason}
-                </p>
-              )}
-            </div>
-          ))}
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <h3 className="text-sm font-medium text-[#f9f9f9]">
+                        {v.document_type_label ?? "Document"}
+                      </h3>
+                      <p className="text-xs text-[#b7b7b7] mt-0.5">
+                        Version {v.version_number} ·{" "}
+                        {formatDistanceToNow(new Date(v.uploaded_at), {
+                          addSuffix: true,
+                          locale: fr,
+                        })}
+                      </p>
+                    </div>
+                    <a
+                      href={v.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#50b989] hover:underline shrink-0"
+                    >
+                      <i className="fa-solid fa-external-link mr-1" />
+                      Voir
+                    </a>
+                  </div>
+                  {v.reviews?.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[10px] font-medium text-[#b7b7b7] uppercase tracking-wider">
+                        Révisions
+                      </p>
+                      {v.reviews.map((r) => (
+                        <div
+                          key={r.id}
+                          className={`p-2 rounded text-xs ${
+                            r.status === "APPROVED"
+                              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+                              : r.status === "REJECTED"
+                                ? "bg-red-500/10 border border-red-500/30 text-red-400"
+                                : "bg-amber-500/10 border border-amber-500/30 text-amber-400"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="font-medium">
+                              {r.status === "APPROVED"
+                                ? "Approuvé"
+                                : r.status === "REJECTED"
+                                  ? "Rejeté"
+                                  : "En attente"}
+                            </span>
+                            <span className="text-[10px] opacity-80">
+                              {formatDistanceToNow(new Date(r.reviewed_at), {
+                                addSuffix: true,
+                                locale: fr,
+                              })}
+                            </span>
+                          </div>
+                          {r.reviewer_name && (
+                            <p className="text-[10px] opacity-90">
+                              Par {r.reviewer_name}
+                            </p>
+                          )}
+                          {r.reason && (
+                            <p className="text-[10px] opacity-90 mt-0.5">
+                              {r.reason}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

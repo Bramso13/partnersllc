@@ -24,7 +24,7 @@ export function PaymentLinksTable({
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortOrder("desc");
@@ -35,7 +35,7 @@ export function PaymentLinksTable({
     if (selectedLinks.length === paymentLinks.length) {
       onSelectionChange([]);
     } else {
-      onSelectionChange(paymentLinks.map((link) => link.id));
+      onSelectionChange(paymentLinks.map((l) => l.id));
     }
   };
 
@@ -48,105 +48,104 @@ export function PaymentLinksTable({
   };
 
   const toggleRowExpansion = (linkId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(linkId)) {
-      newExpanded.delete(linkId);
-    } else {
-      newExpanded.add(linkId);
-    }
-    setExpandedRows(newExpanded);
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(linkId)) next.delete(linkId);
+      else next.add(linkId);
+      return next;
+    });
   };
 
   const sortedLinks = [...paymentLinks].sort((a, b) => {
-    const aValue = a[sortField];
-    const bValue = b[sortField];
-
-    if (!aValue) return 1;
-    if (!bValue) return -1;
-
-    const comparison = new Date(aValue).getTime() - new Date(bValue).getTime();
-    return sortOrder === "asc" ? comparison : -comparison;
+    const aVal = a[sortField];
+    const bVal = b[sortField];
+    if (!aVal) return 1;
+    if (!bVal) return -1;
+    const cmp = new Date(aVal).getTime() - new Date(bVal).getTime();
+    return sortOrder === "asc" ? cmp : -cmp;
   });
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <span className="text-gray-600">↕</span>;
-    return sortOrder === "asc" ? (
-      <span className="text-brand-accent">↑</span>
-    ) : (
-      <span className="text-brand-accent">↓</span>
+    if (sortField !== field) {
+      return <span className="text-[#363636] text-xs">↕</span>;
+    }
+    return (
+      <span className="text-[#50b989] text-xs">
+        {sortOrder === "asc" ? "↑" : "↓"}
+      </span>
     );
   };
 
   if (paymentLinks.length === 0) {
     return (
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg p-8 text-center">
-        <p className="text-brand-text-secondary">
-          No payment links found. Try adjusting your filters.
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-8 text-center">
+        <p className="text-sm text-[#b7b7b7]">
+          Aucun lien de paiement. Ajustez les filtres ou générez un lien.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-brand-card-bg border border-brand-border rounded-lg overflow-hidden">
+    <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-brand-dark-bg border-b border-brand-border">
+        <table className="w-full min-w-[900px]">
+          <thead className="bg-[#1e1f22] border-b border-[#363636]">
             <tr>
-              <th className="px-4 py-3 text-left">
+              <th className="px-4 py-3 text-left w-10">
                 <input
                   type="checkbox"
                   checked={
-                    selectedLinks.length === paymentLinks.length &&
-                    paymentLinks.length > 0
+                    paymentLinks.length > 0 &&
+                    selectedLinks.length === paymentLinks.length
                   }
                   onChange={handleSelectAll}
-                  className="rounded border-brand-border"
+                  className="rounded border-[#363636] bg-[#191a1d] text-[#50b989] focus:ring-[#50b989]"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7]">
                 Token
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
-                Prospect Email
+              <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7]">
+                Email prospect
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
-                Product
+              <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7]">
+                Produit
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider cursor-pointer hover:text-brand-accent"
+                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7] cursor-pointer hover:text-[#50b989] transition-colors"
                 onClick={() => handleSort("created_at")}
               >
-                <div className="flex items-center gap-1">
-                  Created <SortIcon field="created_at" />
-                </div>
+                <span className="flex items-center gap-1">
+                  Créé <SortIcon field="created_at" />
+                </span>
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider cursor-pointer hover:text-brand-accent"
+                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7] cursor-pointer hover:text-[#50b989] transition-colors"
                 onClick={() => handleSort("expires_at")}
               >
-                <div className="flex items-center gap-1">
-                  Expires <SortIcon field="expires_at" />
-                </div>
+                <span className="flex items-center gap-1">
+                  Expire <SortIcon field="expires_at" />
+                </span>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
-                Status
+              <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7]">
+                Statut
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider cursor-pointer hover:text-brand-accent"
+                className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7] cursor-pointer hover:text-[#50b989] transition-colors"
                 onClick={() => handleSort("used_at")}
               >
-                <div className="flex items-center gap-1">
-                  Used <SortIcon field="used_at" />
-                </div>
+                <span className="flex items-center gap-1">
+                  Utilisé <SortIcon field="used_at" />
+                </span>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">
-                Converted
+              <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-wider text-[#b7b7b7]">
+                Converti
               </th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3 w-10" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-brand-border">
+          <tbody className="divide-y divide-[#363636]">
             {sortedLinks.map((link) => (
               <PaymentLinkRow
                 key={link.id}

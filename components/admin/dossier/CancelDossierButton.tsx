@@ -8,12 +8,15 @@ interface CancelDossierButtonProps {
   currentStatus: DossierStatus;
 }
 
+const inputClass =
+  "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] placeholder-[#b7b7b7]/60 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none";
+
 export function CancelDossierButton({
   dossierId,
   currentStatus,
 }: CancelDossierButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
+  const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,36 +24,25 @@ export function CancelDossierButton({
     currentStatus === "CLOSED" || currentStatus === "ERROR";
 
   const handleCancel = async () => {
-    if (!cancellationReason.trim()) {
-      setError("Veuillez fournir une raison d'annulation");
+    if (!reason.trim()) {
+      setError("Veuillez indiquer une raison");
       return;
     }
-
     setIsSubmitting(true);
     setError(null);
-
     try {
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/cancel`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cancellationReason: cancellationReason.trim() }),
-        }
-      );
-
+      const response = await fetch(`/api/admin/dossiers/${dossierId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancellationReason: reason.trim() }),
+      });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || "Erreur lors de l'annulation du dossier"
-        );
+        const err = await response.json();
+        throw new Error(err.error || "Erreur lors de l'annulation");
       }
-
-      // Refresh the page to show updated data
       window.location.reload();
-    } catch (err) {
-      console.error("Error cancelling dossier:", err);
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
       setIsSubmitting(false);
     }
@@ -59,68 +51,53 @@ export function CancelDossierButton({
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
         disabled={isAlreadyCancelled}
-        className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full px-4 py-2.5 rounded-lg bg-red-600/90 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isAlreadyCancelled ? "Dossier annulé" : "Annuler le dossier"}
       </button>
-
-      {/* Confirmation Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-semibold text-brand-text-primary mb-4">
-              Annuler le dossier?
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-[#f9f9f9] mb-2">
+              Annuler le dossier ?
             </h3>
-            <div className="mb-4">
-              <p className="text-brand-text-secondary mb-2">
-                Cette action va :
-              </p>
-              <ul className="list-disc list-inside text-brand-text-secondary space-y-1 mb-4">
-                <li>Marquer le dossier comme ANNULÉ</li>
-                <li>Envoyer une notification au client</li>
-                <li>Empêcher tout traitement ultérieur</li>
-                <li>Être enregistrée dans l'audit trail</li>
-              </ul>
-              <p className="text-red-400 font-medium">
-                Cette action ne peut pas être annulée.
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-                Raison de l'annulation *
-              </label>
-              <textarea
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Expliquez pourquoi ce dossier est annulé..."
-                rows={4}
-                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-stroke rounded-lg text-brand-text-primary placeholder-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-              />
-            </div>
-
-            {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
-
-            <div className="flex gap-3">
+            <p className="text-sm text-[#b7b7b7] mb-4">
+              Le dossier sera marqué annulé, le client sera notifié. Action irréversible.
+            </p>
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+              Raison <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Pourquoi ce dossier est-il annulé ?"
+              rows={3}
+              className={inputClass}
+            />
+            {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+            <div className="flex gap-3 mt-4">
               <button
+                type="button"
                 onClick={() => {
                   setIsOpen(false);
-                  setCancellationReason("");
+                  setReason("");
                   setError(null);
                 }}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2 bg-brand-dark-bg border border-brand-stroke text-brand-text-primary rounded-lg hover:bg-brand-surface-light transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm hover:bg-[#363636]/50 disabled:opacity-50 transition-colors"
               >
                 Annuler
               </button>
               <button
+                type="button"
                 onClick={handleCancel}
-                disabled={isSubmitting || !cancellationReason.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                disabled={isSubmitting || !reason.trim()}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {isSubmitting ? "En cours..." : "Confirmer l'annulation"}
+                {isSubmitting ? "En cours…" : "Confirmer l’annulation"}
               </button>
             </div>
           </div>

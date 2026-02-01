@@ -4,7 +4,6 @@ import { useState } from "react";
 import { StepFieldValue } from "./StepValidationSection";
 import { toast } from "sonner";
 
-// TODO: Feature flag pour simplification - garder pour réactivation future
 const SIMPLIFIED_VALIDATION = true;
 
 interface FieldValidationItemProps {
@@ -13,47 +12,62 @@ interface FieldValidationItemProps {
   onRefresh: () => void;
 }
 
+const statusStyles: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
+  APPROVED: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "Approuvé" },
+  PENDING: { bg: "bg-amber-500/20", text: "text-amber-400", label: "En attente" },
+  REJECTED: { bg: "bg-red-500/20", text: "text-red-400", label: "Rejeté" },
+};
+
+function formatValue(
+  value: string | null,
+  valueJsonb: Record<string, unknown> | null
+) {
+  if (valueJsonb) return JSON.stringify(valueJsonb, null, 2);
+  return value ?? "—";
+}
+
 export function FieldValidationItem({
   field,
   dossierId,
   onRefresh,
 }: FieldValidationItemProps) {
-  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [showReject, setShowReject] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const status = statusStyles[field.validation_status] ?? statusStyles.PENDING;
 
   const handleApprove = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch(
+      setLoading(true);
+      const res = await fetch(
         `/api/admin/dossiers/${dossierId}/fields/${field.id}/approve`,
         { method: "POST" }
       );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erreur lors de l'approbation");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Erreur approbation");
       }
-
       toast.success("Champ approuvé");
       onRefresh();
-    } catch (err) {
-      console.error("Error approving field:", err);
-      toast.error(err instanceof Error ? err.message : "Erreur lors de l'approbation");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleReject = async () => {
     if (rejectionReason.trim().length < 10) {
-      toast.error("La raison du rejet doit contenir au moins 10 caractères");
+      toast.error("Raison du rejet : au moins 10 caractères");
       return;
     }
-
     try {
-      setIsLoading(true);
-      const response = await fetch(
+      setLoading(true);
+      const res = await fetch(
         `/api/admin/dossiers/${dossierId}/fields/${field.id}/reject`,
         {
           method: "POST",
@@ -61,159 +75,125 @@ export function FieldValidationItem({
           body: JSON.stringify({ rejection_reason: rejectionReason }),
         }
       );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erreur lors du rejet");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Erreur rejet");
       }
-
       toast.success("Champ rejeté");
-      setShowRejectInput(false);
+      setShowReject(false);
       setRejectionReason("");
       onRefresh();
-    } catch (err) {
-      console.error("Error rejecting field:", err);
-      toast.error(err instanceof Error ? err.message : "Erreur lors du rejet");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, { bg: string; text: string; label: string }> = {
-      APPROVED: { bg: "bg-green-500/20", text: "text-green-400", label: "Approuvé" },
-      PENDING: { bg: "bg-yellow-500/20", text: "text-yellow-400", label: "En attente" },
-      REJECTED: { bg: "bg-red-500/20", text: "text-red-400", label: "Rejeté" },
-    };
-
-    const badge = badges[status] || badges.PENDING;
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
-        {badge.label}
-      </span>
-    );
-  };
-
-  const formatValue = (value: string | null, valueJsonb: Record<string, unknown> | null) => {
-    if (valueJsonb) {
-      return JSON.stringify(valueJsonb, null, 2);
-    }
-    return value || "—";
   };
 
   return (
-    <div className="border border-brand-stroke rounded-lg p-4 bg-brand-dark-bg/30">
-      <div className="flex items-start justify-between gap-4">
-        {/* Field Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-medium text-brand-text-primary">
+    <div className="rounded-lg bg-[#1e1f22] border border-[#363636] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-medium text-[#f9f9f9]">
               {field.field_label}
-              {field.is_required && <span className="text-red-400 ml-1">*</span>}
+              {field.is_required && (
+                <span className="text-red-400 ml-0.5">*</span>
+              )}
             </span>
-            {getStatusBadge(field.validation_status)}
-          </div>
-
-          <div className="text-sm text-brand-text-secondary mb-2">
-            <span className="font-mono bg-brand-dark-surface px-2 py-1 rounded">
-              {formatValue(field.value, field.value_jsonb)}
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${status.bg} ${status.text}`}
+            >
+              {status.label}
             </span>
           </div>
-
+          <pre className="text-xs text-[#b7b7b7] bg-[#252628] px-2 py-1.5 rounded overflow-x-auto whitespace-pre-wrap break-words font-mono">
+            {formatValue(field.value, field.value_jsonb)}
+          </pre>
           {field.rejection_reason && (
-            <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
-              <strong>Raison:</strong> {field.rejection_reason}
-            </div>
+            <p className="mt-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded p-2">
+              {field.rejection_reason}
+            </p>
           )}
-
           {field.reviewed_at && (
-            <div className="text-xs text-brand-text-secondary mt-2">
-              Révisé le {new Date(field.reviewed_at).toLocaleDateString('fr-FR')} à{' '}
-              {new Date(field.reviewed_at).toLocaleTimeString('fr-FR')}
-            </div>
+            <p className="text-[10px] text-[#b7b7b7] mt-1">
+              Révisé le{" "}
+              {new Date(field.reviewed_at).toLocaleString("fr-FR")}
+            </p>
           )}
         </div>
-
-        {/* Actions */}
-        {/* TODO: Masqué pour simplification - garder pour réactivation future */}
-        {!SIMPLIFIED_VALIDATION && field.validation_status !== "APPROVED" && !showRejectInput && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleApprove}
-              disabled={isLoading}
-              className="px-3 py-1.5 rounded bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <i className="fa-solid fa-spinner fa-spin"></i>
-              ) : (
-                <>
-                  <i className="fa-solid fa-check mr-1"></i>
-                  Approuver
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => setShowRejectInput(true)}
-              disabled={isLoading}
-              className="px-3 py-1.5 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <i className="fa-solid fa-times mr-1"></i>
-              Rejeter
-            </button>
-          </div>
-        )}
+        {!SIMPLIFIED_VALIDATION &&
+          field.validation_status !== "APPROVED" &&
+          !showReject && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={loading}
+                className="px-2.5 py-1.5 rounded bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {loading ? (
+                  <i className="fa-solid fa-spinner fa-spin" />
+                ) : (
+                  <>
+                    <i className="fa-solid fa-check mr-1" />
+                    Approuver
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowReject(true)}
+                disabled={loading}
+                className="px-2.5 py-1.5 rounded bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30"
+              >
+                Rejeter
+              </button>
+            </div>
+          )}
       </div>
-
-      {/* Reject Input */}
-      {/* TODO: Masqué pour simplification - garder pour réactivation future */}
-      {!SIMPLIFIED_VALIDATION && showRejectInput && (
-        <div className="mt-4 pt-4 border-t border-brand-stroke">
-          <label className="block text-sm font-medium text-brand-text-primary mb-2">
-            Raison du rejet (minimum 10 caractères)
+      {!SIMPLIFIED_VALIDATION && showReject && (
+        <div className="mt-3 pt-3 border-t border-[#363636]">
+          <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+            Raison du rejet (min. 10 caractères)
           </label>
           <textarea
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder="Expliquez pourquoi ce champ est rejeté..."
-            className="w-full px-3 py-2 bg-brand-dark-surface border border-brand-stroke rounded-lg text-brand-text-primary placeholder-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-accent resize-none"
-            rows={3}
-            disabled={isLoading}
+            placeholder="Expliquez le rejet…"
+            rows={2}
+            className="w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-xs placeholder-[#b7b7b7]/60 focus:outline-none focus:ring-2 focus:ring-[#50b989] resize-none"
+            disabled={loading}
           />
           <div className="flex items-center justify-between mt-2">
             <span
-              className={`text-xs ${
+              className={`text-[10px] ${
                 rejectionReason.length >= 10
-                  ? "text-green-400"
-                  : "text-brand-text-secondary"
+                  ? "text-emerald-400"
+                  : "text-[#b7b7b7]"
               }`}
             >
-              {rejectionReason.length} / 10 caractères minimum
+              {rejectionReason.length}/10
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => {
-                  setShowRejectInput(false);
+                  setShowReject(false);
                   setRejectionReason("");
                 }}
-                disabled={isLoading}
-                className="px-3 py-1.5 rounded text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors disabled:opacity-50"
+                disabled={loading}
+                className="px-2 py-1 rounded text-xs text-[#b7b7b7] hover:text-[#f9f9f9]"
               >
                 Annuler
               </button>
               <button
+                type="button"
                 onClick={handleReject}
-                disabled={isLoading || rejectionReason.trim().length < 10}
-                className="px-3 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || rejectionReason.trim().length < 10}
+                className="px-2 py-1 rounded bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-50"
               >
-                {isLoading ? (
-                  <>
-                    <i className="fa-solid fa-spinner fa-spin mr-1"></i>
-                    Rejet en cours...
-                  </>
-                ) : (
-                  "Confirmer le rejet"
-                )}
+                Confirmer rejet
               </button>
             </div>
           </div>

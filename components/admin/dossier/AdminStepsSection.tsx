@@ -4,17 +4,21 @@ import { useState, useEffect } from "react";
 import { SendDocumentsModal } from "./SendDocumentsModal";
 import { toast } from "sonner";
 
-// TODO: Feature flag pour simplification - garder pour réactivation future
 const SIMPLIFIED_VALIDATION = true;
 
-type ValidationStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
+type ValidationStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED";
 
-const STATUS_OPTIONS: { value: ValidationStatus; label: string; color: string }[] = [
-  { value: "DRAFT", label: "Brouillon", color: "bg-gray-500/20 text-gray-400" },
-  { value: "SUBMITTED", label: "Soumis", color: "bg-blue-500/20 text-blue-400" },
-  { value: "UNDER_REVIEW", label: "En révision", color: "bg-yellow-500/20 text-yellow-400" },
-  { value: "APPROVED", label: "Approuvé", color: "bg-green-500/20 text-green-400" },
-  { value: "REJECTED", label: "Rejeté", color: "bg-red-500/20 text-red-400" },
+const STATUS_OPTIONS: { value: ValidationStatus; label: string; pill: string }[] = [
+  { value: "DRAFT", label: "Brouillon", pill: "bg-[#363636] text-[#b7b7b7]" },
+  { value: "SUBMITTED", label: "Soumis", pill: "bg-blue-500/20 text-blue-400" },
+  { value: "UNDER_REVIEW", label: "En révision", pill: "bg-amber-500/20 text-amber-400" },
+  { value: "APPROVED", label: "Approuvé", pill: "bg-emerald-500/20 text-emerald-400" },
+  { value: "REJECTED", label: "Rejeté", pill: "bg-red-500/20 text-red-400" },
 ];
 
 interface AdminStepInstance {
@@ -38,6 +42,9 @@ interface AdminStepsSectionProps {
   productId: string;
 }
 
+const selectClass =
+  "px-2.5 py-1.5 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-xs focus:outline-none focus:ring-1 focus:ring-[#50b989] disabled:opacity-50";
+
 export function AdminStepsSection({
   dossierId,
   productId,
@@ -46,272 +53,217 @@ export function AdminStepsSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [selectedStepInstance, setSelectedStepInstance] =
-    useState<AdminStepInstance | null>(null);
-  const [updatingStepId, setUpdatingStepId] = useState<string | null>(null);
+  const [selectedStep, setSelectedStep] = useState<AdminStepInstance | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [agents, setAgents] = useState<
     { id: string; name: string; email: string; agent_type: "VERIFICATEUR" | "CREATEUR" }[]
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
-  const [validatingStepId, setValidatingStepId] = useState<string | null>(null);
+  const [validatingId, setValidatingId] = useState<string | null>(null);
 
-  const fetchAdminSteps = async () => {
+  const fetchSteps = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/admin-steps`
-      );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des étapes admin");
-      }
-
-      const data = await response.json();
-      setAdminSteps(data.stepInstances || []);
-    } catch (err) {
-      console.error("Error fetching admin steps:", err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      const res = await fetch(`/api/admin/dossiers/${dossierId}/admin-steps`);
+      if (!res.ok) throw new Error("Erreur chargement étapes");
+      const data = await res.json();
+      setAdminSteps(data.stepInstances ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAdminSteps();
+    fetchSteps();
   }, [dossierId]);
 
-  const fetchAgents = async () => {
-    try {
-      setLoadingAgents(true);
-      const response = await fetch("/api/admin/agents");
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des agents");
-      }
-      const data = await response.json();
-      setAgents(data.agents || []);
-    } catch (err) {
-      console.error("Error fetching agents:", err);
-    } finally {
-      setLoadingAgents(false);
-    }
-  };
-
   useEffect(() => {
-    fetchAgents();
+    (async () => {
+      try {
+        setLoadingAgents(true);
+        const res = await fetch("/api/admin/agents");
+        if (!res.ok) throw new Error("Erreur agents");
+        const data = await res.json();
+        setAgents(data.agents ?? []);
+      } catch {
+        // ignore
+      } finally {
+        setLoadingAgents(false);
+      }
+    })();
   }, []);
 
-  const handleSendDocuments = (stepInstance: AdminStepInstance) => {
-    setSelectedStepInstance(stepInstance);
-    setShowSendModal(true);
-  };
-
-  const handleModalSuccess = () => {
-    fetchAdminSteps();
-    setShowSendModal(false);
-    setSelectedStepInstance(null);
-  };
-
-  const handleModalClose = () => {
-    setShowSendModal(false);
-    setSelectedStepInstance(null);
-  };
-
-  const handleStatusChange = async (stepInstance: AdminStepInstance, newStatus: ValidationStatus) => {
+  const handleStatusChange = async (
+    step: AdminStepInstance,
+    newStatus: ValidationStatus
+  ) => {
     try {
-      setUpdatingStepId(stepInstance.id);
-
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/steps/${stepInstance.id}/status`,
+      setUpdatingId(step.id);
+      const res = await fetch(
+        `/api/admin/dossiers/${dossierId}/steps/${step.id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
         }
       );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors de la mise à jour du statut");
-      }
-
-      await fetchAdminSteps();
-    } catch (err) {
-      console.error("Error updating step status:", err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      if (!res.ok) throw new Error("Erreur mise à jour statut");
+      await fetchSteps();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
     } finally {
-      setUpdatingStepId(null);
+      setUpdatingId(null);
     }
   };
 
-  const handleAssignChange = async (stepInstance: AdminStepInstance, agentId: string) => {
+  const handleAssign = async (step: AdminStepInstance, agentId: string) => {
     try {
-      setUpdatingStepId(stepInstance.id);
-
-      const response = await fetch(
-        `/api/admin/step-instances/${stepInstance.id}/assign`,
+      setUpdatingId(step.id);
+      const res = await fetch(
+        `/api/admin/step-instances/${step.id}/assign`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            agentId: agentId === "" ? null : agentId,
-          }),
+          body: JSON.stringify({ agentId: agentId || null }),
         }
       );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(error?.error || "Erreur lors de l'assignation");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur assignation");
       }
-
-      await fetchAdminSteps();
-    } catch (err) {
-      console.error("Error assigning step:", err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      await fetchSteps();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
     } finally {
-      setUpdatingStepId(null);
+      setUpdatingId(null);
     }
   };
 
-  const handleValidateStep = async (stepInstanceId: string, dossierId: string) => {
+  const handleValidate = async (stepInstanceId: string) => {
     try {
-      setValidatingStepId(stepInstanceId);
-
-      // En mode simplifié, approuver automatiquement tous les champs et documents
+      setValidatingId(stepInstanceId);
       if (SIMPLIFIED_VALIDATION) {
-        // Récupérer les champs et documents de cette étape
-        const validationResponse = await fetch(
+        const valRes = await fetch(
           `/api/admin/dossiers/${dossierId}/validation`
         );
-
-        if (validationResponse.ok) {
-          const validationData = await validationResponse.json();
-          const stepInstance = validationData.stepInstances?.find(
-            (si: { id: string }) => si.id === stepInstanceId
+        if (valRes.ok) {
+          const valData = await valRes.json();
+          const si = valData.stepInstances?.find(
+            (x: { id: string }) => x.id === stepInstanceId
           );
-
-          if (stepInstance) {
-            // Approuver tous les champs non approuvés
-            const fieldsToApprove = stepInstance.fields?.filter(
-              (field: { validation_status: string }) =>
-                field.validation_status !== "APPROVED"
-            ) || [];
-
-            for (const field of fieldsToApprove) {
+          if (si?.fields?.length) {
+            for (const f of si.fields.filter(
+              (f: { validation_status: string }) => f.validation_status !== "APPROVED"
+            )) {
               await fetch(
-                `/api/admin/dossiers/${dossierId}/fields/${field.id}/approve`,
+                `/api/admin/dossiers/${dossierId}/fields/${f.id}/approve`,
                 { method: "POST" }
               );
             }
-
-            // Approuver tous les documents non approuvés
-            const documentsToApprove = stepInstance.documents?.filter(
-              (doc: { status: string }) => doc.status !== "APPROVED"
-            ) || [];
-
-            for (const doc of documentsToApprove) {
+          }
+          if (si?.documents?.length) {
+            for (const d of si.documents.filter(
+              (d: { status: string }) => d.status !== "APPROVED"
+            )) {
               await fetch(
-                `/api/admin/dossiers/${dossierId}/documents/${doc.id}/approve`,
+                `/api/admin/dossiers/${dossierId}/documents/${d.id}/approve`,
                 { method: "POST" }
               );
             }
           }
         }
       }
-
-      // Maintenant approuver l'étape
-      const response = await fetch(
+      const res = await fetch(
         `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/approve`,
         { method: "POST" }
       );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(error?.error || error?.message || "Erreur lors de la validation");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.message || "Erreur validation");
       }
-
-      toast.success("Étape validée avec succès");
-      await fetchAdminSteps();
-    } catch (err) {
-      console.error("Error validating step:", err);
-      toast.error(err instanceof Error ? err.message : "Erreur lors de la validation");
+      toast.success("Étape validée");
+      await fetchSteps();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur validation");
     } finally {
-      setValidatingStepId(null);
+      setValidatingId(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-accent"></div>
-        </div>
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 flex items-center justify-center min-h-[120px]">
+        <i className="fa-solid fa-spinner fa-spin text-2xl text-[#50b989]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <div className="text-center py-8">
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={fetchAdminSteps}
-            className="text-brand-accent hover:text-brand-accent-hover"
-          >
-            Réessayer
-          </button>
-        </div>
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 text-center">
+        <p className="text-red-400 text-sm mb-3">{error}</p>
+        <button
+          type="button"
+          onClick={fetchSteps}
+          className="text-sm text-[#50b989] hover:underline"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }
 
-  if (adminSteps.length === 0) {
-    return null;
-  }
+  if (adminSteps.length === 0) return null;
 
   return (
     <>
-      <div className="bg-brand-dark-surface border border-brand-stroke rounded-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-brand-text-primary">
-            Étapes Admin
+      <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#363636] flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[#f9f9f9]">
+            Étapes admin
           </h2>
           <button
-            onClick={fetchAdminSteps}
-            className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+            type="button"
+            onClick={fetchSteps}
+            className="text-[#b7b7b7] hover:text-[#f9f9f9] transition-colors p-1"
             title="Actualiser"
           >
-            <i className="fa-solid fa-refresh"></i>
+            <i className="fa-solid fa-arrows-rotate" />
           </button>
         </div>
-
-        <div className="space-y-4">
+        <div className="p-4 space-y-4">
           {adminSteps.map((stepInstance) => {
+            const status =
+              stepInstance.validation_status ?? "DRAFT";
+            const statusConfig =
+              STATUS_OPTIONS.find((s) => s.value === status) ?? STATUS_OPTIONS[0];
             const isCompleted = !!stepInstance.completed_at;
-            const currentStatus = stepInstance.validation_status || "DRAFT";
-            const statusConfig = STATUS_OPTIONS.find(s => s.value === currentStatus) || STATUS_OPTIONS[0];
-            const isUpdating = updatingStepId === stepInstance.id;
+            const isUpdating = updatingId === stepInstance.id;
+            const filteredAgents = agents.filter((a) =>
+              stepInstance.step.step_type === "CLIENT"
+                ? a.agent_type === "VERIFICATEUR"
+                : a.agent_type === "CREATEUR"
+            );
 
             return (
               <div
                 key={stepInstance.id}
-                className="border border-brand-border rounded-lg p-4 bg-brand-card"
+                className="rounded-lg bg-[#1e1f22] border border-[#363636] p-4"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex flex-wrap items-center gap-3 mb-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-brand-text-primary">
-                          {stepInstance.step.label}
-                        </h3>
-                        <span className="px-2 py-1 bg-brand-warning/20 text-brand-warning rounded text-xs font-medium">
-                          Admin
-                        </span>
-                      </div>
-                      {/* Status dropdown */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-[#f9f9f9]">
+                        {stepInstance.step.label}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-medium uppercase">
+                        Admin
+                      </span>
                       <select
-                        value={currentStatus}
+                        value={status}
                         onChange={(e) =>
                           handleStatusChange(
                             stepInstance,
@@ -319,99 +271,94 @@ export function AdminStepsSection({
                           )
                         }
                         disabled={isUpdating}
-                        className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${statusConfig.color}`}
+                        className={`${selectClass} ${statusConfig.pill}`}
                       >
-                        {STATUS_OPTIONS.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                            className="bg-[#191A1D] text-white"
-                          >
-                            {option.label}
+                        {STATUS_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
                           </option>
                         ))}
                       </select>
                       {isUpdating && (
-                        <i className="fa-solid fa-spinner fa-spin text-brand-text-secondary"></i>
+                        <i className="fa-solid fa-spinner fa-spin text-[#b7b7b7]" />
                       )}
                     </div>
-                    {/* Assignation agent */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-brand-text-secondary">
-                      <span className="font-medium">Assigné à :</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#b7b7b7]">
+                      <span>Assigné à</span>
                       <select
-                        value={stepInstance.assigned_to || ""}
+                        value={stepInstance.assigned_to ?? ""}
                         onChange={(e) =>
-                          handleAssignChange(stepInstance, e.target.value)
+                          handleAssign(stepInstance, e.target.value)
                         }
                         disabled={isUpdating || loadingAgents}
-                        className="px-2 py-1 rounded border border-brand-border bg-[#191A1D] text-xs text-brand-text-primary"
+                        className={selectClass}
                       >
                         <option value="">
-                          {loadingAgents ? "Chargement..." : "Non assigné"}
+                          {loadingAgents ? "…" : "Non assigné"}
                         </option>
-                        {agents
-                          .filter((agent) =>
-                            stepInstance.step.step_type === "CLIENT"
-                              ? agent.agent_type === "VERIFICATEUR"
-                              : agent.agent_type === "CREATEUR"
-                          )
-                          .map((agent) => (
-                            <option key={agent.id} value={agent.id}>
-                              {agent.name} ({agent.email})
-                            </option>
-                          ))}
+                        {filteredAgents.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
                       </select>
-                      <button
-                        type="button"
-                        onClick={() => handleAssignChange(stepInstance, "")}
-                        disabled={isUpdating || stepInstance.assigned_to === null}
-                        className="inline-flex items-center gap-1 text-[11px] text-brand-text-secondary hover:text-brand-text-primary disabled:opacity-40"
-                      >
-                        <i className="fa-regular fa-circle-xmark"></i>
-                        <span>Retirer l&apos;assignation</span>
-                      </button>
+                      {stepInstance.assigned_to && (
+                        <button
+                          type="button"
+                          onClick={() => handleAssign(stepInstance, "")}
+                          disabled={isUpdating}
+                          className="text-[10px] text-[#b7b7b7] hover:text-[#f9f9f9]"
+                        >
+                          Retirer
+                        </button>
+                      )}
                     </div>
                     {stepInstance.step.description && (
-                      <p className="text-sm text-brand-text-secondary mb-2">
+                      <p className="text-xs text-[#b7b7b7]">
                         {stepInstance.step.description}
                       </p>
                     )}
                     {isCompleted && stepInstance.completed_at && (
-                      <p className="text-xs text-brand-text-secondary">
-                        Complété le:{" "}
+                      <p className="text-[10px] text-[#b7b7b7]">
+                        Complété le{" "}
                         {new Date(stepInstance.completed_at).toLocaleDateString(
                           "fr-FR"
                         )}
                       </p>
                     )}
                   </div>
-                  <div className="ml-4 flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {SIMPLIFIED_VALIDATION && !isCompleted && (
                       <button
-                        onClick={() => handleValidateStep(stepInstance.id, dossierId)}
-                        disabled={validatingStepId === stepInstance.id}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        type="button"
+                        onClick={() => handleValidate(stepInstance.id)}
+                        disabled={validatingId === stepInstance.id}
+                        className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
                       >
-                        {validatingStepId === stepInstance.id ? (
+                        {validatingId === stepInstance.id ? (
                           <>
-                            <i className="fa-solid fa-spinner fa-spin mr-2"></i>
-                            Validation...
+                            <i className="fa-solid fa-spinner fa-spin" />
+                            Validation…
                           </>
                         ) : (
                           <>
-                            <i className="fa-solid fa-check mr-2"></i>
-                            Valider l&apos;étape
+                            <i className="fa-solid fa-check" />
+                            Valider
                           </>
                         )}
                       </button>
                     )}
-                    {currentStatus !== "APPROVED" && (
+                    {status !== "APPROVED" && (
                       <button
-                        onClick={() => handleSendDocuments(stepInstance)}
-                        className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
+                        type="button"
+                        onClick={() => {
+                          setSelectedStep(stepInstance);
+                          setShowSendModal(true);
+                        }}
+                        className="px-3 py-2 rounded-lg bg-[#50b989] text-[#191a1d] text-xs font-medium hover:bg-[#50b989]/90 flex items-center gap-1.5"
                       >
-                        <i className="fas fa-paper-plane mr-2"></i>
-                        Envoyer des documents
+                        <i className="fa-solid fa-paper-plane" />
+                        Envoyer docs
                       </button>
                     )}
                   </div>
@@ -422,15 +369,21 @@ export function AdminStepsSection({
         </div>
       </div>
 
-      {/* Send Documents Modal */}
-      {showSendModal && selectedStepInstance && (
+      {showSendModal && selectedStep && (
         <SendDocumentsModal
           dossierId={dossierId}
           productId={productId}
-          stepInstanceId={selectedStepInstance.id}
-          stepName={selectedStepInstance.step.label}
-          onClose={handleModalClose}
-          onSuccess={handleModalSuccess}
+          stepInstanceId={selectedStep.id}
+          stepName={selectedStep.step.label}
+          onClose={() => {
+            setShowSendModal(false);
+            setSelectedStep(null);
+          }}
+          onSuccess={() => {
+            fetchSteps();
+            setShowSendModal(false);
+            setSelectedStep(null);
+          }}
         />
       )}
     </>

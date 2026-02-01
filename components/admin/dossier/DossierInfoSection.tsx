@@ -10,163 +10,123 @@ interface DossierInfoSectionProps {
   productSteps: ProductStep[];
 }
 
+const surface = "bg-[#252628] border border-[#363636]";
+const labelClass = "text-xs font-medium uppercase tracking-wider text-[#b7b7b7]";
+const valueClass = "text-[#f9f9f9] font-mono text-sm";
+
 export function DossierInfoSection({
   dossier,
   productSteps,
 }: DossierInfoSectionProps) {
-  const progressPercentage = dossier.progress_percentage || 0;
   const completedSteps = dossier.completed_steps_count || 0;
-  const totalSteps = dossier.total_steps_count || 0;
+  const totalSteps = dossier.total_steps_count || 1;
 
   return (
-    <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6">
-      <h2 className="text-xl font-semibold text-brand-text-primary mb-6">
-        Informations du dossier
-      </h2>
+    <article className={`rounded-xl ${surface} overflow-hidden`}>
+      <div className="px-6 py-4 border-b border-[#363636]">
+        <h2 className="text-lg font-semibold text-[#f9f9f9]">
+          Informations du dossier
+        </h2>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Basic Info */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              ID du dossier
-            </label>
-            <p className="text-brand-text-primary font-mono text-sm">
-              {dossier.id}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              ID utilisateur
-            </label>
-            <p className="text-brand-text-primary font-mono text-sm">
-              {dossier.user_id}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              Type de produit
-            </label>
-            <p className="text-brand-text-primary">
-              {dossier.product?.name || "Non défini"}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              Type de dossier
-            </label>
-            <p className="text-brand-text-primary">{dossier.type}</p>
-          </div>
-        </div>
-
-        {/* Timestamps & Progress */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              Créé
-            </label>
-            <p className="text-brand-text-primary">
-              {formatDistanceToNow(new Date(dossier.created_at), {
-                addSuffix: true,
-                locale: fr,
-              })}
-            </p>
-            <p className="text-xs text-brand-text-secondary">
-              {new Date(dossier.created_at).toLocaleString("fr-FR")}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-              Dernière mise à jour
-            </label>
-            <p className="text-brand-text-primary">
-              {formatDistanceToNow(new Date(dossier.updated_at), {
-                addSuffix: true,
-                locale: fr,
-              })}
-            </p>
-            <p className="text-xs text-brand-text-secondary">
-              {new Date(dossier.updated_at).toLocaleString("fr-FR")}
-            </p>
-          </div>
-          {dossier.completed_at && (
+      <div className="p-6 space-y-6">
+        {/* Identifiants */}
+        <section>
+          <h3 className={labelClass}>Identifiants</h3>
+          <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
             <div>
-              <label className="block text-sm font-medium text-brand-text-secondary mb-1">
-                Terminé
-              </label>
-              <p className="text-brand-text-primary">
-                {formatDistanceToNow(new Date(dossier.completed_at), {
-                  addSuffix: true,
-                  locale: fr,
-                })}
-              </p>
-              <p className="text-xs text-brand-text-secondary">
-                {new Date(dossier.completed_at).toLocaleString("fr-FR")}
-              </p>
+              <dt className="text-[#b7b7b7] text-xs">ID dossier</dt>
+              <dd className={valueClass}>{dossier.id}</dd>
             </div>
-          )}
-        </div>
-      </div>
+            <div>
+              <dt className="text-[#b7b7b7] text-xs">ID utilisateur</dt>
+              <dd className={valueClass}>{dossier.user_id}</dd>
+            </div>
+            <div>
+              <dt className="text-[#b7b7b7] text-xs">Produit</dt>
+              <dd className="text-[#f9f9f9] text-sm">{dossier.product?.name ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-[#b7b7b7] text-xs">Type</dt>
+              <dd className="text-[#f9f9f9] text-sm">{dossier.type}</dd>
+            </div>
+          </dl>
+        </section>
 
-      {/* Progress Bar */}
-      <div className="mt-6">
-        <div className="flex justify-between items-center mb-2">
-          <label className="block text-sm font-medium text-brand-text-secondary">
-            Progression
-          </label>
-          <span className="text-sm text-brand-text-primary font-medium">
-            {completedSteps} / {totalSteps} étapes ({progressPercentage}%)
-          </span>
-        </div>
-        <div className="w-full h-2 bg-brand-dark-bg rounded-full overflow-hidden">
-          <div
-            className="h-full bg-brand-primary transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-      </div>
+        {/* Dates */}
+        <section>
+          <h3 className={labelClass}>Dates</h3>
+          <dl className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3">
+            <div>
+              <dt className="text-[#b7b7b7] text-xs">Créé</dt>
+              <dd className="text-[#f9f9f9] text-sm">
+                {formatDistanceToNow(new Date(dossier.created_at), { addSuffix: true, locale: fr })}
+              </dd>
+              <dd className="text-[#b7b7b7] text-xs mt-0.5">
+                {new Date(dossier.created_at).toLocaleString("fr-FR")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#b7b7b7] text-xs">Dernière mise à jour</dt>
+              <dd className="text-[#f9f9f9] text-sm">
+                {formatDistanceToNow(new Date(dossier.updated_at), { addSuffix: true, locale: fr })}
+              </dd>
+              <dd className="text-[#b7b7b7] text-xs mt-0.5">
+                {new Date(dossier.updated_at).toLocaleString("fr-FR")}
+              </dd>
+            </div>
+            {dossier.completed_at && (
+              <div>
+                <dt className="text-[#b7b7b7] text-xs">Terminé</dt>
+                <dd className="text-[#f9f9f9] text-sm">
+                  {formatDistanceToNow(new Date(dossier.completed_at), { addSuffix: true, locale: fr })}
+                </dd>
+                <dd className="text-[#b7b7b7] text-xs mt-0.5">
+                  {new Date(dossier.completed_at).toLocaleString("fr-FR")}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </section>
 
-      {/* Current Step */}
-      {dossier.current_step_instance && (
-        <div className="mt-6 p-4 bg-brand-dark-bg border border-brand-stroke rounded-lg">
-          <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-            Étape actuelle
-          </label>
-          <p className="text-brand-text-primary font-medium">
-            {dossier.current_step_instance.step?.label || "Étape en cours"}
-          </p>
-          {dossier.current_step_instance.validation_status && (
-            <p className="text-sm text-brand-text-secondary mt-1">
-              Statut de validation :{" "}
-              <span className="font-medium">
-                {dossier.current_step_instance.validation_status}
-              </span>
+        {/* Étape actuelle */}
+        {dossier.current_step_instance && (
+          <section className={`rounded-lg bg-[#1e1f22] border border-[#363636] p-4`}>
+            <h3 className={labelClass}>Étape actuelle</h3>
+            <p className="text-[#f9f9f9] font-medium mt-1">
+              {dossier.current_step_instance.step?.label ?? "Étape en cours"}
             </p>
-          )}
-        </div>
-      )}
-
-      {/* Metadata (if exists and has cancellation info) */}
-      {dossier.metadata &&
-        (dossier.metadata.cancelled_at || dossier.metadata.cancellation_reason) && (
-          <div className="mt-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <h3 className="text-sm font-medium text-red-400 mb-2">
-              Information d'annulation
-            </h3>
-            {dossier.metadata.cancelled_at && (
-              <p className="text-sm text-brand-text-secondary">
-                <span className="font-medium">Date :</span>{" "}
-                {new Date(dossier.metadata.cancelled_at).toLocaleString("fr-FR")}
+            {dossier.current_step_instance.validation_status && (
+              <p className="text-[#b7b7b7] text-sm mt-1">
+                Validation :{" "}
+                <span className="font-medium text-[#f9f9f9]">
+                  {dossier.current_step_instance.validation_status}
+                </span>
               </p>
             )}
-            {dossier.metadata.cancellation_reason && (
-              <p className="text-sm text-brand-text-secondary mt-1">
-                <span className="font-medium">Raison :</span>{" "}
-                {dossier.metadata.cancellation_reason}
-              </p>
-            )}
-          </div>
+          </section>
         )}
-    </div>
+
+        {/* Annulation */}
+        {dossier.metadata &&
+          (dossier.metadata.cancelled_at || dossier.metadata.cancellation_reason) && (
+            <section className="rounded-lg bg-red-500/10 border border-red-500/30 p-4">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-red-400">
+                Annulation
+              </h3>
+              {dossier.metadata.cancelled_at && (
+                <p className="text-[#b7b7b7] text-sm mt-1">
+                  {new Date(dossier.metadata.cancelled_at).toLocaleString("fr-FR")}
+                </p>
+              )}
+              {dossier.metadata.cancellation_reason && (
+                <p className="text-[#f9f9f9] text-sm mt-1">
+                  {dossier.metadata.cancellation_reason}
+                </p>
+              )}
+            </section>
+          )}
+      </div>
+    </article>
   );
 }

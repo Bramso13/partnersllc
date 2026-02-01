@@ -11,6 +11,26 @@ interface PaymentLinkRowProps {
   onToggleExpand: (linkId: string) => void;
 }
 
+function truncateToken(token: string, max = 16) {
+  if (token.length <= max) return token;
+  return `${token.slice(0, 8)}…${token.slice(-8)}`;
+}
+
+function formatDate(date: string | null) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("fr-FR", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+const statusStyles: Record<string, string> = {
+  ACTIVE: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  USED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  EXPIRED: "bg-[#363636] text-[#b7b7b7] border-[#363636]",
+};
+
 export function PaymentLinkRow({
   link,
   isSelected,
@@ -20,47 +40,11 @@ export function PaymentLinkRow({
 }: PaymentLinkRowProps) {
   const [copied, setCopied] = useState(false);
 
-  const truncateToken = (token: string) => {
-    if (token.length <= 16) return token;
-    return `${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      ACTIVE: "bg-green-500/20 text-green-400 border-green-500/30",
-      USED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      EXPIRED: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-    };
-
-    return (
-      <span
-        className={`px-2 py-1 rounded text-xs font-medium border ${
-          styles[status as keyof typeof styles] || styles.EXPIRED
-        }`}
-      >
-        {status}
-      </span>
-    );
-  };
-
-  const getConversionIndicator = () => {
-    if (link.order && link.order.status === "PAID") {
-      return <span className="text-green-400 text-lg">✓</span>;
-    }
-    if (link.order) {
-      return <span className="text-red-400 text-lg">✗</span>;
-    }
-    return <span className="text-gray-600">—</span>;
-  };
-
-  const formatDate = (date: string | null) => {
-    if (!date) return "—";
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const statusClass = statusStyles[link.status] ?? statusStyles.EXPIRED;
+  const fullUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/register/${link.token}`
+      : "";
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -68,17 +52,25 @@ export function PaymentLinkRow({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      console.error("Copy failed:", err);
     }
   };
 
-  const fullUrl = `${window.location.origin}/register/${link.token}`;
+  const conversionIndicator = () => {
+    if (link.order?.status === "PAID") {
+      return <span className="text-emerald-400 text-sm"><i className="fa-solid fa-check" /></span>;
+    }
+    if (link.order) {
+      return <span className="text-red-400 text-sm"><i className="fa-solid fa-times" /></span>;
+    }
+    return <span className="text-[#363636]">—</span>;
+  };
 
   return (
     <>
       <tr
-        className={`hover:bg-brand-dark-bg/50 transition-colors ${
-          isSelected ? "bg-brand-accent/10" : ""
+        className={`transition-colors ${
+          isSelected ? "bg-[#50b989]/10" : "hover:bg-[#1e1f22]/50"
         }`}
       >
         <td className="px-4 py-3">
@@ -86,145 +78,142 @@ export function PaymentLinkRow({
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(link.id)}
-            className="rounded border-brand-border"
+            className="rounded border-[#363636] bg-[#191a1d] text-[#50b989] focus:ring-[#50b989]"
           />
         </td>
-        <td className="px-4 py-3 text-sm text-brand-text-primary font-mono">
+        <td className="px-4 py-3 text-sm font-mono text-[#f9f9f9]">
           {truncateToken(link.token)}
         </td>
-        <td className="px-4 py-3 text-sm text-brand-text-primary">
+        <td className="px-4 py-3 text-sm text-[#f9f9f9]">
           {link.prospect_email}
         </td>
-        <td className="px-4 py-3 text-sm text-brand-text-primary">
-          {link.product?.name || "—"}
+        <td className="px-4 py-3 text-sm text-[#f9f9f9]">
+          {link.product?.name ?? "—"}
         </td>
-        <td className="px-4 py-3 text-sm text-brand-text-secondary">
+        <td className="px-4 py-3 text-sm text-[#b7b7b7]">
           {formatDate(link.created_at)}
         </td>
-        <td className="px-4 py-3 text-sm text-brand-text-secondary">
+        <td className="px-4 py-3 text-sm text-[#b7b7b7]">
           {formatDate(link.expires_at)}
         </td>
-        <td className="px-4 py-3">{getStatusBadge(link.status)}</td>
-        <td className="px-4 py-3 text-sm text-brand-text-secondary">
+        <td className="px-4 py-3">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${statusClass}`}
+          >
+            {link.status}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-sm text-[#b7b7b7]">
           {formatDate(link.used_at)}
         </td>
-        <td className="px-4 py-3 text-center">{getConversionIndicator()}</td>
+        <td className="px-4 py-3 text-center">
+          {conversionIndicator()}
+        </td>
         <td className="px-4 py-3">
           <button
+            type="button"
             onClick={() => onToggleExpand(link.id)}
-            className="text-brand-accent hover:text-brand-accent/80 transition-colors"
+            className="text-[#50b989] hover:text-[#50b989]/80 transition-colors p-1"
+            aria-label={isExpanded ? "Replier" : "Développer"}
           >
-            {isExpanded ? "▼" : "▶"}
+            <i className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"} text-xs`} />
           </button>
         </td>
       </tr>
 
-      {/* Expanded Details */}
       {isExpanded && (
-        <tr className="bg-brand-dark-bg/30">
+        <tr className="bg-[#1e1f22]/50">
           <td colSpan={10} className="px-4 py-4">
-            <div className="space-y-4">
-              {/* Full URL */}
+            <div className="space-y-4 rounded-lg bg-[#252628] border border-[#363636] p-4">
               <div>
-                <h4 className="text-sm font-medium text-brand-text-secondary mb-2">
-                  Payment Link URL
+                <h4 className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7] mb-2">
+                  URL du lien
                 </h4>
-                <div className="flex items-center gap-2 bg-brand-card-bg border border-brand-border rounded-lg p-3">
-                  <code className="flex-1 text-sm text-brand-text-primary font-mono break-all">
+                <div className="flex items-center gap-2 rounded-lg bg-[#1e1f22] border border-[#363636] p-3">
+                  <code className="flex-1 text-xs font-mono text-[#f9f9f9] break-all">
                     {fullUrl}
                   </code>
                   <button
+                    type="button"
                     onClick={() => copyToClipboard(fullUrl)}
-                    className="px-3 py-1.5 bg-brand-accent text-white rounded text-sm hover:bg-brand-accent/90 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-[#50b989] text-[#191a1d] text-xs font-medium hover:bg-[#50b989]/90 shrink-0"
                   >
-                    {copied ? "Copied!" : "Copy"}
+                    {copied ? "Copié" : "Copier"}
                   </button>
                 </div>
               </div>
 
-              {/* User Details */}
               {link.used_by_user && (
                 <div>
-                  <h4 className="text-sm font-medium text-brand-text-secondary mb-2">
-                    Used By
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7] mb-1.5">
+                    Utilisé par
                   </h4>
-                  <p className="text-sm text-brand-text-primary">
-                    {link.used_by_user.full_name || "User"}
+                  <p className="text-sm text-[#f9f9f9]">
+                    {link.used_by_user.full_name ?? "Utilisateur"}
                   </p>
                 </div>
               )}
 
-              {/* Order Details */}
               {link.order && (
                 <div>
-                  <h4 className="text-sm font-medium text-brand-text-secondary mb-2">
-                    Order Details
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7] mb-2">
+                    Commande
                   </h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-brand-text-secondary">Order ID</p>
-                      <p className="text-brand-text-primary font-mono">
-                        {link.order.id.substring(0, 8)}...
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">ID commande</p>
+                      <p className="font-mono text-[#f9f9f9] text-xs mt-0.5">
+                        {link.order.id.slice(0, 8)}…
                       </p>
                     </div>
                     <div>
-                      <p className="text-brand-text-secondary">Status</p>
-                      <p className="text-brand-text-primary">
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">Statut</p>
+                      <p className="text-[#f9f9f9] text-xs mt-0.5">
                         {link.order.status}
                       </p>
                     </div>
                     <div>
-                      <p className="text-brand-text-secondary">Amount</p>
-                      <p className="text-brand-text-primary">
-                        {link.order.currency}{" "}
-                        {(link.order.amount / 100).toFixed(2)}
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">Montant</p>
+                      <p className="text-[#f9f9f9] text-xs mt-0.5">
+                        {link.order.currency} {(link.order.amount / 100).toFixed(2)}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Timeline */}
               <div>
-                <h4 className="text-sm font-medium text-brand-text-secondary mb-2">
-                  Timeline
+                <h4 className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7] mb-2">
+                  Chronologie
                 </h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="w-20 text-brand-text-secondary">
-                      Created
-                    </span>
-                    <span className="text-brand-text-primary">
-                      {new Date(link.created_at).toLocaleString()}
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex gap-3">
+                    <span className="w-20 text-[#b7b7b7] shrink-0">Créé</span>
+                    <span className="text-[#f9f9f9]">
+                      {new Date(link.created_at).toLocaleString("fr-FR")}
                     </span>
                   </div>
                   {link.used_at && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="w-20 text-brand-text-secondary">
-                        Used
-                      </span>
-                      <span className="text-brand-text-primary">
-                        {new Date(link.used_at).toLocaleString()}
+                    <div className="flex gap-3">
+                      <span className="w-20 text-[#b7b7b7] shrink-0">Utilisé</span>
+                      <span className="text-[#f9f9f9]">
+                        {new Date(link.used_at).toLocaleString("fr-FR")}
                       </span>
                     </div>
                   )}
                   {link.order?.paid_at && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="w-20 text-brand-text-secondary">
-                        Paid
-                      </span>
-                      <span className="text-brand-text-primary">
-                        {new Date(link.order.paid_at).toLocaleString()}
+                    <div className="flex gap-3">
+                      <span className="w-20 text-[#b7b7b7] shrink-0">Payé</span>
+                      <span className="text-[#f9f9f9]">
+                        {new Date(link.order.paid_at).toLocaleString("fr-FR")}
                       </span>
                     </div>
                   )}
                   {link.expires_at && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="w-20 text-brand-text-secondary">
-                        Expires
-                      </span>
-                      <span className="text-brand-text-primary">
-                        {new Date(link.expires_at).toLocaleString()}
+                    <div className="flex gap-3">
+                      <span className="w-20 text-[#b7b7b7] shrink-0">Expire</span>
+                      <span className="text-[#f9f9f9]">
+                        {new Date(link.expires_at).toLocaleString("fr-FR")}
                       </span>
                     </div>
                   )}

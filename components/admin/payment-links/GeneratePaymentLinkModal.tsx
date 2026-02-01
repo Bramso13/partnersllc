@@ -9,6 +9,9 @@ interface GeneratePaymentLinkModalProps {
   products: Product[];
 }
 
+const inputClass =
+  "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-sm placeholder-[#b7b7b7]/60 focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent";
+
 export function GeneratePaymentLinkModal({
   onClose,
   onSuccess,
@@ -27,150 +30,142 @@ export function GeneratePaymentLinkModal({
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
       const response = await fetch("/api/admin/payment-links/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create payment link");
+        throw new Error(data.error ?? "Échec de la création du lien");
       }
-
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
   };
 
+  const activeProducts = products.filter((p) => p.active);
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg w-full max-w-md">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-brand-text-primary">
-              Generate Payment Link
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-brand-text-secondary hover:text-brand-text-primary"
-            >
-              ✕
-            </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="rounded-xl bg-[#252628] border border-[#363636] w-full max-w-md shadow-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#363636] flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#f9f9f9]">
+            Générer un lien de paiement
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="text-[#b7b7b7] hover:text-[#f9f9f9] text-xl leading-none disabled:opacity-50 transition-colors"
+            aria-label="Fermer"
+          >
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+              Email du prospect <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="email"
+              required
+              value={formData.prospect_email}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, prospect_email: e.target.value }))
+              }
+              className={inputClass}
+              placeholder="prospect@exemple.com"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Prospect Email */}
-            <div>
-              <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-                Prospect Email *
-              </label>
-              <input
-                type="email"
-                required
-                value={formData.prospect_email}
-                onChange={(e) =>
-                  setFormData({ ...formData, prospect_email: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
-                placeholder="prospect@example.com"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+              Nom du prospect (optionnel)
+            </label>
+            <input
+              type="text"
+              value={formData.prospect_name}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, prospect_name: e.target.value }))
+              }
+              className={inputClass}
+              placeholder="Jean Dupont"
+            />
+          </div>
 
-            {/* Prospect Name */}
-            <div>
-              <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-                Prospect Name (Optional)
-              </label>
-              <input
-                type="text"
-                value={formData.prospect_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, prospect_name: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
-                placeholder="John Doe"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+              Produit <span className="text-red-400">*</span>
+            </label>
+            <select
+              required
+              value={formData.product_id}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, product_id: e.target.value }))
+              }
+              className={inputClass}
+            >
+              <option value="">Choisir un produit…</option>
+              {activeProducts.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} – {product.currency}{" "}
+                  {(product.price_amount / 100).toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Product */}
-            <div>
-              <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-                Product *
-              </label>
-              <select
-                required
-                value={formData.product_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, product_id: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
-              >
-                <option value="">Select a product...</option>
-                {products
-                  .filter((p) => p.active)
-                  .map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - {product.currency}{" "}
-                      {(product.price_amount / 100).toFixed(2)}
-                    </option>
-                  ))}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
+              Expiration (jours) <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="number"
+              required
+              min={1}
+              max={365}
+              value={formData.expires_in_days}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  expires_in_days: parseInt(e.target.value, 10) || 30,
+                }))
+              }
+              className={inputClass}
+            />
+          </div>
 
-            {/* Expires In */}
-            <div>
-              <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-                Expires In (Days) *
-              </label>
-              <input
-                type="number"
-                required
-                min={1}
-                max={365}
-                value={formData.expires_in_days}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    expires_in_days: parseInt(e.target.value),
-                  })
-                }
-                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
-              />
+          {error && (
+            <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
+              {error}
             </div>
+          )}
 
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-brand-text-secondary/20 text-brand-text-primary rounded-lg hover:bg-brand-text-secondary/30 transition-colors font-medium"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? "Creating..." : "Generate Link"}
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 disabled:opacity-50 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 disabled:opacity-50 transition-colors"
+            >
+              {loading ? "Création…" : "Générer le lien"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

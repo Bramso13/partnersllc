@@ -15,8 +15,6 @@ interface SendDocumentsModalProps {
 interface SelectedFile {
   file: File;
   id: string;
-  progress: number;
-  error?: string;
 }
 
 const MAX_FILE_SIZE_MB = 10;
@@ -31,284 +29,237 @@ export function SendDocumentsModal({
   onSuccess,
 }: SendDocumentsModalProps) {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
-  const [selectedDocumentTypeIds, setSelectedDocumentTypeIds] = useState<string[]>([]);
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch document types for product/step
   useEffect(() => {
-    const fetchDocumentTypes = async () => {
-      try {
-        // For now, fetch all document types - can be enhanced later with step-specific types
-        const response = await fetch(`/api/admin/document-types`);
-        if (response.ok) {
-          const data = await response.json();
-          setDocumentTypes(data.document_types || []);
-        }
-      } catch (err) {
-        console.error("Error fetching document types:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDocumentTypes();
+    fetch("/api/admin/document-types")
+      .then((res) => res.json().then((data: { document_types?: DocumentType[] }) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        setDocumentTypes(ok ? (data.document_types ?? []) : []);
+      })
+      .finally(() => setLoading(false));
   }, [dossierId, productId, stepInstanceId]);
 
   const validateFile = (file: File): string | null => {
-    // Check file size
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      return `Le fichier dépasse la taille maximale de ${MAX_FILE_SIZE_MB}MB`;
+      return `Max ${MAX_FILE_SIZE_MB} MB par fichier`;
     }
-
-    // Check file extension
-    const extension = file.name.split(".").pop()?.toLowerCase();
-    if (!extension || !ALLOWED_TYPES.includes(extension)) {
-      return `Type de fichier non autorisé. Types autorisés: ${ALLOWED_TYPES.join(", ")}`;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!ext || !ALLOWED_TYPES.includes(ext)) {
+      return `Types autorisés: ${ALLOWED_TYPES.join(", ")}`;
     }
-
     return null;
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const newFiles: SelectedFile[] = [];
-
-    files.forEach((file) => {
-      const validationError = validateFile(file);
-      if (validationError) {
-        setError(validationError);
+    const files = Array.from(e.target.files ?? []);
+    setError(null);
+    for (const file of files) {
+      const err = validateFile(file);
+      if (err) {
+        setError(err);
+        e.target.value = "";
         return;
       }
-
-      newFiles.push({
-        file,
-        id: `${Date.now()}-${Math.random()}`,
-        progress: 0,
-      });
-    });
-
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
-    setError(null);
-    e.target.value = ""; // Reset input
+      setSelectedFiles((prev) => [
+        ...prev,
+        { file, id: `${Date.now()}-${Math.random()}` },
+      ]);
+    }
+    e.target.value = "";
   };
 
-  const removeFile = (fileId: string) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  const removeFile = (id: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (selectedFiles.length === 0) {
-      setError("Veuillez sélectionner au moins un fichier");
+      setError("Sélectionnez au moins un fichier");
       return;
     }
-
     setIsSubmitting(true);
-
     try {
       const formData = new FormData();
-      selectedFiles.forEach((sf) => {
-        formData.append("files", sf.file);
-      });
+      selectedFiles.forEach((sf) => formData.append("files", sf.file));
+      if (stepInstanceId) formData.append("step_instance_id", stepInstanceId);
+      selectedTypeIds.forEach((id) =>
+        formData.append("document_type_ids[]", id)
+      );
+      if (message.trim()) formData.append("message", message.trim());
 
-      if (stepInstanceId) {
-        formData.append("step_instance_id", stepInstanceId);
-      }
-
-      if (selectedDocumentTypeIds.length > 0) {
-        selectedDocumentTypeIds.forEach((id) => {
-          formData.append("document_type_ids[]", id);
-        });
-      } else {
-        // If no document types selected, we'll use a generic one in the API
-      }
-
-      if (message.trim()) {
-        formData.append("message", message.trim());
-      }
-
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/send-documents`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de l'envoi des documents");
-      }
-
+      const res = await fetch(
+        `/api/admin/dossiers/${dossierId}/send-documents`,
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur envoi");
       onSuccess();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur s'est produite");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-brand-card border border-brand-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-brand-border flex items-center justify-between sticky top-0 bg-brand-card z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="rounded-xl bg-[#252628] border border-[#363636] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
+        <div className="px-6 py-4 border-b border-[#363636] flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-xl font-semibold text-brand-text-primary">
+            <h2 className="text-lg font-semibold text-[#f9f9f9]">
               Envoyer des documents
             </h2>
             {stepName && (
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Pour l'étape: {stepName}
+              <p className="text-xs text-[#b7b7b7] mt-0.5">
+                Pour l’étape : {stepName}
               </p>
             )}
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-brand-text-secondary hover:text-brand-text-primary text-2xl leading-none"
             disabled={isSubmitting}
+            className="text-[#b7b7b7] hover:text-[#f9f9f9] text-xl leading-none disabled:opacity-50"
+            aria-label="Fermer"
           >
             ×
           </button>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 space-y-5 overflow-y-auto flex-1"
+        >
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
               {error}
             </div>
           )}
 
-          {/* Document Type Selector (optional) */}
           {!loading && documentTypes.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+              <label className="block text-xs font-medium text-[#b7b7b7] mb-2">
                 Types de documents (optionnel)
               </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border border-brand-border rounded-lg p-3">
-                {documentTypes.map((docType) => (
+              <div className="max-h-32 overflow-y-auto rounded-lg border border-[#363636] p-2 space-y-1">
+                {documentTypes.map((dt) => (
                   <label
-                    key={docType.id}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-brand-dark-bg/50 p-2 rounded"
+                    key={dt.id}
+                    className="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded hover:bg-[#363636]/30"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedDocumentTypeIds.includes(docType.id)}
+                      checked={selectedTypeIds.includes(dt.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedDocumentTypeIds((prev) => [...prev, docType.id]);
+                          setSelectedTypeIds((prev) => [...prev, dt.id]);
                         } else {
-                          setSelectedDocumentTypeIds((prev) =>
-                            prev.filter((id) => id !== docType.id)
+                          setSelectedTypeIds((prev) =>
+                            prev.filter((id) => id !== dt.id)
                           );
                         }
                       }}
-                      className="rounded"
+                      className="rounded border-[#363636] bg-[#191a1d] text-[#50b989] focus:ring-[#50b989]"
                     />
-                    <span className="text-sm text-brand-text-primary">{docType.label}</span>
+                    <span className="text-sm text-[#f9f9f9]">{dt.label}</span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* File Upload */}
           <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-2">
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-2">
               Fichiers <span className="text-red-400">*</span>
             </label>
-            <div className="border-2 border-dashed border-brand-border rounded-lg p-6 text-center hover:border-brand-accent/50 transition-colors">
+            <div className="border-2 border-dashed border-[#363636] rounded-lg p-6 text-center hover:border-[#50b989]/50 transition-colors">
               <input
                 type="file"
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleFileSelect}
                 className="hidden"
-                id="file-upload"
+                id="file-upload-modal"
                 disabled={isSubmitting}
               />
               <label
-                htmlFor="file-upload"
+                htmlFor="file-upload-modal"
                 className="cursor-pointer flex flex-col items-center gap-2"
               >
-                <i className="fas fa-cloud-upload-alt text-3xl text-brand-text-secondary"></i>
-                <span className="text-brand-text-primary font-medium">
-                  Cliquez pour sélectionner des fichiers
+                <i className="fa-solid fa-cloud-arrow-up text-2xl text-[#b7b7b7]" />
+                <span className="text-sm font-medium text-[#f9f9f9]">
+                  Cliquer pour sélectionner
                 </span>
-                <span className="text-sm text-brand-text-secondary">
-                  PDF, JPG, PNG (max {MAX_FILE_SIZE_MB}MB par fichier)
+                <span className="text-[10px] text-[#b7b7b7]">
+                  PDF, JPG, PNG · max {MAX_FILE_SIZE_MB} MB
                 </span>
               </label>
             </div>
-
-            {/* Selected Files List */}
             {selectedFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
+              <ul className="mt-3 space-y-2">
                 {selectedFiles.map((sf) => (
-                  <div
+                  <li
                     key={sf.id}
-                    className="flex items-center justify-between p-3 bg-brand-dark-bg rounded-lg"
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-[#1e1f22] border border-[#363636]"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <i className="fas fa-file text-brand-text-secondary"></i>
-                      <span className="text-sm text-brand-text-primary truncate">
-                        {sf.file.name}
-                      </span>
-                      <span className="text-xs text-brand-text-secondary">
-                        ({(sf.file.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
-                    </div>
+                    <span className="text-xs text-[#f9f9f9] truncate flex-1">
+                      {sf.file.name}
+                    </span>
+                    <span className="text-[10px] text-[#b7b7b7] shrink-0">
+                      {(sf.file.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeFile(sf.id)}
-                      className="text-red-400 hover:text-red-300 ml-2"
-                      disabled={isSubmitting}
+                      className="text-red-400 hover:text-red-300 shrink-0"
+                      aria-label="Retirer"
                     >
-                      <i className="fas fa-times"></i>
+                      <i className="fa-solid fa-times" />
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
-          {/* Message */}
           <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-2">
+            <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
               Message (optionnel)
             </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ajoutez un message pour accompagner les documents..."
-              rows={3}
-              className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary placeholder-brand-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-brand-accent resize-none"
+              placeholder="Message pour le client…"
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] placeholder-[#b7b7b7]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] resize-none disabled:opacity-50"
               disabled={isSubmitting}
             />
           </div>
 
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-brand-border">
+          <div className="flex gap-3 pt-2 border-t border-[#363636]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 border border-brand-border rounded-lg text-brand-text-primary hover:bg-brand-dark-bg/50 transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm hover:bg-[#363636]/50 disabled:opacity-50 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting || selectedFiles.length === 0}
-              className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors disabled:opacity-50 font-medium"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 disabled:opacity-50 transition-colors"
             >
-              {isSubmitting ? "Envoi en cours..." : "Envoyer"}
+              {isSubmitting ? "Envoi…" : "Envoyer"}
             </button>
           </div>
         </form>

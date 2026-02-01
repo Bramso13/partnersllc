@@ -18,6 +18,9 @@ interface DossierAgentAssignmentSectionProps {
   dossierId: string;
 }
 
+const inputClass =
+  "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent disabled:opacity-50";
+
 export function DossierAgentAssignmentSection({
   dossierId,
 }: DossierAgentAssignmentSectionProps) {
@@ -30,9 +33,8 @@ export function DossierAgentAssignmentSection({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch current assignments
   useEffect(() => {
-    async function fetchAssignments() {
+    (async () => {
       try {
         const response = await fetch(
           `/api/admin/dossiers/${dossierId}/dossier-agent-assignments`
@@ -41,55 +43,45 @@ export function DossierAgentAssignmentSection({
           const data = await response.json();
           setAssignments(data);
         }
-      } catch (error) {
-        console.error("Error fetching assignments:", error);
+      } catch (e) {
+        console.error("Error fetching assignments:", e);
       }
-    }
-
-    fetchAssignments();
+    })();
   }, [dossierId]);
 
-  // Fetch agents by type
   useEffect(() => {
-    async function fetchAgents() {
+    (async () => {
       try {
         setIsLoading(true);
         const response = await fetch("/api/admin/agents");
-        if (!response.ok) {
-          throw new Error("Failed to fetch agents");
-        }
-
+        if (!response.ok) throw new Error("Failed to fetch agents");
         const data = await response.json();
         const agents = data.agents || [];
-
-        // Filter agents by type (API returns only active agents)
-        const verificateurs = agents
-          .filter((agent: { agent_type?: string }) => agent.agent_type === "VERIFICATEUR")
-          .map((agent: { id: string; name?: string; email: string }) => ({
-            id: agent.id,
-            full_name: agent.name || agent.email,
-            email: agent.email,
-          }));
-
-        const createurs = agents
-          .filter((agent: { agent_type?: string }) => agent.agent_type === "CREATEUR")
-          .map((agent: { id: string; name?: string; email: string }) => ({
-            id: agent.id,
-            full_name: agent.name || agent.email,
-            email: agent.email,
-          }));
-
-        setVerificateurAgents(verificateurs);
-        setCreateurAgents(createurs);
-      } catch (error) {
-        console.error("Error fetching agents:", error);
+        setVerificateurAgents(
+          agents
+            .filter((a: { agent_type?: string }) => a.agent_type === "VERIFICATEUR")
+            .map((a: { id: string; name?: string; email: string }) => ({
+              id: a.id,
+              full_name: a.name || a.email,
+              email: a.email,
+            }))
+        );
+        setCreateurAgents(
+          agents
+            .filter((a: { agent_type?: string }) => a.agent_type === "CREATEUR")
+            .map((a: { id: string; name?: string; email: string }) => ({
+              id: a.id,
+              full_name: a.name || a.email,
+              email: a.email,
+            }))
+        );
+      } catch (e) {
+        console.error("Error fetching agents:", e);
         toast.error("Erreur lors du chargement des agents");
       } finally {
         setIsLoading(false);
       }
-    }
-
-    fetchAgents();
+    })();
   }, []);
 
   const handleAssignmentChange = async (
@@ -98,53 +90,30 @@ export function DossierAgentAssignmentSection({
   ) => {
     try {
       setIsSaving(true);
-
       const response = await fetch(
         `/api/admin/dossiers/${dossierId}/dossier-agent-assignments`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            assignmentType,
-            agentId,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assignmentType, agentId }),
         }
       );
-
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update assignment");
+        const err = await response.json();
+        throw new Error(err.error || "Erreur mise à jour");
       }
-
-      // Update local state
-      const agentsList =
-        assignmentType === "VERIFICATEUR" ? verificateurAgents : createurAgents;
-      const selectedAgent = agentId
-        ? agentsList.find((a) => a.id === agentId) || null
-        : null;
-
+      const list = assignmentType === "VERIFICATEUR" ? verificateurAgents : createurAgents;
+      const selected = agentId ? list.find((a) => a.id === agentId) ?? null : null;
       setAssignments((prev) => ({
         ...prev,
-        [assignmentType.toLowerCase()]: selectedAgent,
+        [assignmentType.toLowerCase()]: selected,
       }));
-
       toast.success(
-        agentId
-          ? `Agent ${assignmentType.toLowerCase()} assigné avec succès`
-          : `Agent ${assignmentType.toLowerCase()} désassigné`
+        agentId ? "Assignation enregistrée" : "Assignation retirée"
       );
-
-      // Refresh the page to update all related data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      console.error("Error updating assignment:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Erreur lors de l'assignation"
-      );
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'assignation");
     } finally {
       setIsSaving(false);
     }
@@ -152,84 +121,54 @@ export function DossierAgentAssignmentSection({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="animate-pulse">
-          <div className="h-4 bg-brand-stroke rounded w-1/2 mb-2"></div>
-          <div className="h-10 bg-brand-stroke rounded"></div>
-        </div>
-        <div className="animate-pulse">
-          <div className="h-4 bg-brand-stroke rounded w-1/2 mb-2"></div>
-          <div className="h-10 bg-brand-stroke rounded"></div>
-        </div>
+      <div className="space-y-3">
+        <div className="h-10 bg-[#363636]/50 rounded-lg animate-pulse" />
+        <div className="h-10 bg-[#363636]/50 rounded-lg animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Verificateur Assignment */}
+    <div className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-          Agent Vérificateur
-        </label>
+        <label className="block text-xs text-[#b7b7b7] mb-1.5">Vérificateur</label>
         <select
-          value={assignments.verificateur?.id || ""}
+          value={assignments.verificateur?.id ?? ""}
           onChange={(e) =>
-            handleAssignmentChange(
-              "VERIFICATEUR",
-              e.target.value || null
-            )
+            handleAssignmentChange("VERIFICATEUR", e.target.value || null)
           }
           disabled={isSaving}
-          className="w-full px-3 py-2 border border-brand-stroke rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent text-brand-text-primary disabled:opacity-50"
+          className={inputClass}
         >
           <option value="">Aucun</option>
-          {verificateurAgents.map((agent) => (
-            <option key={agent.id} value={agent.id}>
-              {agent.full_name}
+          {verificateurAgents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.full_name}
             </option>
           ))}
         </select>
-        <p className="text-xs text-brand-text-secondary mt-1">
-          Vérificateur assigné pour ce dossier
-        </p>
       </div>
-
-      {/* Createur Assignment */}
       <div>
-        <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-          Agent Créateur
-        </label>
+        <label className="block text-xs text-[#b7b7b7] mb-1.5">Créateur</label>
         <select
-          value={assignments.createur?.id || ""}
+          value={assignments.createur?.id ?? ""}
           onChange={(e) =>
-            handleAssignmentChange(
-              "CREATEUR",
-              e.target.value || null
-            )
+            handleAssignmentChange("CREATEUR", e.target.value || null)
           }
           disabled={isSaving}
-          className="w-full px-3 py-2 border border-brand-stroke rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent text-brand-text-primary disabled:opacity-50"
+          className={inputClass}
         >
           <option value="">Aucun</option>
-          {createurAgents.map((agent) => (
-            <option key={agent.id} value={agent.id}>
-              {agent.full_name}
+          {createurAgents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.full_name}
             </option>
           ))}
         </select>
-        <p className="text-xs text-brand-text-secondary mt-1">
-          Créateur assigné pour ce dossier
-        </p>
       </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-        <p className="font-medium mb-1">ℹ️ Note</p>
-        <p>
-          L'assignation au niveau dossier contrôle la visibilité dans "Mes dossiers"
-          pour les agents. L'assignation par étape (ci-dessus) reste nécessaire pour
-          le travail effectif sur chaque step.
-        </p>
+      <div className="rounded-lg bg-[#1e1f22] border border-[#363636] p-3 text-xs text-[#b7b7b7]">
+        <p className="font-medium text-[#f9f9f9] mb-0.5">Note</p>
+        L’assignation dossier contrôle la visibilité dans « Mes dossiers ». L’assignation par étape reste nécessaire pour le travail sur chaque étape.
       </div>
     </div>
   );

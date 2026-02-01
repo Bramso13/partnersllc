@@ -145,6 +145,11 @@ export const adminNavConfig: NavConfig = {
       label: "Outils",
       items: [
         {
+          href: "/admin/conversations/clients",
+          icon: "fa-comments",
+          label: "Conversations",
+        },
+        {
           href: "/admin/formations",
           icon: "fa-graduation-cap",
           label: "Formations",

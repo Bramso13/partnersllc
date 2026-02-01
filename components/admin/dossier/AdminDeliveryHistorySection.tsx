@@ -16,19 +16,12 @@ interface AdminDeliveredDocument {
     uploaded_at: string;
     uploaded_by_id: string;
   };
-  document_type?: {
-    label: string;
-  };
+  document_type?: { label: string };
   step_instance?: {
     id: string;
-    step?: {
-      label: string;
-    };
+    step?: { label: string };
   };
-  agent?: {
-    name: string;
-    email: string;
-  };
+  agent?: { name: string; email: string };
 }
 
 interface AdminDeliveryHistorySectionProps {
@@ -39,71 +32,71 @@ export function AdminDeliveryHistorySection({
   dossierId,
 }: AdminDeliveryHistorySectionProps) {
   const [documents, setDocuments] = useState<AdminDeliveredDocument[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (isExpanded) {
-      fetchDeliveryHistory();
-    }
-  }, [dossierId, isExpanded]);
-
-  const fetchDeliveryHistory = async () => {
+    if (!expanded) return;
+    let cancelled = false;
     setLoading(true);
-    try {
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/delivery-history`
-      );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement de l'historique de livraison");
-      }
-
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (err) {
-      console.error("Error fetching delivery history:", err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(null);
+    fetch(`/api/admin/dossiers/${dossierId}/delivery-history`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Erreur chargement livraisons");
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setDocuments(data.documents ?? []);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, expanded]);
 
   return (
-    <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-brand-text-primary">
-          Historique de livraison de documents
+    <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
+      <button
+        type="button"
+        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[#2d3033]/50 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <h2 className="text-base font-semibold text-[#f9f9f9]">
+          Historique de livraison
         </h2>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <i
-            className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"}`}
-          ></i>
-        </button>
-      </div>
-
-      {isExpanded && (
-        <div>
+        <i
+          className={`fa-solid fa-chevron-${expanded ? "up" : "down"} text-[#b7b7b7]`}
+        />
+      </button>
+      {expanded && (
+        <div className="px-6 pb-6 border-t border-[#363636] pt-4">
           {loading ? (
-            <p className="text-brand-text-secondary">
-              Chargement de l'historique...
+            <p className="text-sm text-[#b7b7b7] flex items-center gap-2">
+              <i className="fa-solid fa-spinner fa-spin" />
+              Chargement…
             </p>
           ) : error ? (
-            <p className="text-red-400">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           ) : documents.length === 0 ? (
-            <p className="text-brand-text-secondary">
+            <p className="text-sm text-[#b7b7b7]">
               Aucun document livré pour ce dossier
             </p>
           ) : (
-            <div className="space-y-4">
+            <ul className="space-y-3">
               {documents.map((doc) => (
-                <AdminDeliveryItem key={doc.id} document={doc} dossierId={dossierId} />
+                <DeliveryItem
+                  key={doc.id}
+                  document={doc}
+                  dossierId={dossierId}
+                />
               ))}
-            </div>
+            </ul>
           )}
         </div>
       )}
@@ -111,7 +104,7 @@ export function AdminDeliveryHistorySection({
   );
 }
 
-function AdminDeliveryItem({
+function DeliveryItem({
   document,
   dossierId,
 }: {
@@ -120,59 +113,60 @@ function AdminDeliveryItem({
 }) {
   const isStepRelated = !!document.step_instance_id;
   const stepName = document.step_instance?.step?.label;
+  const label =
+    document.current_version?.file_name ??
+    document.document_type?.label ??
+    "Document";
 
   return (
-    <div className="p-4 bg-brand-dark-bg border border-brand-stroke rounded-lg">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-brand-text-primary font-medium">
-              {document.current_version?.file_name ||
-                document.document_type?.label ||
-                "Document"}
+    <li className="rounded-lg bg-[#1e1f22] border border-[#363636] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <h3 className="text-sm font-medium text-[#f9f9f9] truncate">
+              {label}
             </h3>
-            {isStepRelated && (
-              <span className="px-2 py-0.5 bg-brand-warning/20 text-brand-warning rounded text-xs font-medium">
-                Étape: {stepName || "Admin"}
+            {isStepRelated ? (
+              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-medium">
+                Étape: {stepName ?? "Admin"}
               </span>
-            )}
-            {!isStepRelated && (
-              <span className="px-2 py-0.5 bg-brand-info/20 text-brand-info rounded text-xs font-medium">
+            ) : (
+              <span className="px-2 py-0.5 rounded bg-[#50b989]/20 text-[#50b989] text-[10px] font-medium">
                 Livraison manuelle
               </span>
             )}
           </div>
-          <div className="space-y-1">
-            <p className="text-xs text-brand-text-secondary">
-              Envoyé{" "}
-              {formatDistanceToNow(new Date(document.created_at), {
-                addSuffix: true,
-                locale: fr,
-              })}
+          <p className="text-xs text-[#b7b7b7]">
+            Envoyé{" "}
+            {formatDistanceToNow(new Date(document.created_at), {
+              addSuffix: true,
+              locale: fr,
+            })}
+          </p>
+          {document.agent && (
+            <p className="text-[10px] text-[#b7b7b7] mt-0.5">
+              Par {document.agent.name}
             </p>
-            {document.agent && (
-              <p className="text-xs text-brand-text-secondary">
-                Par: {document.agent.name} ({document.agent.email})
-              </p>
-            )}
-            {document.current_version?.file_size_bytes && (
-              <p className="text-xs text-brand-text-secondary">
-                Taille:{" "}
-                {(document.current_version.file_size_bytes / 1024 / 1024).toFixed(2)} MB
-              </p>
-            )}
-          </div>
+          )}
+          {document.current_version?.file_size_bytes != null && (
+            <p className="text-[10px] text-[#b7b7b7]">
+              {(document.current_version.file_size_bytes / 1024 / 1024).toFixed(
+                2
+              )}{" "}
+              MB
+            </p>
+          )}
         </div>
         <a
           href={`/api/admin/dossiers/${dossierId}/documents/${document.id}/view`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-brand-primary hover:text-brand-primary/80 text-sm transition-colors ml-4"
+          className="text-xs text-[#50b989] hover:underline shrink-0"
         >
-          <i className="fa-solid fa-external-link mr-1"></i>
+          <i className="fa-solid fa-external-link mr-1" />
           Voir
         </a>
       </div>
-    </div>
+    </li>
   );
 }

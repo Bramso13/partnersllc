@@ -9,11 +9,14 @@ import { InternalNotesSection } from "./InternalNotesSection";
 import { CompleteStepButton } from "./CompleteStepButton";
 import { CancelDossierButton } from "./CancelDossierButton";
 import { SendDocumentsModal } from "./SendDocumentsModal";
+import { DossierConversationButton } from "@/components/admin/conversations/DossierConversationButton";
 
 interface AdminActionsSidebarProps {
   dossier: DossierWithDetails;
   currentStepInstance: (StepInstance & { step?: Step | null }) | null | undefined;
 }
+
+const blockClass = "pt-4 first:pt-0 border-t border-[#363636] first:border-t-0";
 
 export function AdminActionsSidebar({
   dossier,
@@ -23,34 +26,31 @@ export function AdminActionsSidebar({
 
   const handleSendDocumentsSuccess = () => {
     setShowSendDocumentsModal(false);
-    // Optionally refresh the page or show a success message
     window.location.reload();
   };
 
   return (
     <div className="sticky top-6">
-      <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-brand-text-primary mb-4">
-            Actions Admin
+      <div className="rounded-xl bg-[#252628] border border-[#363636] p-5 space-y-0">
+        <div className="pb-4 border-b border-[#363636]">
+          <h2 className="text-base font-semibold text-[#f9f9f9]">
+            Actions
           </h2>
+          <p className="text-xs text-[#b7b7b7] mt-0.5">
+            Statut, assignations et actions rapides
+          </p>
         </div>
 
-        {/* Status Change */}
-        <div className="border-t border-brand-stroke pt-4">
-          <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-            Statut
+        <div className={blockClass}>
+          <label className="block text-xs font-medium text-[#b7b7b7] mb-2">
+            Statut du dossier
           </label>
-          <StatusChangeDropdown
-            dossierId={dossier.id}
-            currentStatus={dossier.status}
-          />
+          <StatusChangeDropdown dossierId={dossier.id} currentStatus={dossier.status} />
         </div>
 
-        {/* Agent Assignment (Step Level) */}
-        <div className="border-t border-brand-stroke pt-4">
-          <label className="block text-sm font-medium text-brand-text-secondary mb-2">
-            Assigné à (Étape courante)
+        <div className={blockClass}>
+          <label className="block text-xs font-medium text-[#b7b7b7] mb-2">
+            Assigné à (étape courante)
           </label>
           <AgentAssignmentDropdown
             dossierId={dossier.id}
@@ -58,17 +58,15 @@ export function AdminActionsSidebar({
           />
         </div>
 
-        {/* Dossier-Level Agent Assignment */}
-        <div className="border-t border-brand-stroke pt-4">
-          <h3 className="text-sm font-medium text-brand-text-secondary mb-3">
-            Assignation Dossier
+        <div className={blockClass}>
+          <h3 className="text-xs font-medium text-[#b7b7b7] mb-3">
+            Assignation dossier
           </h3>
           <DossierAgentAssignmentSection dossierId={dossier.id} />
         </div>
 
-        {/* Complete Step Button */}
         {currentStepInstance && !currentStepInstance.completed_at && (
-          <div className="border-t border-brand-stroke pt-4">
+          <div className={blockClass}>
             <CompleteStepButton
               dossierId={dossier.id}
               stepInstanceId={currentStepInstance.id}
@@ -77,40 +75,38 @@ export function AdminActionsSidebar({
           </div>
         )}
 
-        {/* Send Documents Button (Manual Delivery) */}
         {dossier.product_id && (
-          <div className="border-t border-brand-stroke pt-4">
+          <div className={blockClass}>
             <button
+              type="button"
               onClick={() => setShowSendDocumentsModal(true)}
-              className="w-full px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium"
+              className="w-full px-4 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] font-medium text-sm hover:bg-[#50b989]/90 transition-colors flex items-center justify-center gap-2"
             >
-              <i className="fas fa-paper-plane mr-2"></i>
+              <i className="fa-solid fa-paper-plane" />
               Envoyer des documents
             </button>
-            <p className="text-xs text-brand-text-secondary mt-2">
-              Envoyer des documents au client (non liés à une étape)
+            <p className="text-[10px] text-[#b7b7b7] mt-1.5">
+              Livraison manuelle (hors étape)
             </p>
           </div>
         )}
 
-        {/* Cancel Dossier Button */}
-        <div className="border-t border-brand-stroke pt-4">
-          <CancelDossierButton
-            dossierId={dossier.id}
-            currentStatus={dossier.status}
-          />
+        <div className={blockClass}>
+          <DossierConversationButton dossierId={dossier.id} />
         </div>
 
-        {/* Internal Notes */}
-        <div className="border-t border-brand-stroke pt-4">
-          <h3 className="text-sm font-medium text-brand-text-secondary mb-3">
+        <div className={blockClass}>
+          <CancelDossierButton dossierId={dossier.id} currentStatus={dossier.status} />
+        </div>
+
+        <div className={blockClass}>
+          <h3 className="text-xs font-medium text-[#b7b7b7] mb-3">
             Notes internes
           </h3>
           <InternalNotesSection dossierId={dossier.id} />
         </div>
       </div>
 
-      {/* Send Documents Modal (Manual Delivery) */}
       {showSendDocumentsModal && dossier.product_id && (
         <SendDocumentsModal
           dossierId={dossier.id}

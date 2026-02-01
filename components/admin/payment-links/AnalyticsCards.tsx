@@ -7,80 +7,68 @@ interface AnalyticsCardsProps {
 }
 
 export function AnalyticsCards({ analytics }: AnalyticsCardsProps) {
+  const cards = [
+    {
+      label: "Total des liens",
+      value: analytics.total_links.toLocaleString(),
+      sub: null,
+      accent: "text-[#f9f9f9]",
+      icon: "fa-solid fa-link",
+    },
+    {
+      label: "Liens actifs",
+      value: analytics.active_links.toLocaleString(),
+      sub: "Non utilisés, non expirés",
+      accent: "text-emerald-400",
+      icon: "fa-solid fa-check",
+    },
+    {
+      label: "Taux de conversion",
+      value: `${analytics.conversion_rate.toFixed(1)} %`,
+      sub: "Liens utilisés avec paiement",
+      accent: "text-[#50b989]",
+      icon: "fa-solid fa-chart-line",
+    },
+    {
+      label: "Délai moyen",
+      value:
+        analytics.avg_time_to_conversion_days > 1
+          ? `${analytics.avg_time_to_conversion_days.toFixed(1)} j`
+          : `${analytics.avg_time_to_conversion_hours.toFixed(1)} h`,
+      sub:
+        analytics.avg_time_to_conversion_days > 1
+          ? `${analytics.avg_time_to_conversion_hours.toFixed(1)} heures`
+          : "Création → paiement",
+      accent: "text-[#f9f9f9]",
+      icon: "fa-solid fa-clock",
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Total Links Created */}
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-brand-text-secondary text-sm font-medium">
-              Total Links
-            </p>
-            <p className="text-3xl font-bold text-brand-text-primary mt-2">
-              {analytics.total_links.toLocaleString()}
-            </p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className="rounded-xl bg-[#252628] border border-[#363636] p-5"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-[#b7b7b7]">
+                {card.label}
+              </p>
+              <p className={`text-2xl font-semibold mt-1.5 ${card.accent}`}>
+                {card.value}
+              </p>
+              {card.sub && (
+                <p className="text-[10px] text-[#b7b7b7] mt-1.5">{card.sub}</p>
+              )}
+            </div>
+            <div className={`text-xl shrink-0 ${card.accent} opacity-80`}>
+              <i className={card.icon} />
+            </div>
           </div>
-          <div className="text-brand-accent text-3xl">📊</div>
         </div>
-      </div>
-
-      {/* Active Links */}
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-brand-text-secondary text-sm font-medium">
-              Active Links
-            </p>
-            <p className="text-3xl font-bold text-green-400 mt-2">
-              {analytics.active_links.toLocaleString()}
-            </p>
-          </div>
-          <div className="text-green-400 text-3xl">✓</div>
-        </div>
-        <p className="text-brand-text-secondary text-xs mt-2">
-          Not yet used, not expired
-        </p>
-      </div>
-
-      {/* Conversion Rate */}
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-brand-text-secondary text-sm font-medium">
-              Conversion Rate
-            </p>
-            <p className="text-3xl font-bold text-brand-accent mt-2">
-              {analytics.conversion_rate.toFixed(1)}%
-            </p>
-          </div>
-          <div className="text-brand-accent text-3xl">💰</div>
-        </div>
-        <p className="text-brand-text-secondary text-xs mt-2">
-          Used links with payment
-        </p>
-      </div>
-
-      {/* Average Time to Conversion */}
-      <div className="bg-brand-card-bg border border-brand-border rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-brand-text-secondary text-sm font-medium">
-              Avg Time to Convert
-            </p>
-            <p className="text-3xl font-bold text-brand-text-primary mt-2">
-              {analytics.avg_time_to_conversion_days > 1
-                ? `${analytics.avg_time_to_conversion_days.toFixed(1)}d`
-                : `${analytics.avg_time_to_conversion_hours.toFixed(1)}h`}
-            </p>
-          </div>
-          <div className="text-brand-text-secondary text-3xl">⏱️</div>
-        </div>
-        <p className="text-brand-text-secondary text-xs mt-2">
-          {analytics.avg_time_to_conversion_days > 1
-            ? `${analytics.avg_time_to_conversion_hours.toFixed(1)} hours`
-            : `From link creation to payment`}
-        </p>
-      </div>
+      ))}
     </div>
   );
 }
