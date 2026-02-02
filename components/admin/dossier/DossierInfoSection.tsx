@@ -1,6 +1,6 @@
 "use client";
 
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -11,7 +11,8 @@ interface DossierInfoSectionProps {
 }
 
 const surface = "bg-[#252628] border border-[#363636]";
-const labelClass = "text-xs font-medium uppercase tracking-wider text-[#b7b7b7]";
+const labelClass =
+  "text-xs font-medium uppercase tracking-wider text-[#b7b7b7]";
 const valueClass = "text-[#f9f9f9] font-mono text-sm";
 
 export function DossierInfoSection({
@@ -44,7 +45,9 @@ export function DossierInfoSection({
             </div>
             <div>
               <dt className="text-[#b7b7b7] text-xs">Produit</dt>
-              <dd className="text-[#f9f9f9] text-sm">{dossier.product?.name ?? "—"}</dd>
+              <dd className="text-[#f9f9f9] text-sm">
+                {dossier.product?.name ?? "—"}
+              </dd>
             </div>
             <div>
               <dt className="text-[#b7b7b7] text-xs">Type</dt>
@@ -60,7 +63,10 @@ export function DossierInfoSection({
             <div>
               <dt className="text-[#b7b7b7] text-xs">Créé</dt>
               <dd className="text-[#f9f9f9] text-sm">
-                {formatDistanceToNow(new Date(dossier.created_at), { addSuffix: true, locale: fr })}
+                {formatDistanceToNow(new Date(dossier.created_at), {
+                  addSuffix: true,
+                  locale: fr,
+                })}
               </dd>
               <dd className="text-[#b7b7b7] text-xs mt-0.5">
                 {new Date(dossier.created_at).toLocaleString("fr-FR")}
@@ -69,7 +75,10 @@ export function DossierInfoSection({
             <div>
               <dt className="text-[#b7b7b7] text-xs">Dernière mise à jour</dt>
               <dd className="text-[#f9f9f9] text-sm">
-                {formatDistanceToNow(new Date(dossier.updated_at), { addSuffix: true, locale: fr })}
+                {formatDistanceToNow(new Date(dossier.updated_at), {
+                  addSuffix: true,
+                  locale: fr,
+                })}
               </dd>
               <dd className="text-[#b7b7b7] text-xs mt-0.5">
                 {new Date(dossier.updated_at).toLocaleString("fr-FR")}
@@ -79,7 +88,10 @@ export function DossierInfoSection({
               <div>
                 <dt className="text-[#b7b7b7] text-xs">Terminé</dt>
                 <dd className="text-[#f9f9f9] text-sm">
-                  {formatDistanceToNow(new Date(dossier.completed_at), { addSuffix: true, locale: fr })}
+                  {formatDistanceToNow(new Date(dossier.completed_at), {
+                    addSuffix: true,
+                    locale: fr,
+                  })}
                 </dd>
                 <dd className="text-[#b7b7b7] text-xs mt-0.5">
                   {new Date(dossier.completed_at).toLocaleString("fr-FR")}
@@ -91,7 +103,9 @@ export function DossierInfoSection({
 
         {/* Étape actuelle */}
         {dossier.current_step_instance && (
-          <section className={`rounded-lg bg-[#1e1f22] border border-[#363636] p-4`}>
+          <section
+            className={`rounded-lg bg-[#1e1f22] border border-[#363636] p-4`}
+          >
             <h3 className={labelClass}>Étape actuelle</h3>
             <p className="text-[#f9f9f9] font-medium mt-1">
               {dossier.current_step_instance.step?.label ?? "Étape en cours"}
@@ -109,19 +123,22 @@ export function DossierInfoSection({
 
         {/* Annulation */}
         {dossier.metadata &&
-          (dossier.metadata.cancelled_at || dossier.metadata.cancellation_reason) && (
+          (dossier.metadata.cancelled_at != null ||
+            dossier.metadata.cancellation_reason != null) && (
             <section className="rounded-lg bg-red-500/10 border border-red-500/30 p-4">
               <h3 className="text-xs font-medium uppercase tracking-wider text-red-400">
                 Annulation
               </h3>
-              {dossier.metadata.cancelled_at && (
+              {dossier.metadata.cancelled_at != null && (
                 <p className="text-[#b7b7b7] text-sm mt-1">
-                  {new Date(dossier.metadata.cancelled_at).toLocaleString("fr-FR")}
+                  {new Date(
+                    dossier.metadata.cancelled_at as string | number
+                  ).toLocaleString("fr-FR")}
                 </p>
               )}
-              {dossier.metadata.cancellation_reason && (
+              {dossier.metadata.cancellation_reason != null && (
                 <p className="text-[#f9f9f9] text-sm mt-1">
-                  {dossier.metadata.cancellation_reason}
+                  {String(dossier.metadata.cancellation_reason)}
                 </p>
               )}
             </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 
 interface TimelineSectionProps {
   dossier: DossierWithDetails;
@@ -32,7 +32,9 @@ export function TimelineSection({ dossier }: TimelineSectionProps) {
               )}
             </div>
             <div>
-              <p className="font-medium text-brand-text-primary">{event.title}</p>
+              <p className="font-medium text-brand-text-primary">
+                {event.title}
+              </p>
               <p className="text-sm text-brand-text-secondary mt-1">
                 {event.description}
               </p>
@@ -79,9 +81,10 @@ function getTimelineEvents(dossier: DossierWithDetails): TimelineEvent[] {
         return {
           id: si.id,
           title: si.step?.label || "Étape complétée",
-          description: validationStatus === "REJECTED" 
-            ? si.rejection_reason || "Étape rejetée"
-            : "Étape terminée avec succès.",
+          description:
+            validationStatus === "REJECTED"
+              ? si.rejection_reason || "Étape rejetée"
+              : "Étape terminée avec succès.",
           date: si.completed_at
             ? new Date(si.completed_at).toLocaleDateString("fr-FR", {
                 day: "numeric",
@@ -89,13 +92,16 @@ function getTimelineEvents(dossier: DossierWithDetails): TimelineEvent[] {
                 year: "numeric",
               })
             : undefined,
-          icon: validationStatus === "REJECTED" ? "fas fa-times" : "fas fa-check",
-          iconBg: validationStatus === "REJECTED" 
-            ? "bg-red-500/20" 
-            : "bg-brand-success/20",
-          iconColor: validationStatus === "REJECTED" 
-            ? "text-red-500" 
-            : "text-brand-success",
+          icon:
+            validationStatus === "REJECTED" ? "fas fa-times" : "fas fa-check",
+          iconBg:
+            validationStatus === "REJECTED"
+              ? "bg-red-500/20"
+              : "bg-brand-success/20",
+          iconColor:
+            validationStatus === "REJECTED"
+              ? "text-red-500"
+              : "text-brand-success",
         };
       } else if (
         validationStatus === "SUBMITTED" ||

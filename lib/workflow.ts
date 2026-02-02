@@ -26,6 +26,8 @@ export interface ProductStep {
   position: number;
   is_required: boolean;
   estimated_duration_hours: number | null;
+  /** Optional dossier status to apply when this step is approved (admin workflow config). */
+  dossier_status_on_approval?: string | null;
   step: Step;
   document_types: DocumentType[];
 }
@@ -46,7 +48,9 @@ export async function getProductSteps(
 ): Promise<ProductStep[]> {
   const supabase = await createClient();
 
-  console.log(`[getProductSteps] Fetching product steps for product_id: ${productId}`);
+  console.log(
+    `[getProductSteps] Fetching product steps for product_id: ${productId}`
+  );
 
   const { data: productSteps, error } = await supabase
     .from("product_steps")
@@ -58,6 +62,7 @@ export async function getProductSteps(
       position,
       is_required,
       estimated_duration_hours,
+      dossier_status_on_approval,
       step:steps (
         id,
         code,
@@ -106,14 +111,17 @@ export async function getProductSteps(
       console.log(`[getProductSteps] Document types for step ${step.id}:`, {
         count: stepDocTypes?.length || 0,
         error: docTypesError,
-        stepDocTypes
+        stepDocTypes,
       });
 
       const documentTypes = (stepDocTypes || [])
         .map((sdt: any) => sdt.document_type)
         .filter((dt: any) => dt !== null) as DocumentType[];
 
-      console.log(`[getProductSteps] Filtered document types for step ${step.id}:`, documentTypes);
+      console.log(
+        `[getProductSteps] Filtered document types for step ${step.id}:`,
+        documentTypes
+      );
 
       const mappedItem: ProductStep = {
         id: ps.id,
@@ -122,19 +130,25 @@ export async function getProductSteps(
         position: ps.position,
         is_required: ps.is_required,
         estimated_duration_hours: ps.estimated_duration_hours,
+        dossier_status_on_approval: ps.dossier_status_on_approval ?? null,
         step: step,
         document_types: documentTypes,
       };
 
       if (!mappedItem.step) {
-        console.warn(`[getProductSteps] Product step ${ps.id} has no step data:`, ps);
+        console.warn(
+          `[getProductSteps] Product step ${ps.id} has no step data:`,
+          ps
+        );
       }
 
       return mappedItem;
     })
   );
 
-  console.log(`[getProductSteps] Mapped ${stepsWithDocuments.length} product steps with documents`);
+  console.log(
+    `[getProductSteps] Mapped ${stepsWithDocuments.length} product steps with documents`
+  );
   return stepsWithDocuments;
 }
 
@@ -226,6 +240,8 @@ export async function getCurrentStepInstance(dossierId: string) {
 
   return {
     ...stepInstance,
-    step: (Array.isArray(stepInstance.step) ? stepInstance.step[0] : stepInstance.step) as Step,
+    step: (Array.isArray(stepInstance.step)
+      ? stepInstance.step[0]
+      : stepInstance.step) as Step,
   };
 }

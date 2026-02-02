@@ -57,7 +57,8 @@ export function CompleteStepButton({
               Compléter l’étape manuellement ?
             </h3>
             <p className="text-sm text-[#b7b7b7] mb-4">
-              Marquer « {stepName} » comme complétée. Cette action contourne la validation automatique et sera enregistrée.
+              Marquer « {stepName} » comme complétée. Cette action contourne la
+              validation automatique et sera enregistrée.
             </p>
             {error && <p className="text-xs text-red-400 mb-4">{error}</p>}
             <div className="flex gap-3">

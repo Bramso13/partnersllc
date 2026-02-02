@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import type { DossierWithDetailsAndClient } from "@/lib/dossiers";
+import type { DossierWithDetailsAndClient } from "@/types/dossiers";
 import { AdminDossiersFilters } from "./AdminDossiersFilters";
 import { AdminDossierCard } from "./AdminDossierCard";
 

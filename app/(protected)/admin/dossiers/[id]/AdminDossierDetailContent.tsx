@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import Link from "next/link";
 import { AdminActionsSidebar } from "@/components/admin/dossier/AdminActionsSidebar";
@@ -71,7 +71,10 @@ export function AdminDossierDetailContent({
                 Dossier {dossier.product?.name ?? "LLC"}
               </h1>
               <p className="text-sm text-[#b7b7b7] mt-0.5">
-                ID <code className="font-mono text-xs bg-[#2d3033] px-1.5 py-0.5 rounded">{dossier.id.slice(0, 8)}…</code>
+                ID{" "}
+                <code className="font-mono text-xs bg-[#2d3033] px-1.5 py-0.5 rounded">
+                  {dossier.id.slice(0, 8)}…
+                </code>
                 {" · "}
                 Vue administrative
               </p>
@@ -84,7 +87,8 @@ export function AdminDossierDetailContent({
                   className={`w-2 h-2 rounded-full ${
                     dossier.status === "COMPLETED"
                       ? "bg-emerald-400"
-                      : dossier.status === "ERROR" || dossier.status === "CLOSED"
+                      : dossier.status === "ERROR" ||
+                          dossier.status === "CLOSED"
                         ? "bg-red-400"
                         : "bg-amber-400 animate-pulse"
                   }`}
@@ -137,7 +141,10 @@ export function AdminDossierDetailContent({
           <main className="lg:col-span-3 space-y-6">
             {activeTab === "resume" && (
               <section className="opacity-100 transition-opacity duration-200">
-                <DossierInfoSection dossier={dossier} productSteps={productSteps} />
+                <DossierInfoSection
+                  dossier={dossier}
+                  productSteps={productSteps}
+                />
               </section>
             )}
 

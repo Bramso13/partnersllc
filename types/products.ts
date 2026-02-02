@@ -56,6 +56,8 @@ export interface ProductStep {
   position: number;
   is_required: boolean;
   estimated_duration_hours: number | null;
+  /** Optional dossier status to apply when this step is approved. */
+  dossier_status_on_approval?: string | null;
   created_at: string;
   step?: Step;
 }
@@ -121,4 +123,26 @@ export interface ProductWorkflowConfig {
     document_types: DocumentType[];
     custom_fields: StepField[];
   })[];
+}
+
+/** Step config stored in a workflow template (same format as POST workflow payload) */
+export interface WorkflowTemplateStep {
+  step_id: string;
+  position: number;
+  is_required: boolean;
+  estimated_duration_hours: number | null;
+  dossier_status_on_approval: string | null;
+  document_type_ids: string[];
+  custom_fields: Omit<
+    StepField,
+    "id" | "step_id" | "created_at" | "updated_at"
+  >[];
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  steps: WorkflowTemplateStep[];
+  created_at: string;
+  updated_at: string;
 }

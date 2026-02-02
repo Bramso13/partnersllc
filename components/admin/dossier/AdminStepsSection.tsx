@@ -13,11 +13,23 @@ type ValidationStatus =
   | "APPROVED"
   | "REJECTED";
 
-const STATUS_OPTIONS: { value: ValidationStatus; label: string; pill: string }[] = [
+const STATUS_OPTIONS: {
+  value: ValidationStatus;
+  label: string;
+  pill: string;
+}[] = [
   { value: "DRAFT", label: "Brouillon", pill: "bg-[#363636] text-[#b7b7b7]" },
   { value: "SUBMITTED", label: "Soumis", pill: "bg-blue-500/20 text-blue-400" },
-  { value: "UNDER_REVIEW", label: "En révision", pill: "bg-amber-500/20 text-amber-400" },
-  { value: "APPROVED", label: "Approuvé", pill: "bg-emerald-500/20 text-emerald-400" },
+  {
+    value: "UNDER_REVIEW",
+    label: "En révision",
+    pill: "bg-amber-500/20 text-amber-400",
+  },
+  {
+    value: "APPROVED",
+    label: "Approuvé",
+    pill: "bg-emerald-500/20 text-emerald-400",
+  },
   { value: "REJECTED", label: "Rejeté", pill: "bg-red-500/20 text-red-400" },
 ];
 
@@ -53,10 +65,17 @@ export function AdminStepsSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [selectedStep, setSelectedStep] = useState<AdminStepInstance | null>(null);
+  const [selectedStep, setSelectedStep] = useState<AdminStepInstance | null>(
+    null
+  );
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [agents, setAgents] = useState<
-    { id: string; name: string; email: string; agent_type: "VERIFICATEUR" | "CREATEUR" }[]
+    {
+      id: string;
+      name: string;
+      email: string;
+      agent_type: "VERIFICATEUR" | "CREATEUR";
+    }[]
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
@@ -122,14 +141,11 @@ export function AdminStepsSection({
   const handleAssign = async (step: AdminStepInstance, agentId: string) => {
     try {
       setUpdatingId(step.id);
-      const res = await fetch(
-        `/api/admin/step-instances/${step.id}/assign`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ agentId: agentId || null }),
-        }
-      );
+      const res = await fetch(`/api/admin/step-instances/${step.id}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: agentId || null }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Erreur assignation");
@@ -156,7 +172,8 @@ export function AdminStepsSection({
           );
           if (si?.fields?.length) {
             for (const f of si.fields.filter(
-              (f: { validation_status: string }) => f.validation_status !== "APPROVED"
+              (f: { validation_status: string }) =>
+                f.validation_status !== "APPROVED"
             )) {
               await fetch(
                 `/api/admin/dossiers/${dossierId}/fields/${f.id}/approve`,
@@ -236,10 +253,10 @@ export function AdminStepsSection({
         </div>
         <div className="p-4 space-y-4">
           {adminSteps.map((stepInstance) => {
-            const status =
-              stepInstance.validation_status ?? "DRAFT";
+            const status = stepInstance.validation_status ?? "DRAFT";
             const statusConfig =
-              STATUS_OPTIONS.find((s) => s.value === status) ?? STATUS_OPTIONS[0];
+              STATUS_OPTIONS.find((s) => s.value === status) ??
+              STATUS_OPTIONS[0];
             const isCompleted = !!stepInstance.completed_at;
             const isUpdating = updatingId === stepInstance.id;
             const filteredAgents = agents.filter((a) =>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import { DossierAccordionItem } from "./DossierAccordionItem";
 

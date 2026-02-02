@@ -58,10 +58,18 @@ export function PaymentLinkRow({
 
   const conversionIndicator = () => {
     if (link.order?.status === "PAID") {
-      return <span className="text-emerald-400 text-sm"><i className="fa-solid fa-check" /></span>;
+      return (
+        <span className="text-emerald-400 text-sm">
+          <i className="fa-solid fa-check" />
+        </span>
+      );
     }
     if (link.order) {
-      return <span className="text-red-400 text-sm"><i className="fa-solid fa-times" /></span>;
+      return (
+        <span className="text-red-400 text-sm">
+          <i className="fa-solid fa-times" />
+        </span>
+      );
     }
     return <span className="text-[#363636]">—</span>;
   };
@@ -106,9 +114,7 @@ export function PaymentLinkRow({
         <td className="px-4 py-3 text-sm text-[#b7b7b7]">
           {formatDate(link.used_at)}
         </td>
-        <td className="px-4 py-3 text-center">
-          {conversionIndicator()}
-        </td>
+        <td className="px-4 py-3 text-center">{conversionIndicator()}</td>
         <td className="px-4 py-3">
           <button
             type="button"
@@ -116,7 +122,9 @@ export function PaymentLinkRow({
             className="text-[#50b989] hover:text-[#50b989]/80 transition-colors p-1"
             aria-label={isExpanded ? "Replier" : "Développer"}
           >
-            <i className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"} text-xs`} />
+            <i
+              className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"} text-xs`}
+            />
           </button>
         </td>
       </tr>
@@ -161,21 +169,28 @@ export function PaymentLinkRow({
                   </h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-[10px] text-[#b7b7b7] uppercase">ID commande</p>
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">
+                        ID commande
+                      </p>
                       <p className="font-mono text-[#f9f9f9] text-xs mt-0.5">
                         {link.order.id.slice(0, 8)}…
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#b7b7b7] uppercase">Statut</p>
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">
+                        Statut
+                      </p>
                       <p className="text-[#f9f9f9] text-xs mt-0.5">
                         {link.order.status}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#b7b7b7] uppercase">Montant</p>
+                      <p className="text-[10px] text-[#b7b7b7] uppercase">
+                        Montant
+                      </p>
                       <p className="text-[#f9f9f9] text-xs mt-0.5">
-                        {link.order.currency} {(link.order.amount / 100).toFixed(2)}
+                        {link.order.currency}{" "}
+                        {(link.order.amount / 100).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -195,7 +210,9 @@ export function PaymentLinkRow({
                   </div>
                   {link.used_at && (
                     <div className="flex gap-3">
-                      <span className="w-20 text-[#b7b7b7] shrink-0">Utilisé</span>
+                      <span className="w-20 text-[#b7b7b7] shrink-0">
+                        Utilisé
+                      </span>
                       <span className="text-[#f9f9f9]">
                         {new Date(link.used_at).toLocaleString("fr-FR")}
                       </span>
@@ -211,7 +228,9 @@ export function PaymentLinkRow({
                   )}
                   {link.expires_at && (
                     <div className="flex gap-3">
-                      <span className="w-20 text-[#b7b7b7] shrink-0">Expire</span>
+                      <span className="w-20 text-[#b7b7b7] shrink-0">
+                        Expire
+                      </span>
                       <span className="text-[#f9f9f9]">
                         {new Date(link.expires_at).toLocaleString("fr-FR")}
                       </span>

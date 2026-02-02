@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import Link from "next/link";
 
@@ -162,7 +162,9 @@ export function DossierAccordionItem({
                   <div
                     className={`w-6 h-6 rounded-full ${event.iconBg} flex items-center justify-center flex-shrink-0`}
                   >
-                    <i className={`${event.icon} ${event.iconColor} text-xs`}></i>
+                    <i
+                      className={`${event.icon} ${event.iconColor} text-xs`}
+                    ></i>
                   </div>
                   <span className="text-sm text-brand-text-primary truncate flex-1">
                     {event.title}
@@ -325,12 +327,13 @@ function getCompactTimeline(dossier: DossierWithDetails) {
 
       return {
         title: si.step?.label || "Étape",
-        date: (si.completed_at || si.started_at)
-          ? new Date(si.completed_at || si.started_at!).toLocaleDateString(
-              "fr-FR",
-              { day: "numeric", month: "short" }
-            )
-          : undefined,
+        date:
+          si.completed_at || si.started_at
+            ? new Date(si.completed_at || si.started_at!).toLocaleDateString(
+                "fr-FR",
+                { day: "numeric", month: "short" }
+              )
+            : undefined,
         icon: isRejected
           ? "fa-solid fa-xmark"
           : isCompleted

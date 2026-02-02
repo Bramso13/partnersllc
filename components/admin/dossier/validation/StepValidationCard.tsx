@@ -18,11 +18,23 @@ const statusBadges: Record<
   string,
   { bg: string; text: string; label: string }
 > = {
-  APPROVED: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "Approuvé" },
-  PENDING: { bg: "bg-amber-500/20", text: "text-amber-400", label: "En attente" },
+  APPROVED: {
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    label: "Approuvé",
+  },
+  PENDING: {
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    label: "En attente",
+  },
   REJECTED: { bg: "bg-red-500/20", text: "text-red-400", label: "Rejeté" },
   SUBMITTED: { bg: "bg-blue-500/20", text: "text-blue-400", label: "Soumis" },
-  UNDER_REVIEW: { bg: "bg-purple-500/20", text: "text-purple-400", label: "En révision" },
+  UNDER_REVIEW: {
+    bg: "bg-purple-500/20",
+    text: "text-purple-400",
+    label: "En révision",
+  },
   DRAFT: { bg: "bg-[#363636]", text: "text-[#b7b7b7]", label: "Brouillon" },
 };
 
@@ -40,10 +52,12 @@ export function StepValidationCard({
   const hasFields = stepInstance.total_fields_count > 0;
   const hasDocuments = stepInstance.total_documents_count > 0;
   const allFieldsOk =
-    !hasFields || stepInstance.approved_fields_count === stepInstance.total_fields_count;
+    !hasFields ||
+    stepInstance.approved_fields_count === stepInstance.total_fields_count;
   const allDocsOk =
     !hasDocuments ||
-    stepInstance.approved_documents_count === stepInstance.total_documents_count;
+    stepInstance.approved_documents_count ===
+      stepInstance.total_documents_count;
   const canApprove = (hasFields || hasDocuments) && allFieldsOk && allDocsOk;
 
   const getBadge = (status: string) => {
@@ -166,7 +180,9 @@ export function StepValidationCard({
               {stepInstance.validated_at && (
                 <span>
                   Validé le{" "}
-                  {new Date(stepInstance.validated_at).toLocaleDateString("fr-FR")}
+                  {new Date(stepInstance.validated_at).toLocaleDateString(
+                    "fr-FR"
+                  )}
                 </span>
               )}
             </div>

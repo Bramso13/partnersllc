@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { DossierWithDetails, DossierStatus } from "@/lib/dossiers";
+import type { DossierWithDetails, DossierStatus } from "@/types/dossiers";
 import { DossierCard } from "@/components/dossiers/DossierCard";
 import { StatusFilter } from "@/components/dossiers/StatusFilter";
 import { SearchInput } from "@/components/dossiers/SearchInput";
@@ -65,7 +65,8 @@ export function DossiersListContent({
     return filteredByStatus.filter((dossier) => {
       const productName = dossier.product?.name?.toLowerCase() || "";
       const dossierId = dossier.id.toLowerCase();
-      const llcName = (dossier.metadata?.llc_name || "").toLowerCase();
+      const llcName =
+        (dossier.metadata?.llc_name as string | undefined)?.toLowerCase() || "";
 
       return (
         productName.includes(searchLower) ||

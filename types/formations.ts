@@ -143,3 +143,29 @@ export interface GetProgressResponse {
 export interface GetFormationElementsResponse {
   elements: FormationElement[];
 }
+
+// Step-formations (Story 12.4): many-to-many step <-> formation
+export interface StepFormation {
+  step_id: string;
+  formation_id: string;
+  position: number;
+}
+
+export interface FormationSummary {
+  id: string;
+  titre: string;
+  description?: string | null;
+  vignette_url?: string | null;
+}
+
+export interface GetStepFormationsResponse {
+  formations: FormationSummary[];
+}
+
+export interface PutStepFormationsRequest {
+  formation_ids: string[];
+}
+
+export interface GetFormationsByStepResponse {
+  formations: FormationSummary[];
+}

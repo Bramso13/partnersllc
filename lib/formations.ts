@@ -190,6 +190,64 @@ export async function getFormationWithElements(
 }
 
 /**
+ * Get formations linked to a step that are accessible to the user (visibility rules).
+ * Used by GET /api/formations/by-step/[step_id].
+ */
+export async function getFormationsByStepForUser(
+  stepId: string,
+  userId: string
+): Promise<Formation[]> {
+  const supabase = await createClient();
+
+  const { data: links, error: linkError } = await supabase
+    .from("step_formations")
+    .select("formation_id, position")
+    .eq("step_id", stepId)
+    .order("position", { ascending: true });
+
+  if (linkError) {
+    console.error("[getFormationsByStepForUser]", linkError);
+    throw new Error("Failed to fetch step formations");
+  }
+
+  if (!links || links.length === 0) return [];
+
+  const formationIds = links.map((l) => l.formation_id);
+  const { data: formations, error: formError } = await supabase
+    .from("formations")
+    .select("*")
+    .in("id", formationIds)
+    .order("display_order", { ascending: true });
+
+  if (formError) {
+    console.error("[getFormationsByStepForUser]", formError);
+    throw new Error("Failed to fetch formations");
+  }
+
+  if (!formations || formations.length === 0) return [];
+
+  const { data: userDossiers } = await supabase
+    .from("dossiers")
+    .select("product_id, type")
+    .eq("user_id", userId);
+
+  const userProductIds = new Set(
+    userDossiers?.map((d) => d.product_id) || []
+  );
+  const userDossierTypes = new Set(userDossiers?.map((d) => d.type) || []);
+
+  const accessible = formations.filter((f) =>
+    isFormationAccessibleToUser(
+      f as Formation,
+      userProductIds,
+      userDossierTypes
+    )
+  );
+
+  return accessible as Formation[];
+}
+
+/**
  * Get user's progress for a formation
  * @param userId - User ID
  * @param formationId - Formation ID

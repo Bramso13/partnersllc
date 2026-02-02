@@ -38,7 +38,14 @@ export function SendDocumentsModal({
 
   useEffect(() => {
     fetch("/api/admin/document-types")
-      .then((res) => res.json().then((data: { document_types?: DocumentType[] }) => ({ ok: res.ok, data })))
+      .then((res) =>
+        res
+          .json()
+          .then((data: { document_types?: DocumentType[] }) => ({
+            ok: res.ok,
+            data,
+          }))
+      )
       .then(({ ok, data }) => {
         setDocumentTypes(ok ? (data.document_types ?? []) : []);
       })

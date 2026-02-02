@@ -64,10 +64,7 @@ export function ConversionFunnel({ data }: ConversionFunnelProps) {
             Taux de clic
           </p>
           <p className="text-sm font-semibold text-[#f9f9f9] mt-0.5">
-            {total > 0
-              ? ((data.clicked_count / total) * 100).toFixed(1)
-              : "0"}
-            %
+            {total > 0 ? ((data.clicked_count / total) * 100).toFixed(1) : "0"}%
           </p>
         </div>
         <div>

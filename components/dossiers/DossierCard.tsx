@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { formatDate } from "@/lib/utils";
 
 interface DossierCardProps {

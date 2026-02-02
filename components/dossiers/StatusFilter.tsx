@@ -1,6 +1,6 @@
 "use client";
 
-import { DossierStatus } from "@/lib/dossiers";
+import type { DossierStatus } from "@/lib/dossier-status";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface StatusFilterProps {

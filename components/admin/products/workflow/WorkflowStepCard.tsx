@@ -6,6 +6,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { WorkflowStepConfig } from "./WorkflowConfigContent";
 import { DocumentTypesSelector } from "./DocumentTypesSelector";
 import { CustomFieldsManager } from "./CustomFieldsManager";
+import {
+  DOSSIER_STATUS_OPTIONS,
+  type DossierStatus,
+} from "@/lib/dossier-status";
 
 interface WorkflowStepCardProps {
   step: WorkflowStepConfig;
@@ -123,6 +127,35 @@ export function WorkflowStepCard({
                 onUpdate({ ...step, custom_fields: customFields })
               }
             />
+          </div>
+
+          {/* Dossier status on approval */}
+          <div>
+            <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
+              Statut du dossier à la validation
+            </h4>
+            <select
+              value={step.dossier_status_on_approval ?? ""}
+              onChange={(e) =>
+                onUpdate({
+                  ...step,
+                  dossier_status_on_approval:
+                    (e.target.value as DossierStatus | "") || null,
+                })
+              }
+              className="w-full px-3 py-2 rounded-lg bg-brand-card border border-brand-border text-brand-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+            >
+              <option value="">Aucun</option>
+              {DOSSIER_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-brand-text-secondary mt-1">
+              Si défini, le dossier passera à ce statut lors de
+              l&apos;approbation de cette étape.
+            </p>
           </div>
         </div>
       )}

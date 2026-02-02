@@ -3,6 +3,43 @@ import { requireAdminAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 
 /**
+ * GET /api/admin/steps/[step_id]/fields
+ * List all step_fields for this step
+ */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ step_id: string }> }
+) {
+  try {
+    await requireAdminAuth();
+    const supabase = createAdminClient();
+    const { step_id } = await params;
+
+    const { data, error } = await supabase
+      .from("step_fields")
+      .select("*")
+      .eq("step_id", step_id)
+      .order("position");
+
+    if (error) {
+      console.error("[GET /api/admin/steps/[step_id]/fields]", error);
+      return NextResponse.json(
+        { error: "Failed to fetch step fields" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ fields: data ?? [] });
+  } catch (error) {
+    console.error("[GET /api/admin/steps/[step_id]/fields]", error);
+    return NextResponse.json(
+      { error: "Failed to fetch step fields" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * POST /api/admin/steps/[step_id]/fields
  * Create a new step_field
  */
@@ -45,7 +82,7 @@ export async function POST(
 
     // Calculate position - if provided, check if it's available, otherwise use next available
     let fieldPosition: number;
-    
+
     if (position !== undefined && position !== null) {
       // Check if the provided position is already taken
       const { data: existingFieldAtPosition } = await supabase
@@ -54,7 +91,7 @@ export async function POST(
         .eq("step_id", step_id)
         .eq("position", position)
         .single();
-      
+
       if (existingFieldAtPosition) {
         return NextResponse.json(
           { error: `Position ${position} is already taken for this step` },
@@ -167,10 +204,7 @@ export async function PUT(
       .single();
 
     if (fetchError || !existingField) {
-      return NextResponse.json(
-        { error: "Field not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Field not found" }, { status: 404 });
     }
 
     if (existingField.step_id !== step_id) {

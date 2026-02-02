@@ -48,7 +48,11 @@ export default async function ConversationsClientsPage() {
     )
     .order("created_at", { ascending: false });
 
-  type RawDossier = { id: string; user?: { full_name?: string } | { full_name?: string }[] | null; product?: { name?: string } | { name?: string }[] | null };
+  type RawDossier = {
+    id: string;
+    user?: { full_name?: string } | { full_name?: string }[] | null;
+    product?: { name?: string } | { name?: string }[] | null;
+  };
   const raw = (rawDossiers ?? []) as RawDossier[];
   const dossiers: DossierForNewConversation[] = raw.map((d) => {
     const user = Array.isArray(d.user) ? d.user[0] : d.user;

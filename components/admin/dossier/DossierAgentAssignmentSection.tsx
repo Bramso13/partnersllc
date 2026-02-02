@@ -59,7 +59,9 @@ export function DossierAgentAssignmentSection({
         const agents = data.agents || [];
         setVerificateurAgents(
           agents
-            .filter((a: { agent_type?: string }) => a.agent_type === "VERIFICATEUR")
+            .filter(
+              (a: { agent_type?: string }) => a.agent_type === "VERIFICATEUR"
+            )
             .map((a: { id: string; name?: string; email: string }) => ({
               id: a.id,
               full_name: a.name || a.email,
@@ -102,8 +104,11 @@ export function DossierAgentAssignmentSection({
         const err = await response.json();
         throw new Error(err.error || "Erreur mise à jour");
       }
-      const list = assignmentType === "VERIFICATEUR" ? verificateurAgents : createurAgents;
-      const selected = agentId ? list.find((a) => a.id === agentId) ?? null : null;
+      const list =
+        assignmentType === "VERIFICATEUR" ? verificateurAgents : createurAgents;
+      const selected = agentId
+        ? (list.find((a) => a.id === agentId) ?? null)
+        : null;
       setAssignments((prev) => ({
         ...prev,
         [assignmentType.toLowerCase()]: selected,
@@ -113,7 +118,9 @@ export function DossierAgentAssignmentSection({
       );
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'assignation");
+      toast.error(
+        e instanceof Error ? e.message : "Erreur lors de l'assignation"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -131,7 +138,9 @@ export function DossierAgentAssignmentSection({
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-xs text-[#b7b7b7] mb-1.5">Vérificateur</label>
+        <label className="block text-xs text-[#b7b7b7] mb-1.5">
+          Vérificateur
+        </label>
         <select
           value={assignments.verificateur?.id ?? ""}
           onChange={(e) =>
@@ -168,7 +177,9 @@ export function DossierAgentAssignmentSection({
       </div>
       <div className="rounded-lg bg-[#1e1f22] border border-[#363636] p-3 text-xs text-[#b7b7b7]">
         <p className="font-medium text-[#f9f9f9] mb-0.5">Note</p>
-        L’assignation dossier contrôle la visibilité dans « Mes dossiers ». L’assignation par étape reste nécessaire pour le travail sur chaque étape.
+        L’assignation dossier contrôle la visibilité dans « Mes dossiers ».
+        L’assignation par étape reste nécessaire pour le travail sur chaque
+        étape.
       </div>
     </div>
   );

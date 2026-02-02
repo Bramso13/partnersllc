@@ -34,9 +34,7 @@ export function RejectionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="rounded-xl bg-[#252628] border border-[#363636] p-6 max-w-md w-full shadow-xl">
-        <h3 className="text-lg font-semibold text-[#f9f9f9] mb-2">
-          {title}
-        </h3>
+        <h3 className="text-lg font-semibold text-[#f9f9f9] mb-2">{title}</h3>
         <p className="text-sm text-[#b7b7b7] mb-4">{message}</p>
         <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
           Raison du rejet (min. 10 caractères)

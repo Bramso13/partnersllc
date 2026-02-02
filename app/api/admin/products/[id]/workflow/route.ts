@@ -106,12 +106,14 @@ export async function POST(
         position: number;
         is_required?: boolean;
         estimated_duration_hours?: number;
+        dossier_status_on_approval?: string | null;
       }) => ({
         product_id: id,
         step_id: step.step_id,
         position: step.position,
         is_required: step.is_required ?? true,
         estimated_duration_hours: step.estimated_duration_hours || null,
+        dossier_status_on_approval: step.dossier_status_on_approval || null,
       })
     );
 
@@ -150,7 +152,7 @@ export async function POST(
         const { error: docTypesError } = await supabase
           .from("step_document_types")
           .upsert(docTypesToUpsert, {
-            onConflict: 'step_id,document_type_id',
+            onConflict: "step_id,document_type_id",
             ignoreDuplicates: true,
           });
 
@@ -166,9 +168,7 @@ export async function POST(
           `Successfully upserted ${step.document_type_ids.length} document types`
         );
       } else {
-        console.log(
-          `No document types to upsert for step_id ${step.step_id}`
-        );
+        console.log(`No document types to upsert for step_id ${step.step_id}`);
       }
 
       // Insert custom fields

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DossierStatus } from "@/lib/dossiers";
+import type { DossierStatus } from "@/lib/dossier-status";
 
 interface CancelDossierButtonProps {
   dossierId: string;
@@ -65,7 +65,8 @@ export function CancelDossierButton({
               Annuler le dossier ?
             </h3>
             <p className="text-sm text-[#b7b7b7] mb-4">
-              Le dossier sera marqué annulé, le client sera notifié. Action irréversible.
+              Le dossier sera marqué annulé, le client sera notifié. Action
+              irréversible.
             </p>
             <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
               Raison <span className="text-red-400">*</span>

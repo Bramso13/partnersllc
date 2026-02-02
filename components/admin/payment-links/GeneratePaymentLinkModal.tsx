@@ -78,7 +78,10 @@ export function GeneratePaymentLinkModal({
               required
               value={formData.prospect_email}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, prospect_email: e.target.value }))
+                setFormData((prev) => ({
+                  ...prev,
+                  prospect_email: e.target.value,
+                }))
               }
               className={inputClass}
               placeholder="prospect@exemple.com"
@@ -93,7 +96,10 @@ export function GeneratePaymentLinkModal({
               type="text"
               value={formData.prospect_name}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, prospect_name: e.target.value }))
+                setFormData((prev) => ({
+                  ...prev,
+                  prospect_name: e.target.value,
+                }))
               }
               className={inputClass}
               placeholder="Jean Dupont"

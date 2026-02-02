@@ -1,28 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { DossierStatus } from "@/lib/dossiers";
+import { DossierStatus, DOSSIER_STATUS_OPTIONS } from "@/lib/dossier-status";
 
 interface StatusChangeDropdownProps {
   dossierId: string;
   currentStatus: DossierStatus;
 }
-
-const STATUS_OPTIONS: { value: DossierStatus; label: string }[] = [
-  { value: "QUALIFICATION", label: "Qualification" },
-  { value: "FORM_SUBMITTED", label: "Formulaire soumis" },
-  { value: "NM_PENDING", label: "NM en attente" },
-  { value: "LLC_ACCEPTED", label: "LLC acceptée" },
-  { value: "EIN_PENDING", label: "EIN en attente" },
-  { value: "BANK_PREPARATION", label: "Préparation bancaire" },
-  { value: "BANK_OPENED", label: "Banque ouverte" },
-  { value: "WAITING_48H", label: "Attente 48h" },
-  { value: "IN_PROGRESS", label: "En cours" },
-  { value: "UNDER_REVIEW", label: "En révision" },
-  { value: "COMPLETED", label: "Terminé" },
-  { value: "CLOSED", label: "Fermé" },
-  { value: "ERROR", label: "Erreur" },
-];
 
 const inputClass =
   "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed";
@@ -47,7 +31,9 @@ export function StatusChangeDropdown({
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur lors du changement de statut");
+        throw new Error(
+          errorData.error || "Erreur lors du changement de statut"
+        );
       }
       setStatus(newStatus);
       window.location.reload();
@@ -66,7 +52,7 @@ export function StatusChangeDropdown({
         disabled={isUpdating}
         className={inputClass}
       >
-        {STATUS_OPTIONS.map((opt) => (
+        {DOSSIER_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

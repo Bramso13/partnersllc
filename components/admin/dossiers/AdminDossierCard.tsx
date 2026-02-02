@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import type { DossierWithDetailsAndClient } from "@/lib/dossiers";
+import type { DossierWithDetailsAndClient } from "@/types/dossiers";
 
 interface AdminDossierCardProps {
   dossier: DossierWithDetailsAndClient;

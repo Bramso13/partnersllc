@@ -16,8 +16,16 @@ const statusStyles: Record<
   string,
   { bg: string; text: string; label: string }
 > = {
-  APPROVED: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "Approuvé" },
-  PENDING: { bg: "bg-amber-500/20", text: "text-amber-400", label: "En attente" },
+  APPROVED: {
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    label: "Approuvé",
+  },
+  PENDING: {
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    label: "En attente",
+  },
   REJECTED: { bg: "bg-red-500/20", text: "text-red-400", label: "Rejeté" },
 };
 
@@ -117,8 +125,7 @@ export function FieldValidationItem({
           )}
           {field.reviewed_at && (
             <p className="text-[10px] text-[#b7b7b7] mt-1">
-              Révisé le{" "}
-              {new Date(field.reviewed_at).toLocaleString("fr-FR")}
+              Révisé le {new Date(field.reviewed_at).toLocaleString("fr-FR")}
             </p>
           )}
         </div>

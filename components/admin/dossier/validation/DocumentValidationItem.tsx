@@ -16,8 +16,16 @@ const statusStyles: Record<
   string,
   { bg: string; text: string; label: string }
 > = {
-  APPROVED: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "Approuvé" },
-  PENDING: { bg: "bg-amber-500/20", text: "text-amber-400", label: "En attente" },
+  APPROVED: {
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    label: "Approuvé",
+  },
+  PENDING: {
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    label: "En attente",
+  },
   REJECTED: { bg: "bg-red-500/20", text: "text-red-400", label: "Rejeté" },
   OUTDATED: { bg: "bg-[#363636]", text: "text-[#b7b7b7]", label: "Obsolète" },
 };

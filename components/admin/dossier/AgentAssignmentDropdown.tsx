@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { StepInstance, Step } from "@/lib/dossiers";
+import type { StepInstance, Step } from "@/types/dossiers";
 
 interface AgentAssignmentDropdownProps {
   dossierId: string;
-  currentStepInstance: (StepInstance & { step?: Step | null }) | null | undefined;
+  currentStepInstance:
+    | (StepInstance & { step?: Step | null })
+    | null
+    | undefined;
 }
 
 interface Agent {
@@ -35,7 +38,7 @@ export function AgentAssignmentDropdown({
         const response = await fetch("/api/admin/agents");
         if (!response.ok) throw new Error("Erreur chargement agents");
         const data = await response.json();
-        setAgents(Array.isArray(data) ? data : data.agents ?? []);
+        setAgents(Array.isArray(data) ? data : (data.agents ?? []));
       } catch {
         setError("Erreur lors du chargement des agents");
       } finally {
@@ -49,14 +52,17 @@ export function AgentAssignmentDropdown({
     setIsUpdating(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/assign-agent`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stepInstanceId: currentStepInstance.id,
-          agentId: newAgentId,
-        }),
-      });
+      const response = await fetch(
+        `/api/admin/dossiers/${dossierId}/assign-agent`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stepInstanceId: currentStepInstance.id,
+            agentId: newAgentId,
+          }),
+        }
+      );
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Erreur lors de l'assignation");
@@ -72,9 +78,7 @@ export function AgentAssignmentDropdown({
 
   if (!currentStepInstance) {
     return (
-      <p className="text-xs text-[#b7b7b7]">
-        Aucune étape en cours à assigner
-      </p>
+      <p className="text-xs text-[#b7b7b7]">Aucune étape en cours à assigner</p>
     );
   }
 

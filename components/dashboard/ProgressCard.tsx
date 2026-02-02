@@ -1,6 +1,6 @@
 "use client";
 
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import { useRouter } from "next/navigation";
 

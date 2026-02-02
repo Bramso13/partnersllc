@@ -1,96 +1,34 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
-export type DossierStatus =
-  | "QUALIFICATION"
-  | "FORM_SUBMITTED"
-  | "NM_PENDING"
-  | "LLC_ACCEPTED"
-  | "EIN_PENDING"
-  | "BANK_PREPARATION"
-  | "BANK_OPENED"
-  | "WAITING_48H"
-  | "IN_PROGRESS"
-  | "UNDER_REVIEW"
-  | "COMPLETED"
-  | "CLOSED"
-  | "ERROR";
+export {
+  type DossierStatus,
+  DOSSIER_STATUS_LIST,
+  DOSSIER_STATUS_OPTIONS,
+  isValidDossierStatus,
+} from "@/lib/dossier-status";
 
-export type DossierType = "LLC" | "CORP" | "BANKING";
+export type {
+  DossierType,
+  Dossier,
+  Step,
+  StepInstance,
+  Product,
+  DocumentType,
+  TimelineEvent,
+  DossierWithDetails,
+  DossierWithDetailsAndClient,
+} from "@/types/dossiers";
 
-export interface Dossier {
-  id: string;
-  user_id: string;
-  product_id: string | null;
-  type: DossierType;
-  status: DossierStatus;
-  current_step_instance_id: string | null;
-  metadata: Record<string, any> | null;
-  is_test?: boolean;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-}
-
-export interface Step {
-  id: string;
-  code: string;
-  label: string | null;
-  position: number;
-}
-
-export interface StepInstance {
-  id: string;
-  dossier_id: string;
-  step_id: string;
-  started_at: string | null;
-  completed_at: string | null;
-  assigned_to: string | null;
-  validation_status?:
-    | "DRAFT"
-    | "SUBMITTED"
-    | "UNDER_REVIEW"
-    | "APPROVED"
-    | "REJECTED";
-  rejection_reason?: string | null;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-}
-
-export interface DocumentType {
-  id: string;
-  code: string;
-  label: string;
-  description: string | null;
-  required_step_id: string | null;
-  max_file_size_mb: number | null;
-  allowed_extensions: string[] | null;
-}
-
-export interface TimelineEvent {
-  id: string;
-  event_type: string;
-  entity_type: string;
-  entity_id: string;
-  actor_type: string | null;
-  actor_id: string | null;
-  payload: Record<string, any>;
-  created_at: string;
-}
-
-export interface DossierWithDetails extends Dossier {
-  product?: Product | null;
-  current_step_instance?: (StepInstance & { step?: Step | null }) | null;
-  step_instances?: (StepInstance & { step?: Step | null })[];
-  completed_steps_count?: number;
-  total_steps_count?: number;
-  progress_percentage?: number;
-  required_documents?: DocumentType[];
-  timeline_events?: TimelineEvent[];
-}
+import type {
+  Dossier,
+  DossierWithDetails,
+  DossierWithDetailsAndClient,
+  DocumentType,
+  Product,
+  Step,
+  StepInstance,
+  TimelineEvent,
+} from "@/types/dossiers";
 
 /**
  * Get all dossiers for the current authenticated user
@@ -435,23 +373,6 @@ export async function getDossierById(
     required_documents: requiredDocuments,
     timeline_events: (events || []) as TimelineEvent[],
   } as DossierWithDetails;
-}
-
-/**
- * Extended interface for admin dossiers view with client information
- */
-export interface DossierWithDetailsAndClient extends DossierWithDetails {
-  user?: {
-    id: string;
-    email: string;
-    full_name: string | null;
-  } | null;
-  assigned_agent?: {
-    id: string;
-    email: string;
-    full_name: string | null;
-  } | null;
-  pending_documents_count?: number;
 }
 
 /**

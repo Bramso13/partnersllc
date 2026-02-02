@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { ProductStep, Step } from "@/lib/workflow";
 import { StepField } from "@/types/qualification";
 import { DynamicFormField } from "@/components/qualification/DynamicFormField";
 import { validateForm, isFormValid } from "@/lib/validation";
 import { StepDocuments } from "./StepDocuments";
-import { StepInstance } from "@/lib/dossiers";
+import type { StepInstance } from "@/types/dossiers";
+import type { FormationSummary } from "@/types/formations";
 import { toast } from "sonner";
 
 interface WorkflowStepperProps {
@@ -66,6 +68,7 @@ export function WorkflowStepper({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<any>(null);
+  const [stepFormations, setStepFormations] = useState<FormationSummary[]>([]);
 
   const currentStep = productSteps[currentStepIndex];
   console.log(
@@ -161,11 +164,22 @@ export function WorkflowStepper({
           setUploadedDocuments([]);
         }
 
+        const formationsRes = await fetch(`/api/formations/by-step/${stepId}`);
+        if (formationsRes.ok) {
+          const formationsData = await formationsRes.json();
+          setStepFormations(formationsData.formations ?? []);
+        } else {
+          setStepFormations([]);
+        }
+
         // Initialize form data with existing values or defaults (only for client steps)
         if (!stepIsAdmin && fields.length > 0) {
           const initialData: Record<string, any> = {};
           fields.forEach((field: StepFieldWithValidation) => {
-            if (field.currentValue !== undefined && field.currentValue !== null) {
+            if (
+              field.currentValue !== undefined &&
+              field.currentValue !== null
+            ) {
               // Parse JSONB arrays if needed
               if (
                 typeof field.currentValue === "string" &&
@@ -229,7 +243,7 @@ export function WorkflowStepper({
   const getStepMessage = () => {
     // Don't show message for admin steps (they have their own display)
     if (isAdminStep) return null;
-    
+
     const status = currentStepInstance?.validation_status;
     if (!status || status === "DRAFT") return null;
 
@@ -420,9 +434,9 @@ export function WorkflowStepper({
 
       // Utiliser l'endpoint de téléchargement existant pour récupérer le document
       const viewUrl = `/api/dossiers/${dossierId}/documents/${doc.id}/download`;
-      
+
       const response = await fetch(viewUrl);
-      
+
       if (!response.ok) {
         throw new Error("Erreur lors du chargement du document");
       }
@@ -433,7 +447,9 @@ export function WorkflowStepper({
     } catch (err) {
       console.error("Error viewing document:", err);
       toast.error(
-        err instanceof Error ? err.message : "Erreur lors du chargement du document"
+        err instanceof Error
+          ? err.message
+          : "Erreur lors du chargement du document"
       );
       setShowPreview(false);
     } finally {
@@ -452,12 +468,12 @@ export function WorkflowStepper({
 
   const formIsValid = isFormValid(formData, currentStepFields);
   const stepMessage = getStepMessage();
-  
+
   // Determine if user can edit based on step type and validation status
   const canEdit = () => {
     // Admin steps are never editable by client
     if (isAdminStep) return false;
-    
+
     // Client steps: allow editing only for DRAFT and REJECTED
     if (!currentStepInstance) return true;
     return (
@@ -465,7 +481,7 @@ export function WorkflowStepper({
       currentStepInstance.validation_status === "REJECTED"
     );
   };
-  
+
   const isEditable = canEdit();
 
   if (isLoading) {
@@ -578,6 +594,27 @@ export function WorkflowStepper({
         </div>
       )}
 
+      {/* Formations à suivre (Story 12.4) */}
+      {stepFormations.length > 0 && (
+        <div className="mb-6 p-4 rounded-lg border border-brand-border bg-brand-card">
+          <h3 className="text-base font-semibold text-brand-text-primary mb-3">
+            Formations recommandées pour cette étape
+          </h3>
+          <ul className="space-y-2">
+            {stepFormations.map((f) => (
+              <li key={f.id}>
+                <Link
+                  href={`/dashboard/formation/${f.id}`}
+                  className="text-brand-accent hover:underline font-medium"
+                >
+                  {f.titre}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Admin Step Display */}
       {isAdminStep && (
         <div className="bg-brand-card border border-brand-border rounded-lg p-6">
@@ -622,7 +659,10 @@ export function WorkflowStepper({
                 </span>
                 {currentStepInstance.completed_at && (
                   <span className="text-sm text-brand-text-secondary">
-                    le {new Date(currentStepInstance.completed_at).toLocaleDateString("fr-FR", {
+                    le{" "}
+                    {new Date(
+                      currentStepInstance.completed_at
+                    ).toLocaleDateString("fr-FR", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",
@@ -640,16 +680,23 @@ export function WorkflowStepper({
                     </h4>
                     {uploadedDocuments.length > 0 && (
                       <span className="text-sm text-brand-text-secondary">
-                        {uploadedDocuments.length} document{uploadedDocuments.length > 1 ? "s" : ""}
+                        {uploadedDocuments.length} document
+                        {uploadedDocuments.length > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
                   {uploadedDocuments.length > 0 ? (
                     <div id="admin-step-documents" className="space-y-3">
                       {uploadedDocuments.map((doc: any) => {
-                        const fileName = doc.current_version?.file_name || doc.file_name || "Document";
-                        const uploadedAt = doc.current_version?.uploaded_at || doc.created_at;
-                        const fileSize = doc.current_version?.file_size_bytes || doc.file_size_bytes;
+                        const fileName =
+                          doc.current_version?.file_name ||
+                          doc.file_name ||
+                          "Document";
+                        const uploadedAt =
+                          doc.current_version?.uploaded_at || doc.created_at;
+                        const fileSize =
+                          doc.current_version?.file_size_bytes ||
+                          doc.file_size_bytes;
 
                         return (
                           <div
@@ -669,11 +716,14 @@ export function WorkflowStepper({
                                 <div className="flex items-center gap-3 mt-1">
                                   {uploadedAt && (
                                     <p className="text-xs text-brand-text-secondary">
-                                      {new Date(uploadedAt).toLocaleDateString("fr-FR", {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                      })}
+                                      {new Date(uploadedAt).toLocaleDateString(
+                                        "fr-FR",
+                                        {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                        }
+                                      )}
                                     </p>
                                   )}
                                   {fileSize && (
@@ -1034,10 +1084,11 @@ export function WorkflowStepper({
                   Étape validée avec succès
                 </h3>
                 <p className="text-brand-text-secondary">
-                  Cette étape a été approuvée par notre équipe. Les informations ne peuvent plus être modifiées.
+                  Cette étape a été approuvée par notre équipe. Les informations
+                  ne peuvent plus être modifiées.
                 </p>
               </>
-            ) : currentStepInstance?.validation_status === "UNDER_REVIEW" || 
+            ) : currentStepInstance?.validation_status === "UNDER_REVIEW" ||
               currentStepInstance?.validation_status === "SUBMITTED" ? (
               <>
                 <div className="w-16 h-16 bg-brand-warning/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1047,11 +1098,16 @@ export function WorkflowStepper({
                   Étape en cours de vérification
                 </h3>
                 <p className="text-brand-text-secondary mb-4">
-                  Votre soumission est actuellement examinée par notre équipe. Vous recevrez une notification dès que la vérification sera terminée.
+                  Votre soumission est actuellement examinée par notre équipe.
+                  Vous recevrez une notification dès que la vérification sera
+                  terminée.
                 </p>
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-dark-surface rounded-lg text-sm text-brand-text-secondary">
                   <i className="fas fa-lightbulb text-brand-accent"></i>
-                  <span>Vous pouvez continuer avec les étapes suivantes pendant ce temps</span>
+                  <span>
+                    Vous pouvez continuer avec les étapes suivantes pendant ce
+                    temps
+                  </span>
                 </div>
               </>
             ) : (
@@ -1068,7 +1124,7 @@ export function WorkflowStepper({
               </>
             )}
           </div>
-          
+
           <div className="pt-6 border-t border-brand-border flex items-center justify-between">
             {currentStepIndex > 0 && (
               <button
@@ -1112,9 +1168,9 @@ export function WorkflowStepper({
             <div className="flex items-center justify-between p-6 border-b border-brand-dark-border">
               <div>
                 <h2 className="text-xl font-bold text-brand-text-primary">
-                  {previewDocument?.current_version?.file_name || 
-                   previewDocument?.file_name || 
-                   "Document"}
+                  {previewDocument?.current_version?.file_name ||
+                    previewDocument?.file_name ||
+                    "Document"}
                 </h2>
                 <p className="text-sm text-brand-text-secondary mt-1">
                   {previewDocument?.document_type_label || "Document"}
@@ -1135,28 +1191,36 @@ export function WorkflowStepper({
                 <div className="flex items-center justify-center h-full min-h-[400px]">
                   <div className="text-center">
                     <i className="fa-solid fa-spinner fa-spin text-4xl text-brand-text-secondary mb-4"></i>
-                    <p className="text-brand-text-secondary">Chargement du document...</p>
+                    <p className="text-brand-text-secondary">
+                      Chargement du document...
+                    </p>
                   </div>
                 </div>
               ) : previewUrl ? (
                 <div className="flex items-center justify-center h-full min-h-[400px]">
-                  {previewDocument?.current_version?.mime_type?.startsWith("image/") ||
-                   previewDocument?.mime_type?.startsWith("image/") ? (
+                  {previewDocument?.current_version?.mime_type?.startsWith(
+                    "image/"
+                  ) || previewDocument?.mime_type?.startsWith("image/") ? (
                     <img
                       src={previewUrl}
-                      alt={previewDocument?.current_version?.file_name || 
-                           previewDocument?.file_name || 
-                           "Document"}
+                      alt={
+                        previewDocument?.current_version?.file_name ||
+                        previewDocument?.file_name ||
+                        "Document"
+                      }
                       className="max-w-full max-h-full object-contain rounded-lg"
                     />
-                  ) : previewDocument?.current_version?.mime_type === "application/pdf" ||
-                       previewDocument?.mime_type === "application/pdf" ? (
+                  ) : previewDocument?.current_version?.mime_type ===
+                      "application/pdf" ||
+                    previewDocument?.mime_type === "application/pdf" ? (
                     <iframe
                       src={previewUrl}
                       className="w-full h-full min-h-[600px] rounded-lg border border-brand-dark-border"
-                      title={previewDocument?.current_version?.file_name || 
-                             previewDocument?.file_name || 
-                             "Document PDF"}
+                      title={
+                        previewDocument?.current_version?.file_name ||
+                        previewDocument?.file_name ||
+                        "Document PDF"
+                      }
                     />
                   ) : (
                     <div className="text-center">

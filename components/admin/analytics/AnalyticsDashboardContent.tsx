@@ -31,7 +31,11 @@ type TabId = "overview" | "revenue" | "conversion" | "team";
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "overview", label: "Vue d’ensemble", icon: "fa-solid fa-chart-pie" },
   { id: "revenue", label: "Revenus", icon: "fa-solid fa-euro-sign" },
-  { id: "conversion", label: "Conversion & dossiers", icon: "fa-solid fa-filter-circle-dollar" },
+  {
+    id: "conversion",
+    label: "Conversion & dossiers",
+    icon: "fa-solid fa-filter-circle-dollar",
+  },
   { id: "team", label: "Équipe & qualité", icon: "fa-solid fa-users" },
 ];
 
@@ -66,7 +70,9 @@ export function AnalyticsDashboardContent() {
     return () => clearInterval(interval);
   }, [filters]);
 
-  const handleRangeChange = (range: { startDate: string; endDate: string } | null) => {
+  const handleRangeChange = (
+    range: { startDate: string; endDate: string } | null
+  ) => {
     setFilters((prev) => ({
       ...prev,
       startDate: range?.startDate,
@@ -85,7 +91,11 @@ export function AnalyticsDashboardContent() {
         useCORS: true,
       });
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
@@ -117,7 +127,11 @@ export function AnalyticsDashboardContent() {
             <DateRangeSelector onRangeChange={handleRangeChange} />
             <span className="text-xs text-[#b7b7b7] flex items-center gap-1.5">
               <i className="fa-solid fa-clock text-[10px]" />
-              Actualisé {lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              Actualisé{" "}
+              {lastRefresh.toLocaleTimeString("fr-FR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -127,7 +141,9 @@ export function AnalyticsDashboardContent() {
               disabled={isLoading}
               className="px-4 py-2 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 disabled:opacity-50 flex items-center gap-2 transition-colors"
             >
-              <i className={`fa-solid fa-arrows-rotate ${isLoading ? "fa-spin" : ""}`} />
+              <i
+                className={`fa-solid fa-arrows-rotate ${isLoading ? "fa-spin" : ""}`}
+              />
               Rafraîchir
             </button>
             <button
@@ -226,10 +242,17 @@ function OverviewTab({
                 stroke="#b7b7b7"
                 fontSize={11}
                 tickFormatter={(val) =>
-                  new Date(val).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+                  new Date(val).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })
                 }
               />
-              <YAxis stroke="#b7b7b7" fontSize={11} tickFormatter={(v) => `${v} €`} />
+              <YAxis
+                stroke="#b7b7b7"
+                fontSize={11}
+                tickFormatter={(v) => `${v} €`}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#252628",
@@ -237,7 +260,10 @@ function OverviewTab({
                   color: "#f9f9f9",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+                formatter={(value: number | undefined) => [
+                  `${value != null ? value : 0} €`,
+                  "Revenu",
+                ]}
               />
               <Line
                 type="monotone"
@@ -265,8 +291,18 @@ function OverviewTab({
               layout="vertical"
               margin={{ left: 0, right: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
-              <XAxis type="number" stroke="#b7b7b7" fontSize={11} tickFormatter={(v) => `${v} €`} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#363636"
+                horizontal={true}
+                vertical={false}
+              />
+              <XAxis
+                type="number"
+                stroke="#b7b7b7"
+                fontSize={11}
+                tickFormatter={(v) => `${v} €`}
+              />
               <YAxis
                 dataKey="name"
                 type="category"
@@ -282,7 +318,10 @@ function OverviewTab({
                   color: "#f9f9f9",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+                formatter={(value: number | undefined) => [
+                  `${value != null ? value : 0} €`,
+                  "Revenu",
+                ]}
               />
               <Bar dataKey="revenue" fill="#50b989" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -333,10 +372,17 @@ function RevenueTab({ metrics }: { metrics: DashboardMetrics }) {
               stroke="#b7b7b7"
               fontSize={12}
               tickFormatter={(val) =>
-                new Date(val).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+                new Date(val).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                })
               }
             />
-            <YAxis stroke="#b7b7b7" fontSize={12} tickFormatter={(v) => `${v} €`} />
+            <YAxis
+              stroke="#b7b7b7"
+              fontSize={12}
+              tickFormatter={(v) => `${v} €`}
+            />
             <Tooltip
               contentStyle={{
                 backgroundColor: "#252628",
@@ -344,7 +390,10 @@ function RevenueTab({ metrics }: { metrics: DashboardMetrics }) {
                 color: "#f9f9f9",
                 borderRadius: "8px",
               }}
-              formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+              formatter={(value: number | undefined) => [
+                `${value != null ? value : 0} €`,
+                "Revenu",
+              ]}
             />
             <Line
               type="monotone"
@@ -365,8 +414,18 @@ function RevenueTab({ metrics }: { metrics: DashboardMetrics }) {
             layout="vertical"
             margin={{ left: 0, right: 24 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
-            <XAxis type="number" stroke="#b7b7b7" fontSize={12} tickFormatter={(v) => `${v} €`} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#363636"
+              horizontal={true}
+              vertical={false}
+            />
+            <XAxis
+              type="number"
+              stroke="#b7b7b7"
+              fontSize={12}
+              tickFormatter={(v) => `${v} €`}
+            />
             <YAxis
               dataKey="name"
               type="category"
@@ -382,7 +441,10 @@ function RevenueTab({ metrics }: { metrics: DashboardMetrics }) {
                 color: "#f9f9f9",
                 borderRadius: "8px",
               }}
-              formatter={(value: number | undefined) => [`${value != null ? value : 0} €`, "Revenu"]}
+              formatter={(value: number | undefined) => [
+                `${value != null ? value : 0} €`,
+                "Revenu",
+              ]}
             />
             <Bar dataKey="revenue" fill="#50b989" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -407,10 +469,22 @@ function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
                   borderRadius: "8px",
                 }}
               />
-              <Funnel data={metrics.conversion.funnel_data} dataKey="value" nameKey="name">
-                <LabelList position="right" fill="#b7b7b7" stroke="none" dataKey="name" />
+              <Funnel
+                data={metrics.conversion.funnel_data}
+                dataKey="value"
+                nameKey="name"
+              >
+                <LabelList
+                  position="right"
+                  fill="#b7b7b7"
+                  stroke="none"
+                  dataKey="name"
+                />
                 {metrics.conversion.funnel_data.map((_, index) => (
-                  <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  <Cell
+                    key={index}
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                  />
                 ))}
               </Funnel>
             </FunnelChart>
@@ -424,9 +498,26 @@ function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
               data={metrics.dossier.completion_rate_by_product}
               margin={{ left: 0, right: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#363636" horizontal={true} vertical={false} />
-              <XAxis type="number" stroke="#b7b7b7" fontSize={11} unit=" %" domain={[0, 100]} />
-              <YAxis dataKey="name" type="category" stroke="#b7b7b7" fontSize={11} width={80} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#363636"
+                horizontal={true}
+                vertical={false}
+              />
+              <XAxis
+                type="number"
+                stroke="#b7b7b7"
+                fontSize={11}
+                unit=" %"
+                domain={[0, 100]}
+              />
+              <YAxis
+                dataKey="name"
+                type="category"
+                stroke="#b7b7b7"
+                fontSize={11}
+                width={80}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#252628",
@@ -434,7 +525,10 @@ function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
                   color: "#f9f9f9",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number | undefined) => [`${value != null ? value.toFixed(1) : 0} %`, "Complétion"]}
+                formatter={(value: number | undefined) => [
+                  `${value != null ? value.toFixed(1) : 0} %`,
+                  "Complétion",
+                ]}
               />
               <Bar dataKey="rate" fill="#4ade80" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -443,7 +537,10 @@ function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
 
         <ChartCard title="Durée moyenne par étape (h)">
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={metrics.dossier.bottlenecks} margin={{ bottom: 40 }}>
+            <BarChart
+              data={metrics.dossier.bottlenecks}
+              margin={{ bottom: 40 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#363636" />
               <XAxis
                 dataKey="name"
@@ -461,7 +558,10 @@ function ConversionTab({ metrics }: { metrics: DashboardMetrics }) {
                   color: "#f9f9f9",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number | undefined) => [`${value != null ? value.toFixed(1) : 0} h`, "Durée moy."]}
+                formatter={(value: number | undefined) => [
+                  `${value != null ? value.toFixed(1) : 0} h`,
+                  "Durée moy.",
+                ]}
               />
               <Bar dataKey="avg_hours" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -483,7 +583,9 @@ function TeamTab({ metrics }: { metrics: DashboardMetrics }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#363636]">
-          <h3 className="text-base font-semibold text-[#f9f9f9]">Classement agents</h3>
+          <h3 className="text-base font-semibold text-[#f9f9f9]">
+            Classement agents
+          </h3>
           <p className="text-xs text-[#b7b7b7] mt-0.5">Documents revus</p>
         </div>
         <div className="overflow-x-auto">
@@ -499,13 +601,23 @@ function TeamTab({ metrics }: { metrics: DashboardMetrics }) {
               {metrics.agent.leaderboard.map((agent, i) => (
                 <tr key={i} className="hover:bg-[#1e1f22]/50 transition-colors">
                   <td className="px-4 py-3 flex items-center gap-2">
-                    {i === 0 && <i className="fa-solid fa-trophy text-amber-400 text-sm" />}
-                    {i === 1 && <i className="fa-solid fa-medal text-[#b7b7b7] text-sm" />}
-                    {i === 2 && <i className="fa-solid fa-award text-amber-600 text-sm" />}
-                    {i > 2 && (
-                      <span className="w-5 text-center text-xs text-[#b7b7b7]">{i + 1}</span>
+                    {i === 0 && (
+                      <i className="fa-solid fa-trophy text-amber-400 text-sm" />
                     )}
-                    <span className="font-medium text-[#f9f9f9]">{agent.agent_name}</span>
+                    {i === 1 && (
+                      <i className="fa-solid fa-medal text-[#b7b7b7] text-sm" />
+                    )}
+                    {i === 2 && (
+                      <i className="fa-solid fa-award text-amber-600 text-sm" />
+                    )}
+                    {i > 2 && (
+                      <span className="w-5 text-center text-xs text-[#b7b7b7]">
+                        {i + 1}
+                      </span>
+                    )}
+                    <span className="font-medium text-[#f9f9f9]">
+                      {agent.agent_name}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-[#f9f9f9]">{agent.reviews}</td>
                   <td className="px-4 py-3">
@@ -527,7 +639,10 @@ function TeamTab({ metrics }: { metrics: DashboardMetrics }) {
               ))}
               {metrics.agent.leaderboard.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-[#b7b7b7]">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-8 text-center text-sm text-[#b7b7b7]"
+                  >
                     Aucune donnée agent
                   </td>
                 </tr>
@@ -539,15 +654,21 @@ function TeamTab({ metrics }: { metrics: DashboardMetrics }) {
 
       <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#363636]">
-          <h3 className="text-base font-semibold text-[#f9f9f9]">Principales raisons de rejet</h3>
+          <h3 className="text-base font-semibold text-[#f9f9f9]">
+            Principales raisons de rejet
+          </h3>
           <p className="text-xs text-[#b7b7b7] mt-0.5">Documents</p>
         </div>
         <div className="p-4 space-y-4">
           {metrics.document.rejection_reasons.slice(0, 5).map((r, i) => (
             <div key={i} className="space-y-1.5">
               <div className="flex justify-between text-sm">
-                <span className="font-medium text-[#f9f9f9] truncate pr-2">{r.reason}</span>
-                <span className="text-[#b7b7b7] shrink-0">{r.count} rejets</span>
+                <span className="font-medium text-[#f9f9f9] truncate pr-2">
+                  {r.reason}
+                </span>
+                <span className="text-[#b7b7b7] shrink-0">
+                  {r.count} rejets
+                </span>
               </div>
               <div className="h-2 rounded-full bg-[#1e1f22] overflow-hidden">
                 <div

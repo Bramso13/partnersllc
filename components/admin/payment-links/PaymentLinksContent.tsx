@@ -20,9 +20,7 @@ export function PaymentLinksContent() {
     []
   );
   const [products, setProducts] = useState<Product[]>([]);
-  const [analytics, setAnalytics] = useState<PaymentLinkAnalytics | null>(
-    null
-  );
+  const [analytics, setAnalytics] = useState<PaymentLinkAnalytics | null>(null);
   const [funnelData, setFunnelData] = useState<ConversionFunnelData | null>(
     null
   );
@@ -48,8 +46,10 @@ export function PaymentLinksContent() {
     try {
       setError(null);
       const params = new URLSearchParams();
-      if (filters.status?.length) params.append("status", filters.status.join(","));
-      if (filters.product_id?.length) params.append("product_id", filters.product_id.join(","));
+      if (filters.status?.length)
+        params.append("status", filters.status.join(","));
+      if (filters.product_id?.length)
+        params.append("product_id", filters.product_id.join(","));
       if (filters.search) params.append("search", filters.search);
       if (filters.date_range) {
         params.append("date_start", filters.date_range.start);
@@ -74,7 +74,9 @@ export function PaymentLinksContent() {
         params.append("date_start", filters.date_range.start);
         params.append("date_end", filters.date_range.end);
       }
-      const response = await fetch(`/api/admin/payment-links/analytics?${params}`);
+      const response = await fetch(
+        `/api/admin/payment-links/analytics?${params}`
+      );
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data.analytics ?? null);
@@ -209,10 +211,12 @@ export function PaymentLinksContent() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <p className="text-sm text-[#b7b7b7]">
-          {paymentLinks.length} lien{paymentLinks.length !== 1 ? "s" : ""} au total
+          {paymentLinks.length} lien{paymentLinks.length !== 1 ? "s" : ""} au
+          total
           {selectedLinks.length > 0 && (
             <span className="text-[#f9f9f9] font-medium ml-1">
-              ({selectedLinks.length} sélectionné{selectedLinks.length !== 1 ? "s" : ""})
+              ({selectedLinks.length} sélectionné
+              {selectedLinks.length !== 1 ? "s" : ""})
             </span>
           )}
         </p>

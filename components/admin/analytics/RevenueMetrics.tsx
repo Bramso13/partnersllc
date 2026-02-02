@@ -15,9 +15,24 @@ const cards: {
   icon: string;
   accent: string;
 }[] = [
-  { key: "encaisse", label: "Encaissé", icon: "fa-solid fa-circle-check", accent: "text-emerald-400" },
-  { key: "signe", label: "Signé", icon: "fa-solid fa-pen-fancy", accent: "text-blue-400" },
-  { key: "restant", label: "Restant", icon: "fa-solid fa-clock", accent: "text-amber-400" },
+  {
+    key: "encaisse",
+    label: "Encaissé",
+    icon: "fa-solid fa-circle-check",
+    accent: "text-emerald-400",
+  },
+  {
+    key: "signe",
+    label: "Signé",
+    icon: "fa-solid fa-pen-fancy",
+    accent: "text-blue-400",
+  },
+  {
+    key: "restant",
+    label: "Restant",
+    icon: "fa-solid fa-clock",
+    accent: "text-amber-400",
+  },
 ];
 
 export function RevenueMetrics() {
@@ -74,7 +89,9 @@ export function RevenueMetrics() {
           className="text-[#b7b7b7] hover:text-[#f9f9f9] p-1.5 disabled:opacity-50 transition-colors"
           title="Actualiser"
         >
-          <i className={`fa-solid fa-arrows-rotate ${loading ? "fa-spin" : ""}`} />
+          <i
+            className={`fa-solid fa-arrows-rotate ${loading ? "fa-spin" : ""}`}
+          />
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#363636]">

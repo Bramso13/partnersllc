@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { DossierWithDetails } from "@/lib/dossiers";
+import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
 import { ProgressCard } from "@/components/dashboard/ProgressCard";
 import { SidebarCards } from "@/components/dashboard/SidebarCards";
@@ -168,7 +168,9 @@ export function DossierDetailContent({
   // Otherwise, show dossier detail with all steps
   const estimatedCompletion = dossier.completed_at
     ? null
-    : new Date(new Date(dossier.created_at).getTime() + 48 * 60 * 60 * 1000).toISOString();
+    : new Date(
+        new Date(dossier.created_at).getTime() + 48 * 60 * 60 * 1000
+      ).toISOString();
 
   return (
     <div>

@@ -6,6 +6,8 @@ import { Step, DocumentType, ProductStep } from "@/types/products";
 import { WorkflowStepsList } from "./WorkflowStepsList";
 import { AddStepModal } from "./AddStepModal";
 import { WorkflowPreview } from "./WorkflowPreview";
+import { SaveAsTemplateModal } from "./SaveAsTemplateModal";
+import { LoadTemplateModal } from "./LoadTemplateModal";
 
 interface WorkflowConfigContentProps {
   productId: string;
@@ -28,13 +30,13 @@ export function WorkflowConfigContent({
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false);
 
   const fetchWorkflowConfig = async () => {
     try {
       setError(null);
-      const response = await fetch(
-        `/api/admin/products/${productId}/workflow`
-      );
+      const response = await fetch(`/api/admin/products/${productId}/workflow`);
       if (!response.ok) {
         throw new Error("Failed to fetch workflow configuration");
       }
@@ -76,6 +78,7 @@ export function WorkflowConfigContent({
           position: index,
           is_required: step.is_required,
           estimated_duration_hours: step.estimated_duration_hours,
+          dossier_status_on_approval: step.dossier_status_on_approval ?? null,
           document_type_ids: step.document_types.map((dt) => dt.id),
           custom_fields: step.custom_fields,
         })),
@@ -118,6 +121,7 @@ export function WorkflowConfigContent({
       position: steps.length,
       is_required: true,
       estimated_duration_hours: null,
+      dossier_status_on_approval: null,
       created_at: new Date().toISOString(),
       step: stepToAdd,
       document_types: [],
@@ -133,9 +137,7 @@ export function WorkflowConfigContent({
   };
 
   const handleStepUpdated = (updatedStep: WorkflowStepConfig) => {
-    setSteps(
-      steps.map((s) => (s.id === updatedStep.id ? updatedStep : s))
-    );
+    setSteps(steps.map((s) => (s.id === updatedStep.id ? updatedStep : s)));
   };
 
   if (loading) {
@@ -159,10 +161,22 @@ export function WorkflowConfigContent({
       {/* Action Bar */}
       <div className="flex justify-between items-center">
         <div className="text-brand-text-secondary">
-          {steps.length} workflow step{steps.length !== 1 ? "s" : ""}{" "}
-          configured
+          {steps.length} workflow step{steps.length !== 1 ? "s" : ""} configured
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={() => setShowLoadTemplateModal(true)}
+            className="px-4 py-2 border border-brand-border rounded-lg text-brand-text-primary hover:bg-brand-dark-bg/50 transition-colors"
+          >
+            Charger un template
+          </button>
+          <button
+            onClick={() => setShowSaveTemplateModal(true)}
+            disabled={steps.length === 0}
+            className="px-4 py-2 border border-brand-border rounded-lg text-brand-text-primary hover:bg-brand-dark-bg/50 transition-colors disabled:opacity-50"
+          >
+            Sauvegarder en template
+          </button>
           <button
             onClick={() => setShowPreview(true)}
             disabled={steps.length === 0}
@@ -222,9 +236,24 @@ export function WorkflowConfigContent({
 
       {/* Preview Modal */}
       {showPreview && (
-        <WorkflowPreview
+        <WorkflowPreview steps={steps} onClose={() => setShowPreview(false)} />
+      )}
+
+      {/* Save as Template Modal */}
+      {showSaveTemplateModal && (
+        <SaveAsTemplateModal
           steps={steps}
-          onClose={() => setShowPreview(false)}
+          onClose={() => setShowSaveTemplateModal(false)}
+        />
+      )}
+
+      {/* Load Template Modal */}
+      {showLoadTemplateModal && (
+        <LoadTemplateModal
+          productId={productId}
+          availableSteps={availableSteps}
+          onApply={setSteps}
+          onClose={() => setShowLoadTemplateModal(false)}
         />
       )}
     </div>
