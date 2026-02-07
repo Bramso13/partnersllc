@@ -65,28 +65,36 @@ export function VerificateurStepContent({
         <div className="border border-[#363636] rounded-xl bg-[#191A1D] px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div>
-              <span className="text-brand-text-secondary">{tDossiers("product")}:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {tDossiers("product")}:
+              </span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.product.name}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">{tDossiers("client")}:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {tDossiers("client")}:
+              </span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.client.full_name || "N/A"}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">{tDossiers("dossier")}:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {tDossiers("dossier")}:
+              </span>{" "}
               <span className="text-brand-text-primary font-mono text-xs">
                 {dossierIdShort}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">{tDossiers("statusLabel")}:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {tDossiers("statusLabel")}:
+              </span>{" "}
               <span className="text-amber-400 font-medium">
                 {stepDetails.dossier.status}
               </span>

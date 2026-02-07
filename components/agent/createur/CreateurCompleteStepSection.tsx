@@ -30,24 +30,27 @@ export function CreateurCompleteStepSection({
     setCompleting(true);
 
     try {
-      const response = await fetch(`/api/agent/steps/${stepInstanceId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agent_type: 'CREATEUR',
-        }),
-      });
+      const response = await fetch(
+        `/api/agent/steps/${stepInstanceId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            agent_type: "CREATEUR",
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Completion failed');
+        throw new Error("Completion failed");
       }
 
       // Redirect to steps list
-      window.location.href = '/agent/steps';
+      window.location.href = "/agent/steps";
     } catch (error) {
-      console.error('Completion error:', error);
+      console.error("Completion error:", error);
       alert(t("completionError"));
     } finally {
       setCompleting(false);
@@ -82,7 +85,9 @@ export function CreateurCompleteStepSection({
           ) : (
             <AlertCircle className="w-5 h-5 text-red-400" />
           )}
-          <span className={`text-sm ${allDocumentsDelivered ? "text-green-400" : "text-red-400"}`}>
+          <span
+            className={`text-sm ${allDocumentsDelivered ? "text-green-400" : "text-red-400"}`}
+          >
             {t("allDocsDelivered")}
           </span>
         </div>
@@ -92,7 +97,9 @@ export function CreateurCompleteStepSection({
             {t("missingOrNotDelivered")}
             <ul className="list-disc list-inside mt-1">
               {adminDocuments
-                .filter((doc) => !doc.document || doc.document.status !== "DELIVERED")
+                .filter(
+                  (doc) => !doc.document || doc.document.status !== "DELIVERED"
+                )
                 .map((doc) => (
                   <li key={doc.document_type.id}>{doc.document_type.label}</li>
                 ))}

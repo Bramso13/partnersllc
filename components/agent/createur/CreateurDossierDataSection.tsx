@@ -43,13 +43,21 @@ export function CreateurDossierDataSection({
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <span className="text-brand-text-secondary text-sm">{t("fullName")}:</span>
-              <p className="text-brand-text-primary font-medium">{client.full_name}</p>
+              <span className="text-brand-text-secondary text-sm">
+                {t("fullName")}:
+              </span>
+              <p className="text-brand-text-primary font-medium">
+                {client.full_name}
+              </p>
             </div>
             {client.phone && (
               <div>
-                <span className="text-brand-text-secondary text-sm">{t("phone")}:</span>
-                <p className="text-brand-text-primary font-medium">{client.phone}</p>
+                <span className="text-brand-text-secondary text-sm">
+                  {t("phone")}:
+                </span>
+                <p className="text-brand-text-primary font-medium">
+                  {client.phone}
+                </p>
               </div>
             )}
           </div>
@@ -62,12 +70,18 @@ export function CreateurDossierDataSection({
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <span className="text-brand-text-secondary text-sm">{t("productName")}:</span>
-              <p className="text-brand-text-primary font-medium">{product.name}</p>
+              <span className="text-brand-text-secondary text-sm">
+                {t("productName")}:
+              </span>
+              <p className="text-brand-text-primary font-medium">
+                {product.name}
+              </p>
             </div>
             {product.description && (
               <div>
-                <span className="text-brand-text-secondary text-sm">{t("description")}:</span>
+                <span className="text-brand-text-secondary text-sm">
+                  {t("description")}:
+                </span>
                 <p className="text-brand-text-primary">{product.description}</p>
               </div>
             )}
@@ -82,7 +96,10 @@ export function CreateurDossierDataSection({
             </h4>
             <div className="space-y-2">
               {previousStepsData.map((prevStep) => (
-                <div key={prevStep.step.position} className="border border-[#363636] rounded-md">
+                <div
+                  key={prevStep.step.position}
+                  className="border border-[#363636] rounded-md"
+                >
                   <button
                     onClick={() => toggleStep(prevStep.step.position)}
                     className="w-full flex items-center justify-between p-3 text-left hover:bg-[#2A2B2F] transition-colors rounded-md"
@@ -111,7 +128,10 @@ export function CreateurDossierDataSection({
                         {prevStep.fields.length > 0 ? (
                           <div className="space-y-2">
                             {prevStep.fields.map((field, idx) => (
-                              <div key={idx} className="flex justify-between items-start">
+                              <div
+                                key={idx}
+                                className="flex justify-between items-start"
+                              >
                                 <span className="text-brand-text-secondary text-sm">
                                   {field.label}:
                                 </span>

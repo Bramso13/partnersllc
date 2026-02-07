@@ -31,7 +31,7 @@ export function DossierStepFieldsSection({
       await navigator.clipboard.writeText(valueToCopy);
       setCopiedFieldIndex(index);
       toast.success(t("copyValue"));
-      
+
       // Reset the check icon after 2 seconds
       setTimeout(() => {
         setCopiedFieldIndex(null);
@@ -125,9 +125,7 @@ export function DossierStepFieldsSection({
                 </div>
                 <div
                   className={`text-brand-text-primary ${
-                    isEmpty
-                      ? "text-brand-text-secondary italic"
-                      : "font-medium"
+                    isEmpty ? "text-brand-text-secondary italic" : "font-medium"
                   } ${
                     typeof field.value_jsonb === "object" &&
                     !Array.isArray(field.value_jsonb)

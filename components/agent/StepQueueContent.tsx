@@ -56,9 +56,7 @@ export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
 
     switch (sortBy) {
       case "step_type":
-        result.sort((a, b) =>
-          a.step.step_type.localeCompare(b.step.step_type)
-        );
+        result.sort((a, b) => a.step.step_type.localeCompare(b.step.step_type));
         break;
       case "client_name":
         result.sort((a, b) =>
@@ -102,4 +100,3 @@ export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
     </div>
   );
 }
-

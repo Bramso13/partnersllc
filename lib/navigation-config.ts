@@ -109,6 +109,11 @@ export const adminNavConfig: NavConfig = {
           label: "Gestion Clients",
         },
         {
+          href: "/admin/agents",
+          icon: "fa-user-tie",
+          label: "Gestion Agents",
+        },
+        {
           href: "/admin/products",
           icon: "fa-box",
           label: "Produits",

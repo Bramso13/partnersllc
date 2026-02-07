@@ -50,7 +50,8 @@ export function DossiersListContent({
 
       switch (sortField) {
         case "date":
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          comparison =
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
         case "name":
           comparison = (a.client_full_name || "").localeCompare(

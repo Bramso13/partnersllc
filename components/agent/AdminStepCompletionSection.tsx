@@ -53,9 +53,7 @@ export function AdminStepCompletionSection({
             <h3 className="text-lg font-semibold text-green-300">
               {t("stepCompleted")}
             </h3>
-            <p className="text-sm text-green-300/80">
-              {t("stepMarkedDone")}
-            </p>
+            <p className="text-sm text-green-300/80">{t("stepMarkedDone")}</p>
           </div>
         </div>
       </div>

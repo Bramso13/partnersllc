@@ -96,9 +96,7 @@ export function AdminStepWithoutInstance({
                 {t("startAdminStep")}
               </h3>
               <p className="text-sm text-brand-text-secondary mt-1">
-                {canComplete
-                  ? t("createToStart")
-                  : t("onlyCreateurCanCreate")}
+                {canComplete ? t("createToStart") : t("onlyCreateurCanCreate")}
               </p>
             </div>
 

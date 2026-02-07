@@ -51,7 +51,9 @@ export default async function AgentStepDetailPage({ params }: PageProps) {
 
   const stepType = Array.isArray(stepTypeCheck.step)
     ? stepTypeCheck.step[0]?.step_type
-    : stepTypeCheck.step ? (stepTypeCheck.step as { step_type: string }).step_type : null;    
+    : stepTypeCheck.step
+      ? (stepTypeCheck.step as { step_type: string }).step_type
+      : null;
 
   // Router selon le type de step
   if (stepType === "ADMIN") {
@@ -75,7 +77,6 @@ export default async function AgentStepDetailPage({ params }: PageProps) {
         />
       </div>
     );
-
   } else if (stepType === "CLIENT") {
     // Step CLIENT - Agent Vérificateur
     const stepDetails = await getVerificateurStepDetails(
@@ -97,7 +98,6 @@ export default async function AgentStepDetailPage({ params }: PageProps) {
         />
       </div>
     );
-
   } else {
     // Type de step inconnu
     redirect("/agent/steps");

@@ -11,7 +11,6 @@ import { AdminStepCompletionSection } from "./AdminStepCompletionSection";
 import { AdminStepWithoutInstance } from "./AdminStepWithoutInstance";
 import { AdminDocumentUploadSection } from "./createur/AdminDocumentUploadSection";
 
-
 interface DossierDetailContentProps {
   dossierData: DossierAllData;
   agentId: string;
@@ -36,7 +35,9 @@ export function DossierDetailContent({
   );
 
   // Render a step instance
-  const renderStepInstance = (stepInstance: DossierAllData["step_instances"][number]) => {
+  const renderStepInstance = (
+    stepInstance: DossierAllData["step_instances"][number]
+  ) => {
     const isAdminStep = stepInstance.step.step_type === "ADMIN";
     const isAssigned = stepInstance.assigned_to === agentId;
     const isCreateur = agentType === "CREATEUR";
@@ -89,7 +90,9 @@ export function DossierDetailContent({
             {stepInstance.completed_at && (
               <span className="ml-4">
                 {t("completedAt")}:{" "}
-                {new Date(stepInstance.completed_at).toLocaleDateString("en-GB")}
+                {new Date(stepInstance.completed_at).toLocaleDateString(
+                  "en-GB"
+                )}
               </span>
             )}
           </div>
@@ -103,7 +106,10 @@ export function DossierDetailContent({
         )}
 
         {/* Documents Section - Differentiate between CLIENT and ADMIN steps */}
-        {isAdminStep && canManageAdminDocs && stepInstance.admin_documents && stepInstance.admin_documents.length > 0 ? (
+        {isAdminStep &&
+        canManageAdminDocs &&
+        stepInstance.admin_documents &&
+        stepInstance.admin_documents.length > 0 ? (
           // ADMIN Step - Show upload section
           <div className="px-5 py-4 border-t border-[#363636]">
             <AdminDocumentUploadSection
@@ -115,7 +121,8 @@ export function DossierDetailContent({
           </div>
         ) : (
           // CLIENT Step or read-only - Show documents list
-          stepInstance.documents && stepInstance.documents.length > 0 && (
+          stepInstance.documents &&
+          stepInstance.documents.length > 0 && (
             <div className="px-5 py-4 border-t border-[#363636]">
               <DossierDocumentsSection documents={stepInstance.documents} />
             </div>
@@ -187,16 +194,16 @@ export function DossierDetailContent({
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">
-                {t("dossier")}:
-              </span>{" "}
+              <span className="text-brand-text-secondary">{t("dossier")}:</span>{" "}
               <span className="text-brand-text-primary font-mono text-xs">
                 {dossierIdShort}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">{t("statusLabel")}:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {t("statusLabel")}:
+              </span>{" "}
               <span className="text-amber-400 font-medium">
                 {dossierData.dossier.status}
               </span>
@@ -221,7 +228,7 @@ export function DossierDetailContent({
             <h2 className="text-xl font-bold text-brand-text-primary">
               {t("adminSteps")}
             </h2>
-            
+
             {/* Existing ADMIN step instances */}
             {adminSteps.map(renderStepInstance)}
 
