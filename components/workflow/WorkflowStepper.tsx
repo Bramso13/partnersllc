@@ -8,18 +8,32 @@ import { DynamicFormField } from "@/components/qualification/DynamicFormField";
 import { validateForm, isFormValid } from "@/lib/validation";
 import { StepDocuments } from "./StepDocuments";
 import type { StepInstance } from "@/types/dossiers";
-import type { FormationSummary } from "@/types/formations";
+import type {
+  FormationSummary,
+  FormationWithElements,
+  UserFormationProgress,
+} from "@/types/formations";
+import { FormationParcours } from "@/components/dashboard/FormationParcours";
 import { toast } from "sonner";
+
+/** Step instance with completed_at for TIMER next_step_available_at calculation */
+export interface StepInstanceForTimer {
+  step_id: string;
+  completed_at: string | null;
+}
 
 interface WorkflowStepperProps {
   productSteps: ProductStep[];
   dossierId: string;
   productName: string;
+  userId?: string;
   onStepComplete: (
     stepId: string,
     fieldValues: Record<string, any>
   ) => Promise<void>;
   initialStepId?: string;
+  /** Optional: for TIMER steps, used to compute next_step_available_at */
+  stepInstances?: StepInstanceForTimer[];
 }
 
 interface StepFieldWithValidation extends StepField {
@@ -34,8 +48,10 @@ export function WorkflowStepper({
   productSteps,
   dossierId,
   productName,
+  userId,
   onStepComplete,
   initialStepId,
+  stepInstances = [],
 }: WorkflowStepperProps) {
   // Initialize with step from URL if provided, otherwise start at 0
   const getInitialStepIndex = () => {
@@ -69,6 +85,11 @@ export function WorkflowStepper({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<any>(null);
   const [stepFormations, setStepFormations] = useState<FormationSummary[]>([]);
+  const [formationFull, setFormationFull] =
+    useState<FormationWithElements | null>(null);
+  const [formationProgress, setFormationProgress] =
+    useState<UserFormationProgress | null>(null);
+  const [formationLoading, setFormationLoading] = useState(false);
 
   const currentStep = productSteps[currentStepIndex];
   console.log(
@@ -95,8 +116,9 @@ export function WorkflowStepper({
     const loadStepData = async () => {
       setIsLoading(true);
       try {
-        // Check if this is an admin step
+        // Check if this is an admin step or formation step (no fields/documents to load)
         const stepIsAdmin = step?.step?.step_type === "ADMIN";
+        const stepIsFormation = step?.step?.step_type === "FORMATION";
 
         // First, get step instance for this step (will be created in DRAFT if it doesn't exist)
         const instanceResponse = await fetch(
@@ -111,10 +133,10 @@ export function WorkflowStepper({
           }
         }
 
-        // Load fields with values if step instance exists (only for client steps)
+        // Load fields with values if step instance exists (only for client steps, not ADMIN/FORMATION)
         const stepInstanceId = stepInstance?.id;
         let fields: StepFieldWithValidation[] = [];
-        if (!stepIsAdmin) {
+        if (!stepIsAdmin && !stepIsFormation) {
           const fieldsUrl = stepInstanceId
             ? `/api/workflow/step-fields?step_id=${stepId}&step_instance_id=${stepInstanceId}`
             : `/api/workflow/step-fields?step_id=${stepId}`;
@@ -124,7 +146,7 @@ export function WorkflowStepper({
           fields = await fieldsResponse.json();
           setCurrentStepFields(fields);
         } else {
-          // Admin steps don't have fields
+          // Admin and FORMATION steps don't have fields
           setCurrentStepFields([]);
         }
 
@@ -164,12 +186,48 @@ export function WorkflowStepper({
           setUploadedDocuments([]);
         }
 
-        const formationsRes = await fetch(`/api/formations/by-step/${stepId}`);
-        if (formationsRes.ok) {
-          const formationsData = await formationsRes.json();
-          setStepFormations(formationsData.formations ?? []);
+        // Formations: for FORMATION step use product_step.formation; else fetch by-step (recommended)
+        if (stepIsFormation && (step as ProductStep).formation) {
+          setStepFormations([(step as ProductStep).formation!]);
+          // Fetch full formation with elements for inline display
+          const fid =
+            (step as ProductStep).formation_id ??
+            (step as ProductStep).formation?.id ??
+            (step as ProductStep).step?.formation_id;
+          if (fid) {
+            setFormationLoading(true);
+            try {
+              const formRes = await fetch(`/api/formations/${fid}`);
+              if (formRes.ok) {
+                const { formation, progress } = await formRes.json();
+                setFormationFull(formation ?? null);
+                setFormationProgress(progress ?? null);
+              } else {
+                setFormationFull(null);
+                setFormationProgress(null);
+              }
+            } catch {
+              setFormationFull(null);
+              setFormationProgress(null);
+            } finally {
+              setFormationLoading(false);
+            }
+          } else {
+            setFormationFull(null);
+            setFormationProgress(null);
+          }
         } else {
-          setStepFormations([]);
+          setFormationFull(null);
+          setFormationProgress(null);
+          const formationsRes = await fetch(
+            `/api/formations/by-step/${stepId}`
+          );
+          if (formationsRes.ok) {
+            const formationsData = await formationsRes.json();
+            setStepFormations(formationsData.formations ?? []);
+          } else {
+            setStepFormations([]);
+          }
         }
 
         // Initialize form data with existing values or defaults (only for client steps)
@@ -221,8 +279,39 @@ export function WorkflowStepper({
     loadStepData();
   }, [currentStepIndex, dossierId]);
 
-  // Check if current step is an admin step
+  // Check if current step is an admin step or formation step
   const isAdminStep = currentStep?.step?.step_type === "ADMIN";
+  const isFormationStep = currentStep?.step?.step_type === "FORMATION";
+
+  // TIMER: compute next_step_available_at for step at index i (step after a TIMER)
+  const getNextStepAvailableAt = (stepIndex: number): number | null => {
+    if (stepIndex < 1) return null;
+    const prevProductStep = productSteps[stepIndex - 1];
+    if (
+      prevProductStep?.step?.step_type !== "TIMER" ||
+      !prevProductStep.timer_delay_minutes
+    )
+      return null;
+    const stepBeforeTimer = productSteps[stepIndex - 2];
+    if (!stepBeforeTimer?.step_id) return null;
+    const completedAt = stepInstances.find(
+      (si) => si.step_id === stepBeforeTimer.step_id
+    )?.completed_at;
+    if (!completedAt) return null;
+    return (
+      new Date(completedAt).getTime() +
+      prevProductStep.timer_delay_minutes * 60 * 1000
+    );
+  };
+
+  // When on a TIMER step, the *next* step is blocked until delay after previous step completion
+  const nextStepAvailableAt = getNextStepAvailableAt(currentStepIndex + 1);
+  const isNextStepBlockedByTimer =
+    nextStepAvailableAt != null && Date.now() < nextStepAvailableAt;
+  const timerRemainingMinutes =
+    nextStepAvailableAt != null && nextStepAvailableAt > Date.now()
+      ? Math.ceil((nextStepAvailableAt - Date.now()) / 60000)
+      : 0;
 
   const canProceedToNext = () => {
     // Allow users to proceed to next step regardless of validation status
@@ -532,8 +621,10 @@ export function WorkflowStepper({
           {productSteps.map((step, index) => {
             const isApproved = index < currentStepIndex;
             const isCurrent = index === currentStepIndex;
-            // Allow navigation to any step - no locking based on validation
-            const isLocked = false;
+            // TIMER: step after a TIMER is locked until delay elapsed
+            const nextAvailableAt = getNextStepAvailableAt(index);
+            const isLocked =
+              nextAvailableAt != null && Date.now() < nextAvailableAt;
 
             return (
               <div
@@ -576,6 +667,21 @@ export function WorkflowStepper({
         </div>
       )}
 
+      {/* TIMER: message when next step is blocked by delay */}
+      {isNextStepBlockedByTimer && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
+          <div className="flex items-center gap-2 text-amber-400">
+            <i className="fa-solid fa-clock text-lg" />
+            <span className="text-sm font-medium">
+              Prochaine étape disponible dans {timerRemainingMinutes} min
+            </span>
+          </div>
+          <p className="text-xs text-brand-text-secondary mt-1">
+            Un délai de réflexion est en cours après l&apos;étape précédente.
+          </p>
+        </div>
+      )}
+
       {/* Step Status Message */}
       {stepMessage && (
         <div
@@ -594,8 +700,51 @@ export function WorkflowStepper({
         </div>
       )}
 
-      {/* Formations à suivre (Story 12.4) */}
-      {stepFormations.length > 0 && (
+      {/* Formation à suivre (step type FORMATION) — affichage inline */}
+      {isFormationStep &&
+        (currentStep?.formation_id || currentStep?.formation) && (
+          <div className="mb-6">
+            {formationLoading ? (
+              <div className="rounded-xl border border-brand-border bg-brand-card p-8 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-accent border-t-transparent" />
+                <span className="ml-4 text-brand-text-secondary">
+                  Chargement de la formation...
+                </span>
+              </div>
+            ) : formationFull ? (
+              <div className="rounded-xl border border-brand-border bg-brand-card overflow-hidden shadow-lg">
+                <FormationParcours
+                  formation={formationFull}
+                  progress={formationProgress}
+                  userId={userId ?? ""}
+                  embedded
+                />
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg border border-brand-border bg-brand-card">
+                <h3 className="text-base font-semibold text-brand-text-primary mb-3">
+                  Formation à suivre
+                </h3>
+                {currentStep.formation ? (
+                  <Link
+                    href={`/dashboard/formation/${currentStep.formation.id}`}
+                    className="inline-flex items-center gap-2 text-brand-accent hover:underline font-medium"
+                  >
+                    {currentStep.formation.titre}
+                    <i className="fa-solid fa-arrow-right text-sm" />
+                  </Link>
+                ) : (
+                  <span className="text-brand-text-secondary">
+                    Formation (ID: {currentStep.formation_id})
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* Formations recommandées (Story 12.4 - non-FORMATION steps) */}
+      {!isFormationStep && stepFormations.length > 0 && (
         <div className="mb-6 p-4 rounded-lg border border-brand-border bg-brand-card">
           <h3 className="text-base font-semibold text-brand-text-primary mb-3">
             Formations recommandées pour cette étape
@@ -797,6 +946,7 @@ export function WorkflowStepper({
                   window.location.href = "/dashboard";
                 }
               }}
+              disabled={isNextStepBlockedByTimer}
               className="ml-auto px-8 py-3.5 rounded-xl font-semibold text-base
                 bg-brand-accent text-brand-dark-bg
                 transition-all duration-300
@@ -816,8 +966,70 @@ export function WorkflowStepper({
         </div>
       )}
 
-      {/* Form for Client Steps */}
-      {!isAdminStep && isEditable ? (
+      {/* FORMATION step: formation link + Passer à l'étape suivante */}
+      {isFormationStep && (
+        <div className="bg-brand-card border border-brand-border rounded-lg p-6">
+          <p className="text-sm text-brand-text-secondary mb-6">
+            Consultez la formation ci-dessus puis passez à l&apos;étape
+            suivante.
+          </p>
+          <div className="pt-6 border-t border-brand-border flex items-center justify-between">
+            {currentStepIndex > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStepIndex(currentStepIndex - 1);
+                  lastLoadedStepIdRef.current = null;
+                }}
+                className="px-6 py-3 text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-2"></i>
+                Étape précédente
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  await onStepComplete(currentStep.step_id, {});
+                  if (currentStepIndex < totalSteps - 1) {
+                    setCurrentStepIndex(currentStepIndex + 1);
+                    lastLoadedStepIdRef.current = null;
+                  } else {
+                    window.location.href = "/dashboard";
+                  }
+                } catch (err) {
+                  console.error("Error completing formation step:", err);
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "Erreur lors du passage à l'étape suivante"
+                  );
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              className="ml-auto px-8 py-3.5 rounded-xl font-semibold text-base bg-brand-accent text-brand-dark-bg transition-all duration-300 hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <span className="animate-pulse">Enregistrement...</span>
+              ) : currentStepIndex === totalSteps - 1 ? (
+                "Retour au tableau de bord"
+              ) : (
+                <>
+                  Passer à l&apos;étape suivante
+                  <i className="fa-solid fa-arrow-right"></i>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Form for Client Steps (not ADMIN, not FORMATION) */}
+      {!isAdminStep && !isFormationStep && isEditable ? (
         <form onSubmit={handleSubmit} className="space-y-6">
           {currentStepFields.length === 0 ? (
             <div className="text-center py-8">
@@ -1016,7 +1228,11 @@ export function WorkflowStepper({
             )}
             <button
               type="submit"
-              disabled={isSubmitting || currentStepFields.length === 0}
+              disabled={
+                isSubmitting ||
+                currentStepFields.length === 0 ||
+                isNextStepBlockedByTimer
+              }
               className="ml-auto px-8 py-3.5 rounded-xl font-semibold text-base
                 bg-brand-accent text-brand-dark-bg
                 transition-all duration-300

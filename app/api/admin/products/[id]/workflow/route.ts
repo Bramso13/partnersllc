@@ -16,13 +16,13 @@ export async function GET(
     const { id } = await params;
     const supabase = createAdminClient();
 
-    // Fetch product steps with step details
+    // Fetch product steps with step details (formation_id, timer_delay_minutes on steps)
     const { data: productSteps, error: stepsError } = await supabase
       .from("product_steps")
       .select(
         `
         *,
-        step:steps(*)
+        step:steps(*, formation:formations!steps_formation_id_fkey(id, titre))
       `
       )
       .eq("product_id", id)
@@ -100,6 +100,7 @@ export async function POST(
     await supabase.from("product_steps").delete().eq("product_id", id);
 
     // Create new product steps
+    // formation_id and timer_delay_minutes are on steps, not product_steps
     const productStepsToInsert = steps.map(
       (step: {
         step_id: string;

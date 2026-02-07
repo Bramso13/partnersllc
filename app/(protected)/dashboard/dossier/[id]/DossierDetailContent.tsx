@@ -154,6 +154,7 @@ export function DossierDetailContent({
           dossierId={dossier.id}
           productId={dossier.product_id}
           productName={dossier.product?.name || "Produit"}
+          userId={dossier.user_id}
           rejectedFieldsCount={
             rejectedFieldsCount > 0 ? rejectedFieldsCount : undefined
           }

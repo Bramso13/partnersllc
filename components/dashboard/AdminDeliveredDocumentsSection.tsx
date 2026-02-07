@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
+import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";
 
 interface AdminDeliveredDocument {
   id: string;
@@ -15,6 +17,7 @@ interface AdminDeliveredDocument {
   };
   document_type?: {
     label: string;
+    description: string | null;
   };
 }
 
@@ -28,6 +31,7 @@ export function AdminDeliveredDocumentsSection({
   const [documents, setDocuments] = useState<AdminDeliveredDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -70,6 +74,16 @@ export function AdminDeliveredDocumentsSection({
       "_blank"
     );
   };
+
+  const openDocumentInfo = (documentId: string) => {
+    setActiveDocumentId(documentId);
+  };
+
+  const closeDocumentInfo = () => {
+    setActiveDocumentId(null);
+  };
+
+  const activeDocument = documents.find((doc) => doc.id === activeDocumentId);
 
   if (loading) {
     return (
@@ -121,11 +135,17 @@ export function AdminDeliveredDocumentsSection({
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-brand-text-primary truncate">
-                  {doc.current_version?.file_name ||
-                    doc.document_type?.label ||
-                    "Document"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-brand-text-primary truncate">
+                    {doc.current_version?.file_name ||
+                      doc.document_type?.label ||
+                      "Document"}
+                  </p>
+                  <DocumentInfoButton
+                    onClick={() => openDocumentInfo(doc.id)}
+                    hasDescription={!!doc.document_type?.description}
+                  />
+                </div>
                 <div className="flex items-center gap-4 mt-1">
                   {doc.current_version?.uploaded_at && (
                     <p className="text-xs text-brand-text-secondary">
@@ -168,6 +188,20 @@ export function AdminDeliveredDocumentsSection({
           </div>
         ))}
       </div>
+
+      {/* Info Panel */}
+      {activeDocument?.document_type?.description && (
+        <DocumentInfoPanel
+          description={activeDocument.document_type.description}
+          isOpen={activeDocumentId !== null}
+          onClose={closeDocumentInfo}
+          documentName={
+            activeDocument.current_version?.file_name ||
+            activeDocument.document_type?.label ||
+            "Document"
+          }
+        />
+      )}
     </div>
   );
 }

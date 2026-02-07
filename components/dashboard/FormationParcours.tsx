@@ -13,12 +13,15 @@ interface FormationParcoursProps {
   formation: FormationWithElements;
   progress: UserFormationProgress | null;
   userId: string;
+  /** When true, hide breadcrumb and adapt layout for embedding (e.g. in workflow stepper) */
+  embedded?: boolean;
 }
 
 export function FormationParcours({
   formation,
   progress: initialProgress,
   userId,
+  embedded = false,
 }: FormationParcoursProps) {
   const [currentElementIndex, setCurrentElementIndex] = useState(0);
   const [completedElementIds, setCompletedElementIds] = useState<string[]>(
@@ -115,16 +118,18 @@ export function FormationParcours({
 
   if (elements.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <Link
-            href="/dashboard/formation"
-            className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
-          >
-            <i className="fa-solid fa-arrow-left"></i>
-            Retour aux formations
-          </Link>
-        </div>
+      <div className={`${embedded ? "p-6" : "max-w-4xl mx-auto"}`}>
+        {!embedded && (
+          <div className="mb-6">
+            <Link
+              href="/dashboard/formation"
+              className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
+            >
+              <i className="fa-solid fa-arrow-left"></i>
+              Retour aux formations
+            </Link>
+          </div>
+        )}
 
         <div className="bg-surface border border-border rounded-xl p-8 text-center">
           <i className="fa-solid fa-inbox text-4xl text-text-secondary mb-4"></i>
@@ -140,17 +145,19 @@ export function FormationParcours({
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Breadcrumb */}
-      <div className="mb-6">
-        <Link
-          href="/dashboard/formation"
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
-        >
-          <i className="fa-solid fa-arrow-left"></i>
-          Retour aux formations
-        </Link>
-      </div>
+    <div className={`space-y-6 ${embedded ? "p-6" : "max-w-6xl mx-auto"}`}>
+      {/* Breadcrumb (hidden when embedded) */}
+      {!embedded && (
+        <div className="mb-6">
+          <Link
+            href="/dashboard/formation"
+            className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
+          >
+            <i className="fa-solid fa-arrow-left"></i>
+            Retour aux formations
+          </Link>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-surface border border-border rounded-xl p-6">

@@ -72,6 +72,7 @@ export function WorkflowConfigContent({
     setError(null);
 
     try {
+      // formation_id et timer_delay_minutes sont sur la table steps, pas product_steps
       const workflowData = {
         steps: steps.map((step, index) => ({
           step_id: step.step_id,

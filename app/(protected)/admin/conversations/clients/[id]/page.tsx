@@ -31,7 +31,7 @@ export default async function ConversationDetailPage({
       *,
       dossier:dossiers!dossier_id (
         id,
-        user:profiles!user_id (id, full_name, email),
+        user:profiles!user_id (id, full_name),
         product:products!product_id (id, name)
       )
     `
@@ -66,8 +66,8 @@ export default async function ConversationDetailPage({
     .select("*")
     .eq("twilio_conversation_id", id);
 
-  const participants =
-    (rawParticipants ?? []) as TwilioConversationParticipant[];
+  const participants = (rawParticipants ??
+    []) as TwilioConversationParticipant[];
 
   // Resolve admin profile names for message senders and participants
   const adminSenderIds = [

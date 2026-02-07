@@ -49,19 +49,33 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const body = await request.json();
 
-    const { code, label, description, position, step_type } = body;
+    const {
+      code,
+      label,
+      description,
+      position,
+      step_type,
+      formation_id,
+      timer_delay_minutes,
+    } = body;
 
     // Validate required fields
     if (!code || typeof code !== "string") {
       return NextResponse.json(
-        { error: "Code is required", details: { field: "code", message: "Code is required" } },
+        {
+          error: "Code is required",
+          details: { field: "code", message: "Code is required" },
+        },
         { status: 400 }
       );
     }
 
     if (!label || typeof label !== "string") {
       return NextResponse.json(
-        { error: "Label is required", details: { field: "label", message: "Label is required" } },
+        {
+          error: "Label is required",
+          details: { field: "label", message: "Label is required" },
+        },
         { status: 400 }
       );
     }
@@ -69,21 +83,40 @@ export async function POST(request: Request) {
     // Validate code format
     if (code.length < 3) {
       return NextResponse.json(
-        { error: "Code must be at least 3 characters", details: { field: "code", message: "Code must be at least 3 characters" } },
+        {
+          error: "Code must be at least 3 characters",
+          details: {
+            field: "code",
+            message: "Code must be at least 3 characters",
+          },
+        },
         { status: 400 }
       );
     }
 
     if (code.length > 50) {
       return NextResponse.json(
-        { error: "Code must not exceed 50 characters", details: { field: "code", message: "Code must not exceed 50 characters" } },
+        {
+          error: "Code must not exceed 50 characters",
+          details: {
+            field: "code",
+            message: "Code must not exceed 50 characters",
+          },
+        },
         { status: 400 }
       );
     }
 
     if (!UPPER_SNAKE_CASE_REGEX.test(code)) {
       return NextResponse.json(
-        { error: "Code must be in UPPER_SNAKE_CASE format", details: { field: "code", message: "Code must be in UPPER_SNAKE_CASE format (e.g., MY_CUSTOM_STEP)" } },
+        {
+          error: "Code must be in UPPER_SNAKE_CASE format",
+          details: {
+            field: "code",
+            message:
+              "Code must be in UPPER_SNAKE_CASE format (e.g., MY_CUSTOM_STEP)",
+          },
+        },
         { status: 400 }
       );
     }
@@ -91,22 +124,44 @@ export async function POST(request: Request) {
     // Validate label
     if (label.length < 2) {
       return NextResponse.json(
-        { error: "Label must be at least 2 characters", details: { field: "label", message: "Label must be at least 2 characters" } },
+        {
+          error: "Label must be at least 2 characters",
+          details: {
+            field: "label",
+            message: "Label must be at least 2 characters",
+          },
+        },
         { status: 400 }
       );
     }
 
     if (label.length > 100) {
       return NextResponse.json(
-        { error: "Label must not exceed 100 characters", details: { field: "label", message: "Label must not exceed 100 characters" } },
+        {
+          error: "Label must not exceed 100 characters",
+          details: {
+            field: "label",
+            message: "Label must not exceed 100 characters",
+          },
+        },
         { status: 400 }
       );
     }
 
     // Validate description if provided
-    if (description && typeof description === "string" && description.length > 500) {
+    if (
+      description &&
+      typeof description === "string" &&
+      description.length > 500
+    ) {
       return NextResponse.json(
-        { error: "Description must not exceed 500 characters", details: { field: "description", message: "Description must not exceed 500 characters" } },
+        {
+          error: "Description must not exceed 500 characters",
+          details: {
+            field: "description",
+            message: "Description must not exceed 500 characters",
+          },
+        },
         { status: 400 }
       );
     }
@@ -128,7 +183,13 @@ export async function POST(request: Request) {
 
     if (existingStep) {
       return NextResponse.json(
-        { error: "Code already exists", details: { field: "code", message: "This code already exists. Please choose a unique code." } },
+        {
+          error: "Code already exists",
+          details: {
+            field: "code",
+            message: "This code already exists. Please choose a unique code.",
+          },
+        },
         { status: 409 }
       );
     }
@@ -157,7 +218,13 @@ export async function POST(request: Request) {
       finalPosition = parseInt(position);
       if (isNaN(finalPosition)) {
         return NextResponse.json(
-          { error: "Position must be a number", details: { field: "position", message: "Position must be a number" } },
+          {
+            error: "Position must be a number",
+            details: {
+              field: "position",
+              message: "Position must be a number",
+            },
+          },
           { status: 400 }
         );
       }
@@ -175,14 +242,34 @@ export async function POST(request: Request) {
 
       if (existingPosition) {
         return NextResponse.json(
-          { error: "Position already taken", details: { field: "position", message: "This position is already taken. Leave empty for automatic positioning." } },
+          {
+            error: "Position already taken",
+            details: {
+              field: "position",
+              message:
+                "This position is already taken. Leave empty for automatic positioning.",
+            },
+          },
           { status: 409 }
         );
       }
     }
 
-    // Validate step_type if provided
-    const validStepType = step_type === "ADMIN" ? "ADMIN" : "CLIENT";
+    // Validate step_type if provided (CLIENT | ADMIN | FORMATION | TIMER)
+    const validStepTypes = ["CLIENT", "ADMIN", "FORMATION", "TIMER"];
+    const validStepType = validStepTypes.includes(step_type)
+      ? step_type
+      : "CLIENT";
+
+    // formation_id and timer_delay_minutes (on steps table)
+    const stepFormationId =
+      formation_id != null && formation_id !== "" ? formation_id : null;
+    const stepTimerDelay =
+      timer_delay_minutes != null &&
+      typeof timer_delay_minutes === "number" &&
+      timer_delay_minutes > 0
+        ? timer_delay_minutes
+        : null;
 
     // Insert step
     const { data: newStep, error: insertError } = await supabase
@@ -193,6 +280,8 @@ export async function POST(request: Request) {
         description: description || null,
         position: finalPosition,
         step_type: validStepType,
+        formation_id: stepFormationId,
+        timer_delay_minutes: stepTimerDelay,
       })
       .select()
       .single();

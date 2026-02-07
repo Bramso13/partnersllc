@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { DocumentWithDetails } from "@/lib/documents";
 import { toast } from "sonner";
+import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
+import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";
 
 interface DeliveredDocumentsProps {
   documents: DocumentWithDetails[];
@@ -13,6 +15,7 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<DocumentWithDetails | null>(null);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
   const handleViewDocument = async (doc: DocumentWithDetails) => {
     try {
@@ -69,6 +72,16 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
     });
   };
 
+  const openDocumentInfo = (documentId: string) => {
+    setActiveDocumentId(documentId);
+  };
+
+  const closeDocumentInfo = () => {
+    setActiveDocumentId(null);
+  };
+
+  const activeDocument = documents.find((doc) => doc.id === activeDocumentId);
+
   if (documents.length === 0) {
     return null;
   }
@@ -109,9 +122,15 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-brand-text-primary truncate">
-                        {documentLabel}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-brand-text-primary truncate">
+                          {documentLabel}
+                        </p>
+                        <DocumentInfoButton
+                          onClick={() => openDocumentInfo(doc.id)}
+                          hasDescription={!!doc.document_type?.description}
+                        />
+                      </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="text-xs text-brand-text-secondary">
                           <i className="fas fa-folder mr-1"></i>
@@ -157,7 +176,7 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
           <div className="bg-brand-dark-surface rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-brand-dark-border">
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl font-bold text-brand-text-primary">
                   {previewDocument?.current_version?.file_name || "Document"}
                 </h2>
@@ -218,6 +237,18 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Info Panel */}
+      {activeDocument?.document_type?.description && (
+        <DocumentInfoPanel
+          description={activeDocument.document_type.description}
+          isOpen={activeDocumentId !== null}
+          onClose={closeDocumentInfo}
+          documentName={
+            activeDocument.document_type?.label || "Document"
+          }
+        />
       )}
     </>
   );

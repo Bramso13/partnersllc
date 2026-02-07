@@ -46,7 +46,8 @@ export async function GET(
           mime_type
         ),
         document_type:document_types (
-          label
+          label,
+          description
         )
       `
       )

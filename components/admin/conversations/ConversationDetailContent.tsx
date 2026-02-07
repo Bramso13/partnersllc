@@ -28,12 +28,14 @@ export function ConversationDetailContent({
   allAdmins,
 }: ConversationDetailContentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] =
     useState<TwilioConversationMessage[]>(initialMessages);
   const [messageBody, setMessageBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showParticipantSelector, setShowParticipantSelector] =
     useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const profileMap = useRef<Map<string, string>>(new Map());
   useEffect(() => {
@@ -66,10 +68,10 @@ export function ConversationDetailContent({
   }, [conversation.id]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!messageBody.trim() || isSending) return;
+    if ((!messageBody.trim() && !selectedFile) || isSending) return;
     setIsSending(true);
 
-    const body = messageBody.trim();
+    const body = messageBody.trim() || (selectedFile ? `📎 ${selectedFile.name}` : "");
 
     // Optimistic UI
     const optimisticMessage: TwilioConversationMessage = {
@@ -84,16 +86,34 @@ export function ConversationDetailContent({
     };
     setMessages((prev) => [...prev, optimisticMessage]);
     setMessageBody("");
+    const fileToSend = selectedFile;
+    setSelectedFile(null);
 
     try {
-      const resp = await fetch(
-        `/api/admin/conversations/${conversation.id}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body }),
-        }
-      );
+      // Utiliser FormData si fichier, sinon JSON
+      let resp;
+      if (fileToSend) {
+        const formData = new FormData();
+        formData.append("body", body);
+        formData.append("file", fileToSend);
+
+        resp = await fetch(
+          `/api/admin/conversations/${conversation.id}/messages`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+      } else {
+        resp = await fetch(
+          `/api/admin/conversations/${conversation.id}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body }),
+          }
+        );
+      }
 
       if (!resp.ok) {
         const errorData = await resp.json();
@@ -104,6 +124,10 @@ export function ConversationDetailContent({
       setMessages((prev) =>
         prev.map((m) => (m.id === optimisticMessage.id ? data.message : m))
       );
+
+      if (fileToSend) {
+        toast.success(`Fichier "${fileToSend.name}" envoyé`);
+      }
     } catch (error) {
       setMessages((prev) =>
         prev.filter((m) => m.id !== optimisticMessage.id)
@@ -114,7 +138,7 @@ export function ConversationDetailContent({
     } finally {
       setIsSending(false);
     }
-  }, [messageBody, isSending, conversation.id, conversation.dossier_id]);
+  }, [messageBody, selectedFile, isSending, conversation.id, conversation.dossier_id]);
 
   const handleAddParticipant = async (profileId: string) => {
     try {
@@ -283,7 +307,49 @@ export function ConversationDetailContent({
 
         {/* Send Message Area */}
         <div className="border-t border-brand-stroke p-4">
+          {/* Fichier sélectionné */}
+          {selectedFile && (
+            <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-brand-surface-light border border-brand-stroke rounded-lg">
+              <i className="fas fa-paperclip text-brand-accent"></i>
+              <span className="text-sm text-brand-text-primary flex-1">
+                {selectedFile.name}
+              </span>
+              <span className="text-xs text-brand-text-secondary">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+              <button
+                onClick={() => setSelectedFile(null)}
+                className="text-brand-text-secondary hover:text-red-500 transition-colors"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // Vérifier la taille (max 150 MB)
+                  if (file.size > 150 * 1024 * 1024) {
+                    toast.error("Fichier trop gros (max 150 MB)");
+                    return;
+                  }
+                  setSelectedFile(file);
+                }
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-2 bg-brand-surface-light border border-brand-stroke rounded-lg text-brand-text-secondary hover:text-brand-accent hover:border-brand-accent transition-colors"
+              title="Joindre un fichier"
+            >
+              <i className="fas fa-paperclip"></i>
+            </button>
             <textarea
               value={messageBody}
               onChange={(e) => setMessageBody(e.target.value)}
@@ -299,7 +365,7 @@ export function ConversationDetailContent({
             />
             <button
               onClick={handleSendMessage}
-              disabled={!messageBody.trim() || isSending}
+              disabled={(!messageBody.trim() && !selectedFile) || isSending}
               className="px-4 py-2 bg-brand-accent text-white rounded-lg hover:bg-brand-accent/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed self-end"
             >
               <i className="fas fa-paper-plane mr-1.5"></i>

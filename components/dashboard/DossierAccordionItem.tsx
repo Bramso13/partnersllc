@@ -115,11 +115,13 @@ export function DossierAccordionItem({
                 Conseiller
               </p>
               <div className="flex items-center gap-2">
-                <img
-                  src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg"
-                  alt="Advisor"
-                  className="w-6 h-6 rounded-full object-cover"
-                />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/10 p-1.5">
+                  <img
+                    src="/logo_partnersllc_blanc.png"
+                    alt="Partners LLC"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
                 <span className="text-sm font-medium text-brand-text-primary truncate">
                   {advisor?.name || "Sophie Martin"}
                 </span>

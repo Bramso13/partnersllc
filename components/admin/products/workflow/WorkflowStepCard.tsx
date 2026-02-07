@@ -25,6 +25,7 @@ export function WorkflowStepCard({
   onUpdate,
 }: WorkflowStepCardProps) {
   const [expanded, setExpanded] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -72,6 +73,16 @@ export function WorkflowStepCard({
                   Admin
                 </span>
               )}
+              {step.step.step_type === "FORMATION" && (
+                <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium">
+                  Formation
+                </span>
+              )}
+              {step.step.step_type === "TIMER" && (
+                <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs font-medium">
+                  Timer
+                </span>
+              )}
             </div>
             {step.step.description && (
               <p className="text-sm text-brand-text-secondary mt-1">
@@ -102,32 +113,77 @@ export function WorkflowStepCard({
       {/* Expanded Content */}
       {expanded && (
         <div className="p-6 space-y-6 border-t border-brand-border">
-          {/* Document Types Section */}
-          <div>
-            <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
-              Required Documents
-            </h4>
-            <DocumentTypesSelector
-              selectedDocumentTypes={step.document_types}
-              onUpdate={(documentTypes) =>
-                onUpdate({ ...step, document_types: documentTypes })
-              }
-            />
-          </div>
+          {/* Formation (step_type FORMATION) — configurée au niveau de l'étape (steps) */}
+          {step.step?.step_type === "FORMATION" && (
+            <div>
+              <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
+                Formation à suivre
+              </h4>
+              <p className="text-sm text-brand-text-primary">
+                {step.step.formation?.titre ?? (
+                  <span className="text-brand-text-secondary">
+                    Aucune formation associée
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-brand-text-secondary mt-1">
+                Configuré au niveau de l&apos;étape (onglet Étapes du produit).
+              </p>
+            </div>
+          )}
 
-          {/* Custom Fields Section */}
-          <div>
-            <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
-              Custom Form Fields
-            </h4>
-            <CustomFieldsManager
-              stepId={step.step_id}
-              customFields={step.custom_fields as []}
-              onUpdate={(customFields) =>
-                onUpdate({ ...step, custom_fields: customFields })
-              }
-            />
-          </div>
+          {/* Timer (step_type TIMER) — configuré au niveau de l'étape (steps) */}
+          {step.step?.step_type === "TIMER" && (
+            <div>
+              <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
+                Délai (minutes)
+              </h4>
+              <p className="text-sm text-brand-text-primary">
+                {step.step.timer_delay_minutes != null &&
+                step.step.timer_delay_minutes > 0 ? (
+                  `${step.step.timer_delay_minutes} min`
+                ) : (
+                  <span className="text-brand-text-secondary">
+                    Non configuré
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-brand-text-secondary mt-1">
+                Configuré au niveau de l&apos;étape (onglet Étapes du produit).
+              </p>
+            </div>
+          )}
+
+          {/* Document Types Section (hidden for FORMATION) */}
+          {step.step?.step_type !== "FORMATION" && (
+            <div>
+              <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
+                Required Documents
+              </h4>
+              <DocumentTypesSelector
+                selectedDocumentTypes={step.document_types}
+                onUpdate={(documentTypes) =>
+                  onUpdate({ ...step, document_types: documentTypes })
+                }
+              />
+            </div>
+          )}
+
+          {/* Custom Fields Section (hidden for FORMATION) */}
+          {step.step?.step_type !== "FORMATION" && (
+            <div>
+              <h4 className="text-sm font-semibold text-brand-text-primary mb-3">
+                Custom Form Fields
+              </h4>
+              <CustomFieldsManager
+                stepId={step.step_id}
+                customFields={step.custom_fields as []}
+                onUpdate={(customFields) =>
+                  onUpdate({ ...step, custom_fields: customFields })
+                }
+              />
+            </div>
+          )}
 
           {/* Dossier status on approval */}
           <div>

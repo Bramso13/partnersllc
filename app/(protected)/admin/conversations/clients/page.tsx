@@ -18,14 +18,14 @@ export default async function ConversationsClientsPage() {
   const supabase = createAdminClient();
 
   // Fetch client conversations with dossier/client/product enrichment
-  const { data: rawConversations } = await supabase
+  const { data: rawConversations, error } = await supabase
     .from("twilio_conversations")
     .select(
       `
       *,
       dossier:dossiers!dossier_id (
         id,
-        user:profiles!user_id (id, full_name, email),
+        user:profiles!user_id (id, full_name),
         product:products!product_id (id, name)
       )
     `
@@ -33,8 +33,12 @@ export default async function ConversationsClientsPage() {
     .eq("type", "client")
     .order("updated_at", { ascending: false });
 
+  console.log("Supabase response:", { data: rawConversations, error });
+
   const conversations =
     (rawConversations as AdminConversationWithDossier[]) ?? [];
+
+  console.log("Final conversations:", conversations);
 
   // Fetch dossiers for the "new conversation" modal
   const { data: rawDossiers } = await supabase

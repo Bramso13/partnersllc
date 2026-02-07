@@ -5,8 +5,9 @@ import { Product } from "@/types/products";
 import { ProductsTable } from "./ProductsTable";
 import { CreateProductModal } from "./CreateProductModal";
 import { StepsTabContent } from "./StepsTabContent";
+import { DocumentTypesTabContent } from "./DocumentTypesTabContent";
 
-type TabId = "produit" | "steps";
+type TabId = "produit" | "steps" | "document-types";
 
 export function ProductsContent() {
   const [activeTab, setActiveTab] = useState<TabId>("produit");
@@ -88,6 +89,17 @@ export function ProductsContent() {
         >
           Steps
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("document-types")}
+          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "document-types"
+              ? "bg-brand-card-bg text-brand-text-primary shadow-sm"
+              : "text-brand-text-secondary hover:text-brand-text-primary"
+          }`}
+        >
+          Types de documents
+        </button>
       </div>
 
       {activeTab === "produit" && (
@@ -122,6 +134,8 @@ export function ProductsContent() {
       )}
 
       {activeTab === "steps" && <StepsTabContent />}
+
+      {activeTab === "document-types" && <DocumentTypesTabContent />}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Step } from "@/types/products";
+import type { Step, StepType } from "@/types/products";
 import type { FormationSummary } from "@/types/formations";
 import { toast } from "sonner";
 
@@ -15,7 +15,9 @@ interface FormData {
   label: string;
   description: string;
   position: number;
-  step_type: "CLIENT" | "ADMIN";
+  step_type: StepType;
+  formation_id: string;
+  timer_delay_minutes: string;
 }
 
 interface FormErrors {
@@ -34,6 +36,9 @@ export function EditStepModal({
     description: step.description ?? "",
     position: step.position,
     step_type: step.step_type ?? "CLIENT",
+    formation_id: step.formation_id ?? "",
+    timer_delay_minutes:
+      step.timer_delay_minutes != null ? String(step.timer_delay_minutes) : "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +47,9 @@ export function EditStepModal({
   const [propagateMessage, setPropagateMessage] = useState<string | null>(null);
   const [savedOnce, setSavedOnce] = useState(false);
   const [allFormations, setAllFormations] = useState<FormationSummary[]>([]);
-  const [selectedFormationIds, setSelectedFormationIds] = useState<string[]>([]);
+  const [selectedFormationIds, setSelectedFormationIds] = useState<string[]>(
+    []
+  );
   const [formationsLoading, setFormationsLoading] = useState(false);
 
   useEffect(() => {
@@ -51,6 +58,11 @@ export function EditStepModal({
       description: step.description ?? "",
       position: step.position,
       step_type: step.step_type ?? "CLIENT",
+      formation_id: step.formation_id ?? "",
+      timer_delay_minutes:
+        step.timer_delay_minutes != null
+          ? String(step.timer_delay_minutes)
+          : "",
     });
   }, [step]);
 
@@ -70,7 +82,9 @@ export function EditStepModal({
         }
         if (stepRes.ok) {
           const stepData = await stepRes.json();
-          const ids = (stepData.formations ?? []).map((f: FormationSummary) => f.id);
+          const ids = (stepData.formations ?? []).map(
+            (f: FormationSummary) => f.id
+          );
           setSelectedFormationIds(ids);
         }
       } finally {
@@ -127,20 +141,33 @@ export function EditStepModal({
           description: formData.description || null,
           position: formData.position,
           step_type: formData.step_type,
+          formation_id:
+            formData.step_type === "FORMATION" && formData.formation_id
+              ? formData.formation_id
+              : null,
+          timer_delay_minutes:
+            formData.step_type === "TIMER" && formData.timer_delay_minutes
+              ? parseInt(formData.timer_delay_minutes, 10)
+              : null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
       setSavedOnce(true);
 
-      const putFormationsRes = await fetch(`/api/admin/steps/${step.id}/formations`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation_ids: selectedFormationIds }),
-      });
+      const putFormationsRes = await fetch(
+        `/api/admin/steps/${step.id}/formations`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formation_ids: selectedFormationIds }),
+        }
+      );
       const putFormationsData = await putFormationsRes.json();
       if (!putFormationsRes.ok) {
-        toast.error(putFormationsData.error || "Échec de la mise à jour des formations");
+        toast.error(
+          putFormationsData.error || "Échec de la mise à jour des formations"
+        );
       } else {
         toast.success("Step et formations enregistrés");
       }
@@ -297,24 +324,82 @@ export function EditStepModal({
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  step_type: e.target.value as "CLIENT" | "ADMIN",
+                  step_type: e.target.value as StepType,
                 }))
               }
               className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="CLIENT">Client</option>
               <option value="ADMIN">Admin</option>
+              <option value="FORMATION">Formation</option>
+              <option value="TIMER">Timer (délai)</option>
             </select>
           </div>
+
+          {formData.step_type === "FORMATION" && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                Formation à suivre (pour cette step)
+              </label>
+              {formationsLoading ? (
+                <p className="text-sm text-brand-text-secondary">
+                  Chargement...
+                </p>
+              ) : (
+                <select
+                  value={formData.formation_id}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      formation_id: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                >
+                  <option value="">Sélectionner une formation</option>
+                  {allFormations.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.titre}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {formData.step_type === "TIMER" && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                Délai (minutes)
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={formData.timer_delay_minutes}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    timer_delay_minutes: e.target.value,
+                  }))
+                }
+                placeholder="Ex. 60"
+                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              />
+            </div>
+          )}
 
           <div className="border-t border-brand-border pt-4">
             <label className="block text-sm font-medium text-brand-text-primary mb-2">
               Formations à proposer pour cette étape
             </label>
             {formationsLoading ? (
-              <p className="text-sm text-brand-text-secondary">Chargement des formations...</p>
+              <p className="text-sm text-brand-text-secondary">
+                Chargement des formations...
+              </p>
             ) : allFormations.length === 0 ? (
-              <p className="text-sm text-brand-text-secondary">Aucune formation disponible.</p>
+              <p className="text-sm text-brand-text-secondary">
+                Aucune formation disponible.
+              </p>
             ) : (
               <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-brand-border p-3 bg-brand-dark-bg">
                 {allFormations.map((f) => (

@@ -14,6 +14,7 @@ interface EmptyStateProps {
   dossierId?: string;
   productId?: string;
   productName?: string;
+  userId?: string;
   rejectedFieldsCount?: number;
   rejectedStepId?: string;
   currentStepInstance?: {
@@ -33,6 +34,7 @@ export function EmptyState({
   dossierId,
   productId,
   productName,
+  userId,
   rejectedFieldsCount,
   rejectedStepId,
   currentStepInstance,
@@ -107,6 +109,7 @@ export function EmptyState({
           dossierId={selectedDossierId}
           productId={selectedProductId}
           productName={selectedProductName}
+          userId={userId}
           initialStepId={stepIdFromUrl}
         />
       </div>

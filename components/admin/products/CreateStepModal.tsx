@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Step } from "@/types/products";
+import type { Step, StepType } from "@/types/products";
 
 const UPPER_SNAKE_CASE_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
@@ -24,7 +24,9 @@ interface FormData {
   label: string;
   description: string;
   position: string;
-  step_type: "CLIENT" | "ADMIN";
+  step_type: StepType;
+  formation_id: string;
+  timer_delay_minutes: string;
 }
 
 interface FormErrors {
@@ -41,17 +43,40 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
     description: "",
     position: "",
     step_type: "CLIENT",
+    formation_id: "",
+    timer_delay_minutes: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [formations, setFormations] = useState<{ id: string; titre: string }[]>(
+    []
+  );
+  const [formationsLoading, setFormationsLoading] = useState(false);
 
   useEffect(() => {
     if (formData.label && !formData.code) {
       setFormData((prev) => ({ ...prev, code: labelToCode(prev.label) }));
     }
   }, [formData.label]);
+
+  useEffect(() => {
+    if (formData.step_type !== "FORMATION") return;
+    let cancelled = false;
+    setFormationsLoading(true);
+    fetch("/api/admin/formations")
+      .then((res) => (res.ok ? res.json() : { formations: [] }))
+      .then((data) => {
+        if (!cancelled) setFormations(data.formations ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setFormationsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.step_type]);
 
   const validateCode = async (code: string): Promise<string | undefined> => {
     if (!code) return "Le code est requis";
@@ -117,7 +142,9 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
         label: string;
         description?: string;
         position?: number;
-        step_type: "CLIENT" | "ADMIN";
+        step_type: StepType;
+        formation_id?: string | null;
+        timer_delay_minutes?: number | null;
       } = {
         code: formData.code,
         label: formData.label,
@@ -125,6 +152,17 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
       };
       if (formData.description) payload.description = formData.description;
       if (formData.position) payload.position = parseInt(formData.position, 10);
+      if (formData.step_type === "FORMATION" && formData.formation_id) {
+        payload.formation_id = formData.formation_id;
+      } else {
+        payload.formation_id = null;
+      }
+      if (formData.step_type === "TIMER" && formData.timer_delay_minutes) {
+        const n = parseInt(formData.timer_delay_minutes, 10);
+        payload.timer_delay_minutes = !isNaN(n) && n > 0 ? n : null;
+      } else {
+        payload.timer_delay_minutes = null;
+      }
 
       const res = await fetch("/api/admin/steps", {
         method: "POST",
@@ -262,15 +300,69 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  step_type: e.target.value as "CLIENT" | "ADMIN",
+                  step_type: e.target.value as StepType,
                 }))
               }
               className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="CLIENT">Client</option>
               <option value="ADMIN">Admin</option>
+              <option value="FORMATION">Formation</option>
+              <option value="TIMER">Timer (délai)</option>
             </select>
           </div>
+
+          {formData.step_type === "FORMATION" && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                Formation à suivre
+              </label>
+              {formationsLoading ? (
+                <p className="text-sm text-brand-text-secondary">
+                  Chargement...
+                </p>
+              ) : (
+                <select
+                  value={formData.formation_id}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      formation_id: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                >
+                  <option value="">Sélectionner une formation</option>
+                  {formations.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.titre}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {formData.step_type === "TIMER" && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                Délai (minutes)
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={formData.timer_delay_minutes}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    timer_delay_minutes: e.target.value,
+                  }))
+                }
+                placeholder="Ex. 60"
+                className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-2">

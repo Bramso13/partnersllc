@@ -63,11 +63,20 @@ export async function PATCH(
       );
     }
 
-    const { label, description, position, step_type } = body as {
+    const {
+      label,
+      description,
+      position,
+      step_type,
+      formation_id,
+      timer_delay_minutes,
+    } = body as {
       label?: string;
       description?: string | null;
       position?: number;
-      step_type?: "CLIENT" | "ADMIN";
+      step_type?: "CLIENT" | "ADMIN" | "FORMATION" | "TIMER";
+      formation_id?: string | null;
+      timer_delay_minutes?: number | null;
     };
 
     const updateData: Record<string, unknown> = {};
@@ -135,16 +144,31 @@ export async function PATCH(
     }
 
     if (step_type !== undefined) {
-      if (step_type !== "CLIENT" && step_type !== "ADMIN") {
+      const validStepTypes = ["CLIENT", "ADMIN", "FORMATION", "TIMER"];
+      if (!validStepTypes.includes(step_type)) {
         return NextResponse.json(
           {
-            error: "step_type must be CLIENT or ADMIN",
+            error: "step_type must be CLIENT, ADMIN, FORMATION or TIMER",
             details: { field: "step_type" },
           },
           { status: 400 }
         );
       }
       updateData.step_type = step_type;
+    }
+
+    if (formation_id !== undefined) {
+      updateData.formation_id =
+        formation_id != null && formation_id !== "" ? formation_id : null;
+    }
+    if (timer_delay_minutes !== undefined) {
+      const val =
+        timer_delay_minutes != null &&
+        typeof timer_delay_minutes === "number" &&
+        timer_delay_minutes > 0
+          ? timer_delay_minutes
+          : null;
+      updateData.timer_delay_minutes = val;
     }
 
     if (Object.keys(updateData).length === 0) {

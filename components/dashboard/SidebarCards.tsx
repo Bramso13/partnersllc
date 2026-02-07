@@ -32,11 +32,13 @@ export function SidebarCards({
           Votre conseiller
         </h4>
         <div className="flex items-center space-x-3">
-          <img
-            src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg"
-            alt="Advisor"
-            className="w-12 h-12 rounded-full object-cover"
-          />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/10 p-1.5">
+            <img
+              src="/logo_partnersllc_blanc.png"
+              alt="Partners LLC"
+              className="h-full w-full object-contain"
+            />
+          </div>
           <div>
             <p className="font-medium text-brand-text-primary">
               {advisor?.name || "Sophie Martin"}

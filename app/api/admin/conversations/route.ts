@@ -103,6 +103,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if a conversation already exists for this dossier
+      const { data: existingConv } = await supabase
+        .from("twilio_conversations")
+        .select("*")
+        .eq("dossier_id", data.dossier_id)
+        .single();
+
+      if (existingConv) {
+        return NextResponse.json(
+          {
+            error: "A conversation already exists for this dossier",
+            conversation: existingConv,
+          },
+          { status: 409 }
+        );
+      }
+
       // Create Twilio Conversation and add client participant
       const { conversationSid, serviceSid } = await createTwilioConversation();
 

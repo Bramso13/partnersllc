@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createDocumentRecord } from "@/app/actions/documents";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 interface UploadDocumentModalProps {
   onClose: () => void;
@@ -290,6 +291,21 @@ export function UploadDocumentModal({
                 </option>
               ))}
             </select>
+            {selectedDocumentTypeId && (
+              (() => {
+                const selectedType = documentTypes.find(
+                  (t) => t.id === selectedDocumentTypeId
+                );
+                return selectedType?.description ? (
+                  <div className="mt-3 p-3 bg-brand-dark-bg border border-brand-dark-border rounded-lg">
+                    <MarkdownContent
+                      content={selectedType.description}
+                      className="text-sm text-brand-text-secondary"
+                    />
+                  </div>
+                ) : null;
+              })()
+            )}
           </div>
 
           {/* Drag and Drop Zone */}

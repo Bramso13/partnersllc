@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { DocumentType } from "@/lib/workflow";
+import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
+import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";
 
 interface UploadedDocument {
   id: string;
@@ -38,6 +40,7 @@ export function StepDocuments({
 
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [activeDocumentTypeId, setActiveDocumentTypeId] = useState<string | null>(null);
 
   const handleFileUpload = async (documentType: DocumentType, file: File) => {
     setUploading(documentType.id);
@@ -100,6 +103,18 @@ export function StepDocuments({
     );
   };
 
+  const openDocumentInfo = (documentTypeId: string) => {
+    setActiveDocumentTypeId(documentTypeId);
+  };
+
+  const closeDocumentInfo = () => {
+    setActiveDocumentTypeId(null);
+  };
+
+  const activeDocumentType = requiredDocuments.find(
+    (doc) => doc.id === activeDocumentTypeId
+  );
+
   if (requiredDocuments.length === 0) {
     return null;
   }
@@ -132,6 +147,10 @@ export function StepDocuments({
                     <h4 className="font-medium text-brand-text-primary">
                       {docType.label}
                     </h4>
+                    <DocumentInfoButton
+                      onClick={() => openDocumentInfo(docType.id)}
+                      hasDescription={!!docType.description}
+                    />
                     {uploadedDoc && (
                       <span
                         className={`px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -146,11 +165,6 @@ export function StepDocuments({
                       </span>
                     )}
                   </div>
-                  {docType.description && (
-                    <p className="text-sm text-brand-text-secondary mt-1">
-                      {docType.description}
-                    </p>
-                  )}
                   <div className="text-xs text-brand-text-secondary mt-2">
                     Max size: {docType.max_file_size_mb}MB • Formats:{" "}
                     {docType.allowed_extensions.join(", ")}
@@ -213,6 +227,16 @@ export function StepDocuments({
           );
         })}
       </div>
+
+      {/* Info Panel */}
+      {activeDocumentType?.description && (
+        <DocumentInfoPanel
+          description={activeDocumentType.description}
+          isOpen={activeDocumentTypeId !== null}
+          onClose={closeDocumentInfo}
+          documentName={activeDocumentType.label}
+        />
+      )}
     </div>
   );
 }

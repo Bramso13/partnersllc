@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { DocumentWithDetails } from "@/lib/documents-types";
 import { createClient } from "@/lib/supabase/client";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 interface DocumentPreviewModalProps {
   document: DocumentWithDetails;
@@ -55,13 +56,21 @@ export function DocumentPreviewModal({
       <div className="bg-brand-dark-surface rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-brand-dark-border">
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-bold text-brand-text-primary">
               {document.current_version?.file_name || "Document"}
             </h2>
             <p className="text-sm text-brand-text-secondary mt-1">
               {document.document_type?.label || "Type inconnu"}
             </p>
+            {document.document_type?.description && (
+              <div className="mt-2">
+                <MarkdownContent
+                  content={document.document_type.description}
+                  className="text-xs text-brand-text-secondary"
+                />
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}

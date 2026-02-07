@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { ProductStep } from "@/lib/workflow";
-import { WorkflowStepper } from "./WorkflowStepper";
+import { WorkflowStepper, type StepInstanceForTimer } from "./WorkflowStepper";
 import { Product } from "@/types/qualification";
 
 interface WorkflowContainerProps {
   dossierId: string;
   productId: string;
   productName: string;
+  userId?: string;
   initialStepId?: string;
 }
 
@@ -16,9 +17,13 @@ export function WorkflowContainer({
   dossierId,
   productId,
   productName,
+  userId,
   initialStepId,
 }: WorkflowContainerProps) {
   const [productSteps, setProductSteps] = useState<ProductStep[]>([]);
+  const [stepInstances, setStepInstances] = useState<StepInstanceForTimer[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +46,27 @@ export function WorkflowContainer({
 
     loadProductSteps();
   }, [productId]);
+
+  useEffect(() => {
+    const loadStepInstances = async () => {
+      try {
+        const response = await fetch(`/api/dossiers/${dossierId}`);
+        if (!response.ok) return;
+        const dossier = await response.json();
+        const instances = (dossier.step_instances ?? []).map(
+          (si: { step_id: string; completed_at: string | null }) => ({
+            step_id: si.step_id,
+            completed_at: si.completed_at ?? null,
+          })
+        );
+        setStepInstances(instances);
+      } catch {
+        setStepInstances([]);
+      }
+    };
+
+    loadStepInstances();
+  }, [dossierId]);
 
   const handleStepComplete = async (
     stepId: string,
@@ -95,8 +121,10 @@ export function WorkflowContainer({
       productSteps={productSteps}
       dossierId={dossierId}
       productName={productName}
+      userId={userId}
       onStepComplete={handleStepComplete}
       initialStepId={initialStepId}
+      stepInstances={stepInstances}
     />
   );
 }

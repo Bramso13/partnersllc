@@ -39,13 +39,21 @@ export interface ProductFormData {
   full_product_id?: string | null;
 }
 
+export type StepType = "CLIENT" | "ADMIN" | "FORMATION" | "TIMER";
+
 export interface Step {
   id: string;
   code: string;
   label: string;
   description: string | null;
   position: number;
-  step_type: "CLIENT" | "ADMIN";
+  step_type: StepType;
+  /** For step_type FORMATION: which formation to display. */
+  formation_id?: string | null;
+  /** Populated by join: formation(id, titre). */
+  formation?: { id: string; titre: string } | null;
+  /** For step_type TIMER: delay in minutes before next step is available. */
+  timer_delay_minutes?: number | null;
   created_at: string;
 }
 
@@ -58,6 +66,10 @@ export interface ProductStep {
   estimated_duration_hours: number | null;
   /** Optional dossier status to apply when this step is approved. */
   dossier_status_on_approval?: string | null;
+  /** Populated from step: for step_type FORMATION. */
+  formation_id?: string | null;
+  /** Populated from step: for step_type TIMER. */
+  timer_delay_minutes?: number | null;
   created_at: string;
   step?: Step;
 }

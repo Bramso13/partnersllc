@@ -48,15 +48,48 @@ export async function addClientParticipant(
   const client = getTwilioClient();
   const serviceSid = getServiceSid();
 
-  const participant = await client.conversations.v1
-    .services(serviceSid)
-    .conversations(conversationSid)
-    .participants.create({
-      "messagingBinding.address": `whatsapp:${clientPhone}`,
-      "messagingBinding.proxyAddress": `whatsapp:${getEnv("TWILIO_WHATSAPP_NUMBER")}`,
-    });
+  try {
+    const participant = await client.conversations.v1
+      .services(serviceSid)
+      .conversations(conversationSid)
+      .participants.create({
+        "messagingBinding.address": `whatsapp:${clientPhone}`,
+        "messagingBinding.proxyAddress": `whatsapp:${getEnv("TWILIO_WHATSAPP_NUMBER")}`,
+      });
 
-  return participant.sid;
+    return participant.sid;
+  } catch (error: any) {
+    // Error 50416: Participant already exists in this or another conversation
+    if (error.code === 50416) {
+      console.warn(
+        `Participant ${clientPhone} already exists in a conversation. ` +
+        `Error: ${error.message}`
+      );
+      // Check if participant is already in THIS conversation
+      const participants = await client.conversations.v1
+        .services(serviceSid)
+        .conversations(conversationSid)
+        .participants.list();
+
+      const existingParticipant = participants.find(
+        (p) => p.messagingBinding?.address === `whatsapp:${clientPhone}`
+      );
+
+      if (existingParticipant) {
+        // Participant is already in this conversation, return its SID
+        return existingParticipant.sid;
+      }
+
+      // Participant is in another conversation - this is a real conflict
+      throw new Error(
+        `Phone number ${clientPhone} is already active in another conversation. ` +
+        `Close the other conversation first or use a different approach.`
+      );
+    }
+
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 /**
