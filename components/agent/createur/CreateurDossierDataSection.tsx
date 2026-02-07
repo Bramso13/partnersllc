@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
 
 interface CreateurDossierDataSectionProps {
@@ -27,26 +28,27 @@ export function CreateurDossierDataSection({
     setExpandedSteps(newExpanded);
   };
 
+  const t = useTranslations("agent.createur");
   return (
     <div className="border border-[#363636] rounded-xl bg-[#191A1D] p-6">
       <h3 className="text-lg font-semibold text-brand-text-primary mb-6">
-        Données du Dossier
+        {t("dossierData")}
       </h3>
 
       <div className="space-y-4">
         {/* Informations Client */}
         <div className="border border-[#363636] rounded-lg bg-[#1A1B1E] p-4">
           <h4 className="text-md font-medium text-brand-text-primary mb-3">
-            Informations Client
+            {t("clientInfo")}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <span className="text-brand-text-secondary text-sm">Nom complet:</span>
+              <span className="text-brand-text-secondary text-sm">{t("fullName")}:</span>
               <p className="text-brand-text-primary font-medium">{client.full_name}</p>
             </div>
             {client.phone && (
               <div>
-                <span className="text-brand-text-secondary text-sm">Téléphone:</span>
+                <span className="text-brand-text-secondary text-sm">{t("phone")}:</span>
                 <p className="text-brand-text-primary font-medium">{client.phone}</p>
               </div>
             )}
@@ -56,16 +58,16 @@ export function CreateurDossierDataSection({
         {/* Informations Produit */}
         <div className="border border-[#363636] rounded-lg bg-[#1A1B1E] p-4">
           <h4 className="text-md font-medium text-brand-text-primary mb-3">
-            Informations Produit
+            {t("productInfo")}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <span className="text-brand-text-secondary text-sm">Nom du produit:</span>
+              <span className="text-brand-text-secondary text-sm">{t("productName")}:</span>
               <p className="text-brand-text-primary font-medium">{product.name}</p>
             </div>
             {product.description && (
               <div>
-                <span className="text-brand-text-secondary text-sm">Description:</span>
+                <span className="text-brand-text-secondary text-sm">{t("description")}:</span>
                 <p className="text-brand-text-primary">{product.description}</p>
               </div>
             )}
@@ -76,7 +78,7 @@ export function CreateurDossierDataSection({
         {previousStepsData.length > 0 && (
           <div className="border border-[#363636] rounded-lg bg-[#1A1B1E] p-4">
             <h4 className="text-md font-medium text-brand-text-primary mb-4">
-              Étapes Précédentes Complétées
+              {t("previousSteps")}
             </h4>
             <div className="space-y-2">
               {previousStepsData.map((prevStep) => (
@@ -92,11 +94,14 @@ export function CreateurDossierDataSection({
                         <ChevronRight className="w-4 h-4 text-brand-text-secondary" />
                       )}
                       <span className="text-brand-text-primary font-medium">
-                        Étape {prevStep.step.position}: {prevStep.step.label}
+                        {t("stepN", {
+                          n: prevStep.step.position,
+                          label: prevStep.step.label,
+                        })}
                       </span>
                     </div>
                     <span className="text-xs text-green-400 bg-green-500/20 px-2 py-1 rounded">
-                      Complétée
+                      {t("completed")}
                     </span>
                   </button>
 
@@ -118,7 +123,7 @@ export function CreateurDossierDataSection({
                           </div>
                         ) : (
                           <p className="text-brand-text-secondary text-sm italic">
-                            Aucune donnée saisie pour cette étape
+                            {t("noDataForStep")}
                           </p>
                         )}
                       </div>

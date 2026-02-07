@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAgentId, requireAgentAuth } from "@/lib/auth";
 import { getDossierAllData } from "@/lib/agent/dossiers";
@@ -6,10 +6,14 @@ import { getAgentByEmail } from "@/lib/agent-steps";
 import { DossierDetailContent } from "@/components/agent/DossierDetailContent";
 
 
-export const metadata: Metadata = {
-  title: "Détail Dossier - Espace Agent",
-  description: "Détail d'un dossier avec toutes les informations",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { getTranslations } = await import("next-intl/server");
+  const t = await getTranslations("agent.dossiers");
+  return {
+    title: t("detailTitle"),
+    description: t("detailDescription"),
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;

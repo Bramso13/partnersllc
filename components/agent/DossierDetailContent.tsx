@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { DossierAllData } from "@/lib/agent/dossiers";
 import { DossierStepFieldsSection } from "./DossierStepFieldsSection";
 import { DossierDocumentsSection } from "./DossierDocumentsSection";
@@ -22,8 +23,8 @@ export function DossierDetailContent({
   agentId,
   agentType,
 }: DossierDetailContentProps) {
-  console.log(dossierData, "dossierData//");
   const router = useRouter();
+  const t = useTranslations("agent.dossiers");
   const dossierIdShort = dossierData.dossier.id.slice(0, 8) + "...";
 
   // Group steps by type
@@ -60,17 +61,20 @@ export function DossierDetailContent({
                 </span>
               </div>
               <p className="text-sm text-brand-text-secondary">
-                Etape {stepInstance.step.position + 1} - {stepInstance.step.code}
+                {t("stepN", {
+                  n: stepInstance.step.position + 1,
+                })}{" "}
+                - {stepInstance.step.code}
               </p>
             </div>
             <div className="flex items-center gap-3">
               {stepInstance.completed_at ? (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-300 border border-green-500/30">
-                  Complété
+                  {t("completed")}
                 </span>
               ) : (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  En cours
+                  {t("inProgress")}
                 </span>
               )}
             </div>
@@ -78,14 +82,14 @@ export function DossierDetailContent({
           <div className="mt-2 text-xs text-brand-text-secondary">
             {stepInstance.started_at && (
               <span>
-                Commencé:{" "}
-                {new Date(stepInstance.started_at).toLocaleDateString("fr-FR")}
+                {t("started")}:{" "}
+                {new Date(stepInstance.started_at).toLocaleDateString("en-GB")}
               </span>
             )}
             {stepInstance.completed_at && (
               <span className="ml-4">
-                Complété:{" "}
-                {new Date(stepInstance.completed_at).toLocaleDateString("fr-FR")}
+                {t("completedAt")}:{" "}
+                {new Date(stepInstance.completed_at).toLocaleDateString("en-GB")}
               </span>
             )}
           </div>
@@ -145,10 +149,10 @@ export function DossierDetailContent({
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-brand-text-primary">
-                Dossier {dossierIdShort}
+                {t("dossier")} {dossierIdShort}
               </h1>
               <p className="text-brand-text-secondary text-sm mt-0.5">
-                {dossierData.client.full_name || "Client"}
+                {dossierData.client.full_name || t("client")}
               </p>
             </div>
           </div>
@@ -165,7 +169,9 @@ export function DossierDetailContent({
             {dossierData.product && (
               <>
                 <div>
-                  <span className="text-brand-text-secondary">Produit:</span>{" "}
+                  <span className="text-brand-text-secondary">
+                    {t("product")}:
+                  </span>{" "}
                   <span className="text-brand-text-primary font-medium">
                     {dossierData.product.name}
                   </span>
@@ -174,21 +180,23 @@ export function DossierDetailContent({
               </>
             )}
             <div>
-              <span className="text-brand-text-secondary">Client:</span>{" "}
+              <span className="text-brand-text-secondary">{t("client")}:</span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {dossierData.client.full_name || "N/A"}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Dossier:</span>{" "}
+              <span className="text-brand-text-secondary">
+                {t("dossier")}:
+              </span>{" "}
               <span className="text-brand-text-primary font-mono text-xs">
                 {dossierIdShort}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Statut:</span>{" "}
+              <span className="text-brand-text-secondary">{t("statusLabel")}:</span>{" "}
               <span className="text-amber-400 font-medium">
                 {dossierData.dossier.status}
               </span>
@@ -202,7 +210,7 @@ export function DossierDetailContent({
           {clientSteps.length > 0 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-brand-text-primary">
-                Étapes CLIENT
+                {t("clientSteps")}
               </h2>
               {clientSteps.map(renderStepInstance)}
             </div>
@@ -211,7 +219,7 @@ export function DossierDetailContent({
           {/* ADMIN Steps Section */}
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-brand-text-primary">
-              Étapes ADMIN
+              {t("adminSteps")}
             </h2>
             
             {/* Existing ADMIN step instances */}
@@ -232,7 +240,7 @@ export function DossierDetailContent({
           {dossierData.step_instances.length === 0 &&
             dossierData.admin_steps_without_instance.length === 0 && (
               <div className="text-center text-brand-text-secondary py-8">
-                Aucune étape trouvée pour ce dossier.
+                {t("noSteps")}
               </div>
             )}
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
 
@@ -15,6 +16,7 @@ export function CreateurCompleteStepSection({
   adminDocuments,
   isCompleted,
 }: CreateurCompleteStepSectionProps) {
+  const t = useTranslations("agent.createur");
   const [completing, setCompleting] = useState(false);
 
   // Vérifier si tous les documents requis sont livrés
@@ -46,7 +48,7 @@ export function CreateurCompleteStepSection({
       window.location.href = '/agent/steps';
     } catch (error) {
       console.error('Completion error:', error);
-      alert('Erreur lors de la complétion de l&apos;étape');
+      alert(t("completionError"));
     } finally {
       setCompleting(false);
     }
@@ -57,10 +59,10 @@ export function CreateurCompleteStepSection({
       <div className="border border-[#363636] rounded-xl bg-[#191A1D] p-6">
         <div className="flex items-center gap-3 text-green-400">
           <CheckCircle className="w-6 h-6" />
-          <h3 className="text-lg font-semibold">Étape Complétée</h3>
+          <h3 className="text-lg font-semibold">{t("stepCompleted")}</h3>
         </div>
         <p className="text-brand-text-secondary text-sm mt-2">
-          Tous les documents ont été créés et livrés au client. Cette étape est terminée.
+          {t("allCreatedAndDelivered")}
         </p>
       </div>
     );
@@ -69,7 +71,7 @@ export function CreateurCompleteStepSection({
   return (
     <div className="border border-[#363636] rounded-xl bg-[#191A1D] p-6">
       <h3 className="text-lg font-semibold text-brand-text-primary mb-4">
-        Complétion de l&apos;Étape
+        {t("stepCompletion")}
       </h3>
 
       {/* Vérifications */}
@@ -80,14 +82,14 @@ export function CreateurCompleteStepSection({
           ) : (
             <AlertCircle className="w-5 h-5 text-red-400" />
           )}
-          <span className={`text-sm ${allDocumentsDelivered ? 'text-green-400' : 'text-red-400'}`}>
-            Tous les documents requis sont créés et livrés au client
+          <span className={`text-sm ${allDocumentsDelivered ? "text-green-400" : "text-red-400"}`}>
+            {t("allDocsDelivered")}
           </span>
         </div>
 
         {!allDocumentsDelivered && (
           <div className="ml-8 text-sm text-brand-text-secondary">
-            Documents manquants ou non livrés :
+            {t("missingOrNotDelivered")}
             <ul className="list-disc list-inside mt-1">
               {adminDocuments
                 .filter((doc) => !doc.document || doc.document.status !== "DELIVERED")
@@ -105,22 +107,20 @@ export function CreateurCompleteStepSection({
         disabled={!allDocumentsDelivered || completing}
         className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
           allDocumentsDelivered && !completing
-            ? 'bg-green-600 hover:bg-green-700 text-white'
-            : 'bg-[#363636] text-brand-text-secondary cursor-not-allowed'
+            ? "bg-green-600 hover:bg-green-700 text-white"
+            : "bg-[#363636] text-brand-text-secondary cursor-not-allowed"
         }`}
       >
-        {completing ? (
-          'Complétion en cours...'
-        ) : allDocumentsDelivered ? (
-          'Marquer comme complété'
-        ) : (
-          'Complétion impossible - Documents manquants'
-        )}
+        {completing
+          ? t("completing")
+          : allDocumentsDelivered
+            ? t("markComplete")
+            : t("cannotComplete")}
       </button>
 
       {!allDocumentsDelivered && (
         <p className="text-brand-text-secondary text-xs text-center mt-2">
-          Tous les documents doivent être uploadés et livrés avant de pouvoir compléter l&apos;étape.
+          {t("allMustBeUploaded")}
         </p>
       )}
     </div>

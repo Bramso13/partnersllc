@@ -3,11 +3,15 @@ import { getAgentDossiers } from "@/lib/agent/dossiers";
 import { DossiersListContent } from "@/components/agent/DossiersListContent";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Mes dossiers - Espace Agent",
-  description: "Liste des dossiers assignés à l'agent",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("agent.dossiers");
+  return {
+    title: t("pageTitle"),
+    description: t("pageDescription"),
+  };
+}
 
 export default async function AgentDossiersPage() {
   const agent = await requireAgentAuth();
@@ -16,6 +20,7 @@ export default async function AgentDossiersPage() {
     return <div>Agent not found</div>;
   }
   const dossiers = await getAgentDossiers(agentId);
+  const t = await getTranslations("agent.dossiers");
 
   return (
     <div className="min-h-screen bg-brand-dark-bg">
@@ -24,11 +29,10 @@ export default async function AgentDossiersPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-brand-text-primary">
-                Mes dossiers
+                {t("myDossiers")}
               </h1>
               <p className="text-brand-text-secondary mt-1">
-                Liste des dossiers qui te sont assignés avec bouton pour copier
-                toutes les informations
+                {t("listDescription")}
               </p>
             </div>
           </div>

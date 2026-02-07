@@ -71,17 +71,17 @@ export const clientNavConfig: NavConfig = {
 export const agentNavConfig: NavConfig = {
   sections: [
     {
-      label: "Espace Agent",
+      label: "Agent Space",
       items: [
         {
           href: "/agent",
           icon: "fa-gauge-high",
-          label: "Tableau de bord",
+          label: "Dashboard",
         },
         {
           href: "/agent/dossiers",
           icon: "fa-folder-tree",
-          label: "Mes dossiers",
+          label: "My dossiers",
         },
       ],
     },

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
 import { CreateurDossierDataSection } from "./CreateurDossierDataSection";
 import { AdminDocumentUploadSection } from "./AdminDocumentUploadSection";
@@ -19,6 +20,9 @@ export function CreateurStepContent({
   agentId,
   isAdmin: _isAdmin,
 }: CreateurStepContentProps) {
+  const t = useTranslations("agent.createur");
+  const tStep = useTranslations("agent.stepCard");
+  const tDossiers = useTranslations("agent.dossiers");
   const dossierIdShort = stepDetails.dossier.id.slice(0, 8) + "...";
 
   return (
@@ -44,11 +48,13 @@ export function CreateurStepContent({
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-              CRÉATION
+              {tStep("creation")}
             </span>
             <span className="text-sm text-brand-text-secondary">
-              Étape {stepDetails.step.position} sur{" "}
-              {stepDetails.dossier.total_steps}
+              {tStep("stepNOf", {
+                n: stepDetails.step.position,
+                total: stepDetails.dossier.total_steps,
+              })}
             </span>
           </div>
         </div>
@@ -57,35 +63,28 @@ export function CreateurStepContent({
         <div className="border border-[#363636] rounded-xl bg-[#191A1D] px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div>
-              <span className="text-brand-text-secondary">Produit:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("product")}:</span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.product.name}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Client:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("client")}:</span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.client.full_name}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
-            {/* <div>
-              <span className="text-brand-text-secondary">Email:</span>{" "}
-              <span className="text-brand-text-primary">
-                {stepDetails.dossier.client.email}
-              </span>
-            </div> */}
-            <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Dossier:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("dossier")}:</span>{" "}
               <span className="text-brand-text-primary font-mono text-xs">
                 {dossierIdShort}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Statut:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("statusLabel")}:</span>{" "}
               <span className="text-amber-400 font-medium">
                 {stepDetails.dossier.status}
               </span>
@@ -111,7 +110,7 @@ export function CreateurStepContent({
         {/* Notes Internes */}
         <div className="border border-[#363636] rounded-xl bg-[#191A1D] p-6">
           <h3 className="text-lg font-semibold text-brand-text-primary mb-4">
-            Notes Internes
+            {t("internalNotes")}
           </h3>
           <StepNotesSection
             dossierId={stepDetails.dossier_id}

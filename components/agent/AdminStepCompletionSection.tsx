@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CheckCircle, Loader2 } from "lucide-react";
 
 interface AdminStepCompletionSectionProps {
@@ -14,6 +15,7 @@ export function AdminStepCompletionSection({
   isCompleted,
 }: AdminStepCompletionSectionProps) {
   const router = useRouter();
+  const t = useTranslations("agent.adminStepCompletion");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleComplete = async () => {
@@ -32,12 +34,12 @@ export function AdminStepCompletionSection({
         router.refresh();
       } else {
         const error = await res.json();
-        alert(error.error || "Erreur lors de la completion");
+        alert(error.error || t("completionError"));
         setIsLoading(false);
       }
     } catch (err) {
       console.error("Error completing step", err);
-      alert("Erreur lors de la completion");
+      alert(t("completionError"));
       setIsLoading(false);
     }
   };
@@ -49,10 +51,10 @@ export function AdminStepCompletionSection({
           <CheckCircle className="w-6 h-6 text-green-400" />
           <div>
             <h3 className="text-lg font-semibold text-green-300">
-              Étape complétée
+              {t("stepCompleted")}
             </h3>
             <p className="text-sm text-green-300/80">
-              Cette étape a été marquée comme terminée.
+              {t("stepMarkedDone")}
             </p>
           </div>
         </div>
@@ -65,10 +67,10 @@ export function AdminStepCompletionSection({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-brand-text-primary">
-            Complétion de l&apos;étape ADMIN
+            {t("adminStepCompletion")}
           </h3>
           <p className="text-sm text-brand-text-secondary mt-1">
-            Marquer cette étape ADMIN comme complétée
+            {t("markAdminComplete")}
           </p>
         </div>
 
@@ -82,7 +84,7 @@ export function AdminStepCompletionSection({
           ) : (
             <CheckCircle className="w-5 h-5" />
           )}
-          Marquer comme complété
+          {t("markComplete")}
         </button>
       </div>
     </div>

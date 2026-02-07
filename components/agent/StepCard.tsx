@@ -1,29 +1,46 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { AgentStepQueueItem } from "@/lib/agent-steps";
 import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 
 interface StepCardProps {
   item: AgentStepQueueItem;
 }
 
-function getStatus(item: AgentStepQueueItem) {
+function getStatus(
+  item: AgentStepQueueItem,
+  t: ReturnType<typeof useTranslations<"agent.steps">>
+) {
   if (item.completed_at) {
-    return { label: "Terminé", color: "text-green-400", bg: "bg-green-500/10" };
+    return {
+      label: t("statusDone"),
+      color: "text-green-400",
+      bg: "bg-green-500/10",
+    };
   }
   if (item.started_at) {
-    return { label: "En cours", color: "text-amber-400", bg: "bg-amber-500/10" };
+    return {
+      label: t("statusInProgress"),
+      color: "text-amber-400",
+      bg: "bg-amber-500/10",
+    };
   }
-  return { label: "Non démarré", color: "text-gray-300", bg: "bg-gray-500/10" };
+  return {
+    label: t("statusNotStarted"),
+    color: "text-gray-300",
+    bg: "bg-gray-500/10",
+  };
 }
 
 export function StepCard({ item }: StepCardProps) {
-  const status = getStatus(item);
+  const t = useTranslations("agent.steps");
+  const status = getStatus(item, t);
   const createdAt = item.created_at
     ? formatDistanceToNow(new Date(item.created_at), {
         addSuffix: true,
-        locale: fr,
+        locale: enUS,
       })
     : "";
 
@@ -56,18 +73,16 @@ export function StepCard({ item }: StepCardProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="space-y-1 text-sm">
           <div className="text-brand-text-primary">
-            Client:{" "}
+            {t("client")}:{" "}
             <span className="font-medium">
               {item.dossier.client.full_name || "N/A"}
             </span>{" "}
-            {/* <span className="text-brand-text-secondary">
-              ({item.dossier.client.full_name})
-            </span> */}
           </div>
           <div className="text-brand-text-secondary">
-            Produit:{" "}
-            <span className="font-medium">{item.dossier.product.name}</span> •
-            Dossier: <span className="font-mono text-xs">{dossierIdShort}</span>
+            {t("product")}:{" "}
+            <span className="font-medium">{item.dossier.product.name}</span> •{" "}
+            {t("dossier")}:{" "}
+            <span className="font-mono text-xs">{dossierIdShort}</span>
           </div>
         </div>
 
@@ -81,7 +96,7 @@ export function StepCard({ item }: StepCardProps) {
             href={`/agent/steps/${item.id}`}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-primary hover:bg-brand-primary/90 text-white text-sm font-medium transition-colors"
           >
-            Traiter
+            {t("process")}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

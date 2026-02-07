@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { VerificateurStepDetails } from "@/lib/agent-steps";
 import { VerificateurDocumentsSection } from "./VerificateurDocumentsSection";
 import { StepFieldsSection } from "./StepFieldsSection";
@@ -19,6 +20,9 @@ export function VerificateurStepContent({
   agentId,
   isAdmin: _isAdmin,
 }: VerificateurStepContentProps) {
+  const t = useTranslations("agent.verificateur");
+  const tStep = useTranslations("agent.stepCard");
+  const tDossiers = useTranslations("agent.dossiers");
   const dossierIdShort = stepDetails.dossier.id.slice(0, 8) + "...";
 
   return (
@@ -46,11 +50,13 @@ export function VerificateurStepContent({
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              VERIFICATION
+              {tStep("verification")}
             </span>
             <span className="text-sm text-brand-text-secondary">
-              Etape {stepDetails.step.position + 1} sur{" "}
-              {stepDetails.dossier.total_steps}
+              {tStep("stepNOf", {
+                n: stepDetails.step.position + 1,
+                total: stepDetails.dossier.total_steps,
+              })}
             </span>
           </div>
         </div>
@@ -59,28 +65,28 @@ export function VerificateurStepContent({
         <div className="border border-[#363636] rounded-xl bg-[#191A1D] px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div>
-              <span className="text-brand-text-secondary">Produit:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("product")}:</span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.product.name}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Client:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("client")}:</span>{" "}
               <span className="text-brand-text-primary font-medium">
                 {stepDetails.dossier.client.full_name || "N/A"}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Dossier:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("dossier")}:</span>{" "}
               <span className="text-brand-text-primary font-mono text-xs">
                 {dossierIdShort}
               </span>
             </div>
             <div className="h-4 w-px bg-[#363636]" />
             <div>
-              <span className="text-brand-text-secondary">Statut:</span>{" "}
+              <span className="text-brand-text-secondary">{tDossiers("statusLabel")}:</span>{" "}
               <span className="text-amber-400 font-medium">
                 {stepDetails.dossier.status}
               </span>

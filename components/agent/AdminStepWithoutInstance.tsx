@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,11 +24,12 @@ export function AdminStepWithoutInstance({
   agentType,
   onComplete,
 }: AdminStepWithoutInstanceProps) {
+  const t = useTranslations("agent.adminStepWithoutInstance");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreate = async () => {
     if (agentType !== "CREATEUR") {
-      toast.error("Seuls les agents CREATEUR peuvent créer les steps ADMIN");
+      toast.error(t("onlyCreateur"));
       return;
     }
 
@@ -45,16 +47,16 @@ export function AdminStepWithoutInstance({
       });
 
       if (res.ok) {
-        toast.success("Étape créée avec succès");
+        toast.success(t("stepCreated"));
         onComplete();
       } else {
         const error = await res.json();
-        toast.error(error.error || "Erreur lors de la création");
+        toast.error(error.error || t("createError"));
         setIsLoading(false);
       }
     } catch (err) {
       console.error("Error creating step", err);
-      toast.error("Erreur lors de la création");
+      toast.error(t("createError"));
       setIsLoading(false);
     }
   };
@@ -76,10 +78,10 @@ export function AdminStepWithoutInstance({
               </span>
             </div>
             <p className="text-sm text-brand-text-secondary">
-              Etape {step.position + 1} - {step.code}
+              {step.position + 1} - {step.code}
             </p>
             <p className="text-xs text-amber-400 mt-2 italic">
-              Cette étape n&apos;a pas encore été démarrée
+              {t("notStarted")}
             </p>
           </div>
         </div>
@@ -91,12 +93,12 @@ export function AdminStepWithoutInstance({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-brand-text-primary">
-                Démarrer l&apos;étape ADMIN
+                {t("startAdminStep")}
               </h3>
               <p className="text-sm text-brand-text-secondary mt-1">
                 {canComplete
-                  ? "Créez cette étape pour la démarrer"
-                  : "Seuls les agents CREATEUR peuvent créer les steps ADMIN"}
+                  ? t("createToStart")
+                  : t("onlyCreateurCanCreate")}
               </p>
             </div>
 
@@ -111,7 +113,7 @@ export function AdminStepWithoutInstance({
                 ) : (
                   <CheckCircle className="w-5 h-5" />
                 )}
-                Commencer
+                {t("start")}
               </button>
             )}
           </div>

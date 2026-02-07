@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
+import { useTranslations } from "next-intl";
 
 interface StepFiltersProps {
   search: string;
@@ -17,6 +18,7 @@ export function StepFilters({
   onSortChange,
   isRefreshing,
 }: StepFiltersProps) {
+  const t = useTranslations("agent.steps");
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     onSearchChange(e.target.value);
   };
@@ -31,7 +33,7 @@ export function StepFilters({
       <div className="flex-1 w-full">
         <input
           type="text"
-          placeholder="Rechercher par client, email ou ID dossier..."
+          placeholder={t("searchPlaceholder")}
           value={search}
           onChange={handleSearchChange}
           className="w-full px-4 py-2 rounded-xl bg-[#191A1D] border border-[#363636] text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -44,9 +46,9 @@ export function StepFilters({
           onChange={handleSortChange}
           className="px-3 py-2 rounded-xl bg-[#191A1D] border border-[#363636] text-sm text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
         >
-          <option value="assigned_at">Date d&apos;assignation</option>
-          <option value="step_type">Type de step</option>
-          <option value="client_name">Nom client</option>
+          <option value="assigned_at">{t("sortAssignedAt")}</option>
+          <option value="step_type">{t("sortStepType")}</option>
+          <option value="client_name">{t("sortClientName")}</option>
         </select>
 
         <button
@@ -70,7 +72,7 @@ export function StepFilters({
               isRefreshing ? "animate-spin text-brand-accent" : ""
             }`}
           ></i>
-          <span>Rafraîchir</span>
+          <span>{t("refresh")}</span>
         </button>
       </div>
     </div>

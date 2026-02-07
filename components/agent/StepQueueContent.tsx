@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { AgentStepQueueItem } from "@/lib/agent-steps";
 import { StepFilters } from "./StepFilters";
 import { StepCard } from "./StepCard";
@@ -12,6 +13,7 @@ interface StepQueueContentProps {
 type SortKey = "assigned_at" | "step_type" | "client_name";
 
 export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
+  const t = useTranslations("agent.steps");
   const [steps, setSteps] = useState<AgentStepQueueItem[]>(initialSteps);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("assigned_at");
@@ -88,7 +90,7 @@ export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
 
       {filteredSteps.length === 0 ? (
         <div className="border border-dashed border-[#363636] rounded-2xl p-8 text-center text-brand-text-secondary">
-          <p>Aucune étape à traiter pour le moment.</p>
+          <p>{t("noSteps")}</p>
         </div>
       ) : (
         <div className="grid gap-4">

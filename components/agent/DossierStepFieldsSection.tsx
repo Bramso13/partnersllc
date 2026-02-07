@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { DossierAllData } from "@/lib/agent/dossiers";
 
@@ -12,6 +13,7 @@ interface DossierStepFieldsSectionProps {
 export function DossierStepFieldsSection({
   fields,
 }: DossierStepFieldsSectionProps) {
+  const t = useTranslations("agent.dossierDetail");
   const [copiedFieldIndex, setCopiedFieldIndex] = useState<number | null>(null);
 
   const handleCopyField = async (
@@ -19,16 +21,16 @@ export function DossierStepFieldsSection({
     index: number
   ) => {
     const valueToCopy = renderFieldValue(field);
-    
-    if (valueToCopy === "Non renseigné") {
-      toast.error("Aucune valeur à copier");
+
+    if (valueToCopy === t("notProvided")) {
+      toast.error(t("noValueToCopy"));
       return;
     }
 
     try {
       await navigator.clipboard.writeText(valueToCopy);
       setCopiedFieldIndex(index);
-      toast.success("Valeur copiée dans le presse-papiers");
+      toast.success(t("copyValue"));
       
       // Reset the check icon after 2 seconds
       setTimeout(() => {
@@ -36,7 +38,7 @@ export function DossierStepFieldsSection({
       }, 2000);
     } catch (error) {
       console.error("Error copying field value:", error);
-      toast.error("Erreur lors de la copie");
+      toast.error(t("notProvided"));
     }
   };
 
@@ -44,7 +46,7 @@ export function DossierStepFieldsSection({
     field: DossierAllData["step_instances"][number]["fields"][number]
   ): string => {
     if (!field.value && !field.value_jsonb) {
-      return "Non renseigné";
+      return t("notProvided");
     }
 
     // Handle JSONB values (arrays, objects)
@@ -63,32 +65,32 @@ export function DossierStepFieldsSection({
       // Try to parse as date
       if (/^\d{4}-\d{2}-\d{2}/.test(field.value)) {
         try {
-          return new Date(field.value).toLocaleDateString("fr-FR");
+          return new Date(field.value).toLocaleDateString("en-GB");
         } catch {
           // Not a valid date, return as is
         }
       }
       // Check if it's a boolean
       if (field.value === "true" || field.value === "1") {
-        return "Oui";
+        return t("yes");
       }
       if (field.value === "false" || field.value === "0") {
-        return "Non";
+        return t("no");
       }
       return field.value;
     }
 
-    return "Non renseigné";
+    return t("notProvided");
   };
 
   return (
     <div className="border border-[#363636] rounded-2xl bg-[#191A1D] overflow-hidden">
       <div className="px-5 py-4 border-b border-[#363636]">
         <h3 className="text-lg font-semibold text-brand-text-primary">
-          Informations client
+          {t("clientInfo")}
         </h3>
         <p className="text-sm text-brand-text-secondary mt-0.5">
-          Données saisies par le client (lecture seule)
+          {t("clientInfoSub")}
         </p>
       </div>
 
@@ -96,7 +98,7 @@ export function DossierStepFieldsSection({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {fields.map((field, index) => {
             const displayValue = renderFieldValue(field);
-            const isEmpty = displayValue === "Non renseigné";
+            const isEmpty = displayValue === t("notProvided");
 
             return (
               <div
@@ -111,7 +113,7 @@ export function DossierStepFieldsSection({
                     <button
                       onClick={() => handleCopyField(field, index)}
                       className="p-1.5 rounded-lg hover:bg-[#363636] transition-colors text-brand-text-secondary hover:text-brand-text-primary opacity-0 group-hover:opacity-100"
-                      title="Copier la valeur"
+                      title={t("copyValue")}
                     >
                       {copiedFieldIndex === index ? (
                         <Check className="w-4 h-4 text-green-400" />
@@ -142,7 +144,7 @@ export function DossierStepFieldsSection({
 
         {fields.length === 0 && (
           <div className="text-center text-brand-text-secondary py-4">
-            Aucun champ personnalisé pour cette étape.
+            {t("noCustomFields")}
           </div>
         )}
       </div>

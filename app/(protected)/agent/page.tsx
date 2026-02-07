@@ -1,11 +1,15 @@
 import { requireAgentAuth } from "@/lib/auth";
 import { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Tableau de bord Agent - Partners LLC",
-  description: "Espace agent Partners LLC",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("agent.dashboard");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 async function getAgentStats(agentId: string) {
   const supabase = await createClient();
@@ -33,6 +37,7 @@ async function getAgentStats(agentId: string) {
 export default async function AgentDashboardPage() {
   const agent = await requireAgentAuth();
   const stats = await getAgentStats(agent.id);
+  const t = await getTranslations("agent.dashboard");
 
   return (
     <div className="min-h-screen bg-brand-dark-bg">
@@ -41,11 +46,11 @@ export default async function AgentDashboardPage() {
           {/* Welcome Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-brand-text-primary">
-              Bonjour, {agent.full_name?.split(" ")[0] || "Agent"} 👋
+              {t("welcome", {
+                name: agent.full_name?.split(" ")[0] || "Agent",
+              })}
             </h1>
-            <p className="text-brand-text-secondary mt-1">
-              Bienvenue dans votre espace agent
-            </p>
+            <p className="text-brand-text-secondary mt-1">{t("welcomeSub")}</p>
           </div>
 
           {/* Quick Stats Cards */}
@@ -57,8 +62,12 @@ export default async function AgentDashboardPage() {
                   <i className="fa-solid fa-list-check text-cyan-400 text-xl"></i>
                 </div>
                 <div>
-                  <p className="text-brand-text-secondary text-sm">Étapes assignées</p>
-                  <p className="text-3xl font-bold text-brand-text-primary">{stats.assignedSteps}</p>
+                  <p className="text-brand-text-secondary text-sm">
+                    {t("assignedSteps")}
+                  </p>
+                  <p className="text-3xl font-bold text-brand-text-primary">
+                    {stats.assignedSteps}
+                  </p>
                 </div>
               </div>
             </div>
@@ -70,8 +79,12 @@ export default async function AgentDashboardPage() {
                   <i className="fa-solid fa-clock text-amber-400 text-xl"></i>
                 </div>
                 <div>
-                  <p className="text-brand-text-secondary text-sm">En attente de révision</p>
-                  <p className="text-3xl font-bold text-brand-text-primary">{stats.pendingReviews}</p>
+                  <p className="text-brand-text-secondary text-sm">
+                    {t("pendingReviews")}
+                  </p>
+                  <p className="text-3xl font-bold text-brand-text-primary">
+                    {stats.pendingReviews}
+                  </p>
                 </div>
               </div>
             </div>
@@ -81,10 +94,10 @@ export default async function AgentDashboardPage() {
           <div className="bg-[#191A1D] rounded-2xl p-8 border border-[#363636] text-center">
             <i className="fa-solid fa-rocket text-brand-accent text-4xl mb-4"></i>
             <h2 className="text-xl font-semibold text-brand-text-primary mb-2">
-              Tableau de bord agent
+              {t("dashboardTitle")}
             </h2>
             <p className="text-brand-text-secondary max-w-md mx-auto">
-              Les fonctionnalités détaillées du tableau de bord agent seront disponibles dans les prochaines mises à jour.
+              {t("dashboardPlaceholder")}
             </p>
           </div>
         </div>

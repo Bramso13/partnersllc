@@ -1,10 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse,  NextRequest } from "next/server";
 import type { UserRole } from "@/types/auth";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(
+    "x-next-locale",
+    pathname.startsWith("/agent") ? "en" : "fr"
+  );
+  const requestWithLocale = new NextRequest(request.url, {
+    headers: requestHeaders,
+  });
+
   let supabaseResponse = NextResponse.next({
-    request,
+    request: requestWithLocale,
   });
 
   const supabase = createServerClient(
@@ -13,14 +23,14 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll();
+          return requestWithLocale.cookies.getAll();
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            requestWithLocale.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({
-            request,
+            request: requestWithLocale,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -34,8 +44,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
 
   // Protect /dashboard, /admin, and /agent routes
   const isProtectedRoute =

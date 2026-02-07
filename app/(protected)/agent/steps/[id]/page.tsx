@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAgentAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -10,10 +10,14 @@ import {
 import { VerificateurStepContent } from "@/components/agent/verificateur/VerificateurStepContent";
 import { CreateurStepContent } from "@/components/agent/createur/CreateurStepContent";
 
-export const metadata: Metadata = {
-  title: "Traitement Step - Espace Agent",
-  description: "Traitement d'une étape assignée",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { getTranslations } = await import("next-intl/server");
+  const t = await getTranslations("agent.steps");
+  return {
+    title: t("stepDetailTitle"),
+    description: t("stepDetailDescription"),
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;

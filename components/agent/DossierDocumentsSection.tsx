@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { DossierAllData } from "@/lib/agent/dossiers";
 import { FileText, CheckCircle, Clock, XCircle } from "lucide-react";
 
@@ -23,14 +24,15 @@ export function DossierDocumentsSection({
     }
   };
 
+  const t = useTranslations("agent.documents");
   const getStatusLabel = (status: string): string => {
-    const statusMap: Record<string, string> = {
-      APPROVED: "Approuvé",
-      PENDING: "En attente",
-      REJECTED: "Rejeté",
-      DRAFT: "Brouillon",
+    const map: Record<string, string> = {
+      APPROVED: t("approved"),
+      PENDING: t("pending"),
+      REJECTED: t("rejected"),
+      DRAFT: t("draft"),
     };
-    return statusMap[status] || status;
+    return map[status] ?? status;
   };
 
   const getStatusColor = (status: string): string => {
@@ -54,10 +56,10 @@ export function DossierDocumentsSection({
     <div className="border border-[#363636] rounded-2xl bg-[#191A1D] overflow-hidden">
       <div className="px-5 py-4 border-b border-[#363636]">
         <h3 className="text-lg font-semibold text-brand-text-primary">
-          Documents
+          {t("title")}
         </h3>
         <p className="text-sm text-brand-text-secondary mt-0.5">
-          Documents associés à cette étape
+          {t("subtitle")}
         </p>
       </div>
 
@@ -81,8 +83,8 @@ export function DossierDocumentsSection({
                   )}
                   {doc.uploaded_at && (
                     <div className="text-xs text-brand-text-secondary mt-1">
-                      Uploadé le{" "}
-                      {new Date(doc.uploaded_at).toLocaleDateString("fr-FR")}
+                      {t("uploadedOn")}{" "}
+                      {new Date(doc.uploaded_at).toLocaleDateString("en-GB")}
                     </div>
                   )}
                 </div>

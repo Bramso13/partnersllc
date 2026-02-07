@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AgentDossierListItem } from "@/lib/agent/dossiers";
 import { formatDossierInfoForCopy } from "@/lib/agent/copy-dossier-info";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ export function DossiersListContent({
   initialDossiers,
 }: DossiersListContentProps) {
   const router = useRouter();
+  const t = useTranslations("agent.dossiers");
   const [filter, setFilter] = useState<FilterType>("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortAscending, setSortAscending] = useState(false);
@@ -100,10 +102,10 @@ export function DossiersListContent({
       // Copy to clipboard
       await navigator.clipboard.writeText(formattedText);
 
-      toast.success("Toutes les informations copiées");
+      toast.success(t("copySuccess"));
     } catch (error) {
       console.error("Error copying dossier info:", error);
-      toast.error("Erreur lors de la copie des informations");
+      toast.error(t("copyError"));
     } finally {
       setCopyingDossierId(null);
     }
@@ -116,22 +118,12 @@ export function DossiersListContent({
 
   // Format status for display
   const formatStatus = (status: string): string => {
-    const statusMap: Record<string, string> = {
-      QUALIFICATION: "Qualification",
-      FORM_SUBMITTED: "Formulaire soumis",
-      NM_PENDING: "NM en attente",
-      LLC_ACCEPTED: "LLC acceptée",
-      EIN_PENDING: "EIN en attente",
-      BANK_PREPARATION: "Préparation bancaire",
-      BANK_OPENED: "Banque ouverte",
-      WAITING_48H: "Attente 48h",
-      IN_PROGRESS: "En cours",
-      UNDER_REVIEW: "En révision",
-      COMPLETED: "Complété",
-      CLOSED: "Fermé",
-      ERROR: "Erreur",
-    };
-    return statusMap[status] || status;
+    const key = `status.${status}` as const;
+    try {
+      return t(key);
+    } catch {
+      return status;
+    }
   };
 
   return (
@@ -146,7 +138,7 @@ export function DossiersListContent({
               : "bg-[#191A1D] text-brand-text-secondary border border-[#363636] hover:border-brand-accent"
           }`}
         >
-          Tous
+          {t("filterAll")}
         </button>
         <button
           onClick={() => setFilter("in_progress")}
@@ -156,7 +148,7 @@ export function DossiersListContent({
               : "bg-[#191A1D] text-brand-text-secondary border border-[#363636] hover:border-brand-accent"
           }`}
         >
-          En cours
+          {t("filterInProgress")}
         </button>
         <button
           onClick={() => setFilter("completed")}
@@ -166,13 +158,13 @@ export function DossiersListContent({
               : "bg-[#191A1D] text-brand-text-secondary border border-[#363636] hover:border-brand-accent"
           }`}
         >
-          Complétés
+          {t("filterCompleted")}
         </button>
       </div>
 
       {/* Results count */}
       <div className="text-brand-text-secondary text-sm">
-        {sortedDossiers.length} dossier{sortedDossiers.length !== 1 ? "s" : ""}
+        {t("dossierCount", { count: sortedDossiers.length })}
       </div>
 
       {/* Table */}
@@ -186,7 +178,7 @@ export function DossiersListContent({
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-2">
-                    Prénom / Nom
+                    {t("firstName")} / {t("lastName")}
                     {sortField === "name" && (
                       <i
                         className={`fa-solid fa-chevron-${sortAscending ? "up" : "down"} text-xs`}
@@ -195,14 +187,14 @@ export function DossiersListContent({
                   </div>
                 </th>
                 <th className="text-left p-4 text-brand-text-secondary font-medium">
-                  Nom société
+                  {t("companyName")}
                 </th>
                 <th
                   className="text-left p-4 text-brand-text-secondary font-medium cursor-pointer hover:text-brand-text-primary transition-colors"
                   onClick={() => handleSort("status")}
                 >
                   <div className="flex items-center gap-2">
-                    État du dossier
+                    {t("dossierStatus")}
                     {sortField === "status" && (
                       <i
                         className={`fa-solid fa-chevron-${sortAscending ? "up" : "down"} text-xs`}
@@ -211,14 +203,14 @@ export function DossiersListContent({
                   </div>
                 </th>
                 <th className="text-left p-4 text-brand-text-secondary font-medium">
-                  Step actuelle
+                  {t("currentStep")}
                 </th>
                 <th
                   className="text-left p-4 text-brand-text-secondary font-medium cursor-pointer hover:text-brand-text-primary transition-colors"
                   onClick={() => handleSort("date")}
                 >
                   <div className="flex items-center gap-2">
-                    Date création
+                    {t("createdDate")}
                     {sortField === "date" && (
                       <i
                         className={`fa-solid fa-chevron-${sortAscending ? "up" : "down"} text-xs`}
@@ -227,7 +219,7 @@ export function DossiersListContent({
                   </div>
                 </th>
                 <th className="text-right p-4 text-brand-text-secondary font-medium">
-                  Actions
+                  {t("actions")}
                 </th>
               </tr>
             </thead>
@@ -238,7 +230,7 @@ export function DossiersListContent({
                     colSpan={6}
                     className="p-8 text-center text-brand-text-secondary"
                   >
-                    Aucun dossier trouvé
+                    {t("noDossiers")}
                   </td>
                 </tr>
               ) : (
@@ -281,12 +273,12 @@ export function DossiersListContent({
                           {copyingDossierId === dossier.id ? (
                             <>
                               <i className="fa-solid fa-spinner fa-spin" />
-                              Copie...
+                              {t("copying")}
                             </>
                           ) : (
                             <>
                               <i className="fa-solid fa-copy" />
-                              Copier les infos
+                              {t("copyInfo")}
                             </>
                           )}
                         </button>
