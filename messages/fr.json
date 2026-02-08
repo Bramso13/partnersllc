@@ -1,3 +1,39 @@
 {
-  "agent": {}
+  "agent": {},
+  "dashboard": {
+    "dossier": {
+      "backToDashboard": "Retour au tableau de bord",
+      "backToDossier": "Retour au dossier",
+      "hello": "Bonjour, {name}",
+      "completeSteps": "Complétez ces quelques étapes pour lancer {product}",
+      "yourLLC": "votre LLC",
+      "yourAdvisor": "Votre conseiller :",
+      "beforeWeStart": "Avant de pouvoir commencer à traiter votre commande,",
+      "requireDocuments": "nous avons besoin de quelques documents et informations.",
+      "forCompanyCreation": "Pour la création de l'entreprise",
+      "forProcessing": "Pour le traitement",
+      "ourTeamWorking": "Notre équipe travaille là-dessus",
+      "noStepsYet": "Aucune étape disponible pour le moment",
+      "progressOverview": "Vue d'ensemble de la progression",
+      "completion": "Complétion",
+      "stepsCompleted": "{completed} sur {total} étapes complétées",
+      "estimatedCompletion": "Complétion estimée",
+      "businessDays": "2-3 jours ouvrables",
+      "orderDelivered": "Commande livrée",
+      "complete": "Terminé",
+      "notStarted": "Pas commencé",
+      "status": {
+        "notEntered": "Non renseigné",
+        "approved": "Approuvé",
+        "rejected": "Rejeté",
+        "inReview": "En révision",
+        "inProgress": "En cours",
+        "pending": "En attente",
+        "completed": "Complété",
+        "current": "Actuel",
+        "draft": "Brouillon",
+        "submitted": "Soumis"
+      }
+    }
+  }
 }

@@ -11,6 +11,7 @@ export async function GET() {
       .from("agents")
       .select("id, name, email, agent_type, active")
       .eq("active", true)
+      .neq("agent_type", "ADMIN")
       .order("name", { ascending: true });
 
     if (error) {
@@ -31,11 +32,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[GET /api/admin/agents] error", error);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
-
-

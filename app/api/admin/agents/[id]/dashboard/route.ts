@@ -57,28 +57,27 @@ export async function GET(
       .single();
 
     if (agentError || !agent) {
-      console.error("[GET /api/admin/agents/[id]/dashboard] agent not found", agentError);
-      return NextResponse.json(
-        { error: "Agent introuvable" },
-        { status: 404 }
+      console.error(
+        "[GET /api/admin/agents/[id]/dashboard] agent not found",
+        agentError
       );
+      return NextResponse.json({ error: "Agent introuvable" }, { status: 404 });
     }
 
     if (!agent.active) {
-      return NextResponse.json(
-        { error: "Agent inactif" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Agent inactif" }, { status: 400 });
     }
 
     // Determine compatible step_type based on agent_type
     // VERIFICATEUR handles CLIENT steps, CREATEUR handles ADMIN steps
-    const compatibleStepType = agent.agent_type === "VERIFICATEUR" ? "CLIENT" : "ADMIN";
+    const compatibleStepType =
+      agent.agent_type === "VERIFICATEUR" ? "CLIENT" : "ADMIN";
 
     // 1. Get current steps (assigned to this agent, not completed)
     const { data: currentStepsRaw, error: currentError } = await supabase
       .from("step_instances")
-      .select(`
+      .select(
+        `
         id,
         dossier_id,
         step_id,
@@ -99,13 +98,17 @@ export async function GET(
           step_type,
           code
         )
-      `)
+      `
+      )
       .eq("assigned_to", validatedAgentId)
       .is("completed_at", null)
       .order("created_at", { ascending: true });
 
     if (currentError) {
-      console.error("[GET /api/admin/agents/[id]/dashboard] current steps error", currentError);
+      console.error(
+        "[GET /api/admin/agents/[id]/dashboard] current steps error",
+        currentError
+      );
       return NextResponse.json(
         { error: "Erreur lors du chargement des tâches en cours" },
         { status: 500 }
@@ -115,7 +118,8 @@ export async function GET(
     // 2. Get completed steps (assigned to this agent, completed)
     const { data: completedStepsRaw, error: completedError } = await supabase
       .from("step_instances")
-      .select(`
+      .select(
+        `
         id,
         dossier_id,
         step_id,
@@ -136,14 +140,18 @@ export async function GET(
           step_type,
           code
         )
-      `)
+      `
+      )
       .eq("assigned_to", validatedAgentId)
       .not("completed_at", "is", null)
       .order("completed_at", { ascending: false })
       .limit(20);
 
     if (completedError) {
-      console.error("[GET /api/admin/agents/[id]/dashboard] completed steps error", completedError);
+      console.error(
+        "[GET /api/admin/agents/[id]/dashboard] completed steps error",
+        completedError
+      );
       return NextResponse.json(
         { error: "Erreur lors du chargement de l'historique" },
         { status: 500 }
@@ -154,7 +162,8 @@ export async function GET(
     // Use OR to include: (assigned_to IS NULL) OR (assigned_to != agentId)
     const { data: assignableStepsRaw, error: assignableError } = await supabase
       .from("step_instances")
-      .select(`
+      .select(
+        `
         id,
         dossier_id,
         step_id,
@@ -175,7 +184,8 @@ export async function GET(
           step_type,
           code
         )
-      `)
+      `
+      )
       .is("completed_at", null)
       .or(`assigned_to.is.null,assigned_to.neq.${validatedAgentId}`)
       .eq("steps.step_type", compatibleStepType)
@@ -184,7 +194,10 @@ export async function GET(
       .limit(50);
 
     if (assignableError) {
-      console.error("[GET /api/admin/agents/[id]/dashboard] assignable steps error", assignableError);
+      console.error(
+        "[GET /api/admin/agents/[id]/dashboard] assignable steps error",
+        assignableError
+      );
       return NextResponse.json(
         { error: "Erreur lors du chargement des tâches assignables" },
         { status: 500 }
@@ -192,20 +205,30 @@ export async function GET(
     }
 
     // Collect user IDs and product IDs for enrichment
-    const allSteps = [...(currentStepsRaw || []), ...(completedStepsRaw || []), ...(assignableStepsRaw || [])];
-    const userIds = [...new Set(allSteps.map((s: any) => s.dossiers?.user_id).filter(Boolean))];
-    const productIds = [...new Set(allSteps.map((s: any) => s.dossiers?.product_id).filter(Boolean))];
+    const allSteps = [
+      ...(currentStepsRaw || []),
+      ...(completedStepsRaw || []),
+      ...(assignableStepsRaw || []),
+    ];
+    const userIds = [
+      ...new Set(allSteps.map((s: any) => s.dossiers?.user_id).filter(Boolean)),
+    ];
+    const productIds = [
+      ...new Set(
+        allSteps.map((s: any) => s.dossiers?.product_id).filter(Boolean)
+      ),
+    ];
 
     // Get user profiles
     let profileMap = new Map<string, string>();
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, full_name")
         .in("id", userIds);
 
       profileMap = new Map(
-        profiles?.map((p) => [p.id, p.full_name || p.email || "Client inconnu"]) || []
+        profiles?.map((p) => [p.id, p.full_name || "Client inconnu"]) || []
       );
     }
 
@@ -251,7 +274,9 @@ export async function GET(
 
     const currentSteps = (currentStepsRaw || []).map(transformStepInstance);
     const completedSteps = (completedStepsRaw || []).map(transformStepInstance);
-    const assignableSteps = (assignableStepsRaw || []).map(transformStepInstance);
+    const assignableSteps = (assignableStepsRaw || []).map(
+      transformStepInstance
+    );
 
     const response: AgentDashboardResponse = {
       currentSteps,
@@ -273,10 +298,10 @@ export async function GET(
       );
     }
 
-    console.error("[GET /api/admin/agents/[id]/dashboard] unexpected error", error);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
+    console.error(
+      "[GET /api/admin/agents/[id]/dashboard] unexpected error",
+      error
     );
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

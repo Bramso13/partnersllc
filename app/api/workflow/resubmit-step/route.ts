@@ -123,18 +123,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Re-submit step instance for admin review
+    // Update completed_at to reflect when user finished the corrections
     // Use admin client to bypass RLS
     const adminClient = createAdminClient();
     const { data: updatedInstance, error: instanceUpdateError } = await adminClient
       .from("step_instances")
       .update({
         validation_status: "SUBMITTED",
+        completed_at: new Date().toISOString(), // Update completion time
         rejection_reason: null,
         validated_by: null,
         validated_at: null,
       })
       .eq("id", step_instance_id)
-      .select("id, validation_status")
+      .select("id, validation_status, completed_at")
       .single();
 
     if (instanceUpdateError) {

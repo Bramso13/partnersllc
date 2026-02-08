@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { ProductStep } from "@/lib/workflow";
-import { WorkflowStepper, type StepInstanceForTimer } from "./WorkflowStepper";
+import { WorkflowStepper } from "./WorkflowStepper";
 import { Product } from "@/types/qualification";
+import type { StepInstanceForTimer } from "./types";
 
 interface WorkflowContainerProps {
   dossierId: string;

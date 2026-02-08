@@ -6,6 +6,7 @@ import { getUserOrders } from "@/lib/orders";
 import { getDeliveredDocuments } from "@/lib/documents";
 import { syncPaymentStatus } from "@/lib/sync-payment-status";
 import { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { DossierAccordion } from "@/components/dashboard/DossierAccordion";
 import { OrderCard } from "@/components/dashboard/OrderCard";
@@ -45,7 +46,9 @@ export default async function DashboardPage() {
     try {
       const syncResult = await syncPaymentStatus(user.id);
       if (syncResult.synced > 0) {
-        console.log(`[Dashboard] Synced ${syncResult.synced} payment(s) for user ${user.id}`);
+        console.log(
+          `[Dashboard] Synced ${syncResult.synced} payment(s) for user ${user.id}`
+        );
         // Re-fetch profile to get updated status
         const updatedProfile = await getProfile(user.id);
         if (updatedProfile) {
@@ -121,6 +124,50 @@ export default async function DashboardPage() {
             </p>
           </div>
 
+          {/* Explainer Video Section */}
+          <div className="mb-10 group">
+            <div className="bg-gradient-to-br from-brand-accent/5 via-transparent to-brand-accent/5 rounded-3xl p-6 border border-brand-accent/10 backdrop-blur-sm transition-all duration-500 hover:border-brand-accent/30 hover:shadow-2xl hover:shadow-brand-accent/5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-brand-accent/20 blur-xl rounded-full animate-pulse"></div>
+                  <i className="fa-solid fa-circle-play text-brand-accent text-2xl relative z-10"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-brand-text-primary">
+                    Comment utiliser votre tableau de bord
+                  </h3>
+                  <p className="text-sm text-brand-text-secondary/80">
+                    Découvrez en 2 minutes comment naviguer dans votre espace
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="relative w-full rounded-2xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/5 transition-all duration-500 group-hover:ring-brand-accent/30 group-hover:shadow-brand-accent/10"
+                style={{ paddingBottom: "56.25%" }}
+              >
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src="https://www.youtube.com/embed/lEfnI2KXgO4"
+                  title="Guide du tableau de bord Partners LLC"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  style={{
+                    border: "none",
+                  }}
+                ></iframe>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2 text-xs text-brand-text-secondary/60">
+                <i className="fa-solid fa-lightbulb text-brand-accent/70"></i>
+                <p>
+                  Astuce : Regardez cette vidéo pour comprendre toutes les
+                  fonctionnalités ci-dessous
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Dashboard Content */}
           <Suspense fallback={<LoadingSkeleton />}>
             <DashboardContent />
@@ -144,7 +191,11 @@ async function DashboardContent() {
     const unpaidOrders = orders.filter(needsPayment);
 
     // If no dossier, no unpaid orders, and no delivered documents, show EmptyState
-    if (dossiers.length === 0 && unpaidOrders.length === 0 && deliveredDocuments.length === 0) {
+    if (
+      dossiers.length === 0 &&
+      unpaidOrders.length === 0 &&
+      deliveredDocuments.length === 0
+    ) {
       return <EmptyState />;
     }
 
@@ -173,8 +224,25 @@ async function DashboardContent() {
       })
     );
 
+    const firstDossierId =
+      dossiersData.length > 0 ? dossiersData[0].dossier.id : null;
+
     return (
       <div className="space-y-8">
+        {/* CTA: Démarrer la création de votre LLC */}
+        {firstDossierId && (
+          <div className="rounded-2xl bg-gradient-to-r from-brand-accent/20 via-brand-accent/10 to-brand-accent/20 border border-brand-accent/30 p-6 shadow-lg shadow-brand-accent/10">
+            <Link
+              href={`/dashboard/dossier/${firstDossierId}`}
+              className="flex items-center justify-center gap-3 w-full py-4 px-6 rounded-xl bg-brand-accent text-brand-dark-bg font-semibold text-lg hover:bg-brand-accent/90 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-dark-bg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <i className="fa-solid fa-rocket text-xl" aria-hidden />
+              <span>Démarrer la création de votre LLC</span>
+              <i className="fa-solid fa-arrow-right text-lg" aria-hidden />
+            </Link>
+          </div>
+        )}
+
         {/* Unpaid Orders Section */}
         {unpaidOrders.length > 0 && (
           <div>
@@ -217,14 +285,17 @@ async function DashboardContent() {
         )}
 
         {/* If only unpaid orders and no dossiers */}
-        {dossiersData.length === 0 && unpaidOrders.length > 0 && deliveredDocuments.length === 0 && (
-          <div className="bg-brand-dark-bg rounded-2xl p-6 text-center">
-            <i className="fa-solid fa-info-circle text-brand-text-secondary text-3xl mb-3"></i>
-            <p className="text-brand-text-secondary">
-              Complétez vos paiements pour créer vos dossiers et commencer vos démarches.
-            </p>
-          </div>
-        )}
+        {dossiersData.length === 0 &&
+          unpaidOrders.length > 0 &&
+          deliveredDocuments.length === 0 && (
+            <div className="bg-brand-dark-bg rounded-2xl p-6 text-center">
+              <i className="fa-solid fa-info-circle text-brand-text-secondary text-3xl mb-3"></i>
+              <p className="text-brand-text-secondary">
+                Complétez vos paiements pour créer vos dossiers et commencer vos
+                démarches.
+              </p>
+            </div>
+          )}
       </div>
     );
   } catch (error) {

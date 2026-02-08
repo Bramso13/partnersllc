@@ -54,6 +54,7 @@ export default async function DossierDetailPage({
               dossier={dossier}
               productSteps={productSteps}
               initialStepId={step_id}
+              user={user}
             />
           </Suspense>
         </div>

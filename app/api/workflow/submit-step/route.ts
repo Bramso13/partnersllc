@@ -125,17 +125,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update step instance to SUBMITTED status (not completed until admin approves)
+    // Update step instance to SUBMITTED status and mark as completed
+    // completed_at = when user finished the step
+    // validation_status = admin approval status (SUBMITTED/APPROVED/REJECTED)
     // Use admin client to bypass RLS
     const adminClient = createAdminClient();
     const { data: updatedInstance, error: instanceUpdateError } = await adminClient
       .from("step_instances")
-      .update({ 
+      .update({
         validation_status: "SUBMITTED",
-        completed_at: null, // Not completed until admin approves
+        completed_at: new Date().toISOString(), // Mark as completed when user submits
       })
       .eq("id", stepInstanceId)
-      .select("id, validation_status")
+      .select("id, validation_status, completed_at")
       .single();
 
     if (instanceUpdateError) {
