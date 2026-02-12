@@ -26,9 +26,13 @@ export function FormationCard({
     >
       {/* Thumbnail */}
       <div className="relative aspect-video bg-gradient-to-br from-accent/10 to-accent/5 overflow-hidden">
-        {formation.vignette_url ? (
+        {(formation.vignette_url || formation.vignette_path) ? (
           <img
-            src={formation.vignette_url}
+            src={
+              formation.vignette_url
+                ? formation.vignette_url
+                : `/api/formations/vignette?path=${encodeURIComponent(formation.vignette_path!)}`
+            }
             alt={formation.titre}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
