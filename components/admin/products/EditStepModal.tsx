@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import type { Step, StepType } from "@/types/products";
-import type { FormationSummary } from "@/types/formations";
+import type {
+  FormationSummary,
+  StepFormationCustom,
+} from "@/types/formations";
 import { toast } from "sonner";
 
 interface EditStepModalProps {
@@ -51,6 +54,17 @@ export function EditStepModal({
     []
   );
   const [formationsLoading, setFormationsLoading] = useState(false);
+  const [customFormations, setCustomFormations] = useState<
+    StepFormationCustom[]
+  >([]);
+  const [customFormationsLoading, setCustomFormationsLoading] = useState(false);
+  const [customAddTitle, setCustomAddTitle] = useState("");
+  const [customAddHtml, setCustomAddHtml] = useState("");
+  const [customAddSubmitting, setCustomAddSubmitting] = useState(false);
+  const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
+  const [editCustomTitle, setEditCustomTitle] = useState("");
+  const [editCustomHtml, setEditCustomHtml] = useState("");
+  const [editCustomSubmitting, setEditCustomSubmitting] = useState(false);
 
   useEffect(() => {
     setFormData({
@@ -70,10 +84,12 @@ export function EditStepModal({
     let cancelled = false;
     const loadFormations = async () => {
       setFormationsLoading(true);
+      setCustomFormationsLoading(true);
       try {
-        const [allRes, stepRes] = await Promise.all([
+        const [allRes, stepRes, customRes] = await Promise.all([
           fetch("/api/admin/formations"),
           fetch(`/api/admin/steps/${step.id}/formations`),
+          fetch(`/api/admin/steps/${step.id}/formations-custom`),
         ]);
         if (cancelled) return;
         if (allRes.ok) {
@@ -87,8 +103,15 @@ export function EditStepModal({
           );
           setSelectedFormationIds(ids);
         }
+        if (customRes.ok) {
+          const customData = await customRes.json();
+          setCustomFormations(customData.formations ?? []);
+        }
       } finally {
-        if (!cancelled) setFormationsLoading(false);
+        if (!cancelled) {
+          setFormationsLoading(false);
+          setCustomFormationsLoading(false);
+        }
       }
     };
     loadFormations();
@@ -101,6 +124,102 @@ export function EditStepModal({
     setSelectedFormationIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
+  };
+
+  const handleAddCustomFormation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customAddTitle.trim()) {
+      toast.error("Le titre est requis");
+      return;
+    }
+    setCustomAddSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/admin/steps/${step.id}/formations-custom`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: customAddTitle.trim(),
+            html_content: customAddHtml,
+            position: customFormations.length,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Échec de l'ajout de la formation custom");
+        return;
+      }
+      setCustomFormations((prev) => [...prev, data]);
+      setCustomAddTitle("");
+      setCustomAddHtml("");
+      toast.success("Formation custom ajoutée");
+    } finally {
+      setCustomAddSubmitting(false);
+    }
+  };
+
+  const startEditCustom = (c: StepFormationCustom) => {
+    setEditingCustomId(c.id);
+    setEditCustomTitle(c.title);
+    setEditCustomHtml(c.html_content);
+  };
+
+  const cancelEditCustom = () => {
+    setEditingCustomId(null);
+    setEditCustomTitle("");
+    setEditCustomHtml("");
+  };
+
+  const handleSaveEditCustom = async () => {
+    if (!editingCustomId || !editCustomTitle.trim()) return;
+    setEditCustomSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/admin/steps/${step.id}/formations-custom/${editingCustomId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: editCustomTitle.trim(),
+            html_content: editCustomHtml,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Échec de la mise à jour");
+        return;
+      }
+      setCustomFormations((prev) =>
+        prev.map((f) => (f.id === editingCustomId ? data : f))
+      );
+      cancelEditCustom();
+      toast.success("Formation custom mise à jour");
+    } finally {
+      setEditCustomSubmitting(false);
+    }
+  };
+
+  const handleDeleteCustom = async (id: string) => {
+    if (!confirm("Supprimer cette formation custom ?")) return;
+    try {
+      const res = await fetch(
+        `/api/admin/steps/${step.id}/formations-custom/${id}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Échec de la suppression");
+        return;
+      }
+      setCustomFormations((prev) => prev.filter((f) => f.id !== id));
+      if (editingCustomId === id) cancelEditCustom();
+      toast.success("Formation custom supprimée");
+    } catch {
+      toast.error("Erreur lors de la suppression");
+    }
   };
 
   const validateLabel = (label: string): string | undefined => {
@@ -417,6 +536,121 @@ export function EditStepModal({
                   </label>
                 ))}
               </div>
+            )}
+          </div>
+
+          <div className="border-t border-brand-border pt-4">
+            <label className="block text-sm font-medium text-brand-text-primary mb-2">
+              Formations custom (page HTML par étape)
+            </label>
+            {customFormationsLoading ? (
+              <p className="text-sm text-brand-text-secondary">
+                Chargement...
+              </p>
+            ) : (
+              <>
+                <ul className="space-y-2 mb-4">
+                  {customFormations.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center gap-2 rounded-lg border border-brand-border p-2 bg-brand-dark-bg"
+                    >
+                      {editingCustomId === c.id ? (
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="text"
+                            value={editCustomTitle}
+                            onChange={(e) =>
+                              setEditCustomTitle(e.target.value)
+                            }
+                            className="w-full px-2 py-1.5 text-sm bg-brand-dark-bg border border-brand-border rounded text-brand-text-primary"
+                            placeholder="Titre"
+                          />
+                          <textarea
+                            value={editCustomHtml}
+                            onChange={(e) =>
+                              setEditCustomHtml(e.target.value)
+                            }
+                            rows={4}
+                            className="w-full px-2 py-1.5 text-sm bg-brand-dark-bg border border-brand-border rounded text-brand-text-primary font-mono"
+                            placeholder="Contenu HTML"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveEditCustom}
+                              disabled={editCustomSubmitting}
+                              className="px-2 py-1 text-sm bg-brand-accent text-white rounded"
+                            >
+                              {editCustomSubmitting
+                                ? "Enregistrement..."
+                                : "Enregistrer"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditCustom}
+                              className="px-2 py-1 text-sm border border-brand-border rounded text-brand-text-primary"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm text-brand-text-primary truncate">
+                            {c.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => startEditCustom(c)}
+                            className="text-sm text-brand-accent hover:underline"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustom(c.id)}
+                            className="text-sm text-red-400 hover:underline"
+                          >
+                            Supprimer
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <form
+                  onSubmit={handleAddCustomFormation}
+                  className="space-y-2 p-3 rounded-lg border border-brand-border bg-brand-dark-bg/50"
+                >
+                  <p className="text-xs text-brand-text-secondary mb-2">
+                    Ajouter une formation custom (titre + HTML)
+                  </p>
+                  <input
+                    type="text"
+                    value={customAddTitle}
+                    onChange={(e) => setCustomAddTitle(e.target.value)}
+                    placeholder="Titre de la formation"
+                    className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary text-sm"
+                  />
+                  <textarea
+                    value={customAddHtml}
+                    onChange={(e) => setCustomAddHtml(e.target.value)}
+                    rows={5}
+                    placeholder="Contenu HTML (styles, images, vidéos, liens...)"
+                    className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary text-sm font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={customAddSubmitting}
+                    className="px-3 py-2 text-sm bg-brand-accent text-white rounded-lg disabled:opacity-50"
+                  >
+                    {customAddSubmitting
+                      ? "Ajout..."
+                      : "Ajouter la formation custom"}
+                  </button>
+                </form>
+              </>
             )}
           </div>
 

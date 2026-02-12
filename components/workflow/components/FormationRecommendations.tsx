@@ -4,14 +4,21 @@ import type { FormationRecommendationsProps } from "../types";
 /**
  * FormationRecommendations Component
  *
- * Displays recommended formations for the current step.
- * Only shown for non-FORMATION steps that have associated formations.
+ * Displays recommended formations for the current step (parcours + custom, Story 12.4 + 12.5).
+ * Only shown for non-FORMATION steps that have at least one item.
  */
 export function FormationRecommendations({
   formations,
+  stepFormationItems,
   isFormationStep,
 }: FormationRecommendationsProps) {
-  if (isFormationStep || formations.length === 0) return null;
+  const items = stepFormationItems?.length ? stepFormationItems : formations.map((f) => ({
+    type: "formation" as const,
+    id: f.id,
+    titre: f.titre,
+    url: `/dashboard/formation/${f.id}`,
+  }));
+  if (isFormationStep || items.length === 0) return null;
 
   return (
     <div className="mb-6 p-4 rounded-lg border border-brand-border bg-brand-card">
@@ -19,16 +26,27 @@ export function FormationRecommendations({
         Formations recommandées pour cette étape
       </h3>
       <ul className="space-y-2">
-        {formations.map((f) => (
-          <li key={f.id}>
-            <Link
-              href={`/dashboard/formation/${f.id}`}
-              className="text-brand-accent hover:underline font-medium"
-            >
-              {f.titre}
-            </Link>
-          </li>
-        ))}
+        {items.map((item) =>
+          item.type === "formation" ? (
+            <li key={`formation-${item.id}`}>
+              <Link
+                href={item.url}
+                className="text-brand-accent hover:underline font-medium"
+              >
+                {item.titre}
+              </Link>
+            </li>
+          ) : (
+            <li key={`custom-${item.id}`}>
+              <Link
+                href={item.url}
+                className="text-brand-accent hover:underline font-medium"
+              >
+                {item.title}
+              </Link>
+            </li>
+          )
+        )}
       </ul>
     </div>
   );

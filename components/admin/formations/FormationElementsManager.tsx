@@ -165,6 +165,8 @@ export function FormationElementsManager({
         return "Image";
       case "rich_text":
         return "Texte riche";
+      case "custom_html":
+        return "Page HTML";
     }
   };
 
@@ -177,21 +179,25 @@ export function FormationElementsManager({
         return "fa-image";
       case "rich_text":
         return "fa-align-left";
+      case "custom_html":
+        return "fa-code";
     }
   };
 
   const getElementPreview = (element: FormationElement): string => {
-    const payload = element.payload as any;
+    const payload = element.payload as Record<string, unknown>;
     switch (element.type) {
       case "video_link":
-        return payload.url || "URL non définie";
+        return (payload.url as string) || "URL non définie";
       case "video_upload":
-        return payload.storage_path || "Vidéo uploadée";
+        return (payload.storage_path as string) || "Vidéo uploadée";
       case "image":
-        return payload.url || payload.storage_path || "Image";
+        return (payload.url as string) || (payload.storage_path as string) || "Image";
       case "rich_text":
-        const content = payload.content || "";
+      case "custom_html": {
+        const content = (payload.content as string) || "";
         return content.substring(0, 100) + (content.length > 100 ? "..." : "");
+      }
     }
   };
 
@@ -245,7 +251,10 @@ export function FormationElementsManager({
                       className={`fas ${getElementTypeIcon(element.type)} text-brand-accent`}
                     ></i>
                     <span className="text-brand-text-primary font-medium">
-                      {getElementTypeLabel(element.type)}
+                      {element.title?.trim() || "No title yet"}
+                    </span>
+                    <span className="text-brand-text-secondary text-sm">
+                      ({getElementTypeLabel(element.type)})
                     </span>
                   </div>
                   <div className="text-sm text-brand-text-secondary truncate">

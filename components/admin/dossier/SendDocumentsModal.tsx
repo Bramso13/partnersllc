@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { DocumentType } from "@/types/products";
 
 interface SendDocumentsModalProps {
@@ -17,8 +17,24 @@ interface SelectedFile {
   id: string;
 }
 
+interface AdminDocumentItem {
+  document_type: { id: string; code: string; label: string; description: string | null };
+  document?: {
+    id: string;
+    status: string;
+    current_version: {
+      id: string;
+      file_url: string;
+      file_name: string;
+      uploaded_at: string;
+    };
+    delivered_at?: string | null;
+  };
+}
+
 const MAX_FILE_SIZE_MB = 10;
 const ALLOWED_TYPES = ["pdf", "jpg", "jpeg", "png"];
+const ADMIN_UPLOAD_ACCEPT = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export function SendDocumentsModal({
   dossierId,
@@ -35,6 +51,36 @@ export function SendDocumentsModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminDocuments, setAdminDocuments] = useState<AdminDocumentItem[]>([]);
+  const [loadingAdminDocs, setLoadingAdminDocs] = useState(false);
+  const [actionDocId, setActionDocId] = useState<string | null>(null);
+  const [actionTypeId, setActionTypeId] = useState<string | null>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTarget, setReplaceTarget] = useState<{ documentTypeId: string; documentTypeLabel: string } | null>(null);
+
+  const fetchAdminDocuments = useCallback(async () => {
+    if (!stepInstanceId || !dossierId) {
+      setAdminDocuments([]);
+      return;
+    }
+    setLoadingAdminDocs(true);
+    try {
+      const res = await fetch(
+        `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/admin-documents`
+      );
+      const data = await res.json();
+      if (res.ok) setAdminDocuments(data.admin_documents ?? []);
+      else setAdminDocuments([]);
+    } catch {
+      setAdminDocuments([]);
+    } finally {
+      setLoadingAdminDocs(false);
+    }
+  }, [dossierId, stepInstanceId]);
+
+  useEffect(() => {
+    fetchAdminDocuments();
+  }, [fetchAdminDocuments]);
 
   useEffect(() => {
     fetch("/api/admin/document-types")
@@ -83,6 +129,51 @@ export function SendDocumentsModal({
 
   const removeFile = (id: string) => {
     setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleAdminReplace = async (file: File, documentTypeId: string, documentTypeLabel: string) => {
+    if (!stepInstanceId || !dossierId) return;
+    setError(null);
+    setActionTypeId(documentTypeId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("document_type_id", documentTypeId);
+      formData.append("step_instance_id", stepInstanceId);
+      const res = await fetch(`/api/admin/dossiers/${dossierId}/admin-documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur remplacement");
+      await fetchAdminDocuments();
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur remplacement");
+    } finally {
+      setActionTypeId(null);
+      setReplaceTarget(null);
+    }
+  };
+
+  const handleAdminClearVersion = async (documentId: string) => {
+    if (!dossierId) return;
+    setError(null);
+    setActionDocId(documentId);
+    try {
+      const res = await fetch(
+        `/api/admin/dossiers/${dossierId}/documents/${documentId}/clear-version`,
+        { method: "PATCH" }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur suppression");
+      await fetchAdminDocuments();
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur suppression");
+    } finally {
+      setActionDocId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,6 +240,105 @@ export function SendDocumentsModal({
           {error && (
             <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
               {error}
+            </div>
+          )}
+
+          {stepInstanceId && (
+            <div>
+              <label className="block text-xs font-medium text-[#b7b7b7] mb-2">
+                Documents de l’étape
+              </label>
+              {loadingAdminDocs ? (
+                <p className="text-xs text-[#b7b7b7]">Chargement…</p>
+              ) : adminDocuments.length === 0 ? (
+                <p className="text-xs text-[#b7b7b7]">Aucun type de document requis pour cette étape.</p>
+              ) : (
+                <ul className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-[#363636] p-2">
+                  {adminDocuments.map((item) => (
+                    <li
+                      key={item.document_type.id}
+                      className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg bg-[#1e1f22] border border-[#363636]"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-[#f9f9f9]">
+                          {item.document_type.label}
+                        </span>
+                        {item.document?.current_version ? (
+                          <p className="text-[10px] text-[#b7b7b7] truncate mt-0.5">
+                            {item.document.current_version.file_name}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-[#b7b7b7] mt-0.5">Aucun fichier</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {item.document?.current_version ? (
+                          <>
+                            <a
+                              href={item.document.current_version.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 text-[10px] bg-[#363636] hover:bg-[#404040] text-[#f9f9f9] rounded"
+                            >
+                              Voir
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplaceTarget({
+                                  documentTypeId: item.document_type.id,
+                                  documentTypeLabel: item.document_type.label,
+                                });
+                                replaceInputRef.current?.click();
+                              }}
+                              disabled={actionTypeId === item.document_type.id}
+                              className="px-2 py-1 text-[10px] bg-[#363636] hover:bg-[#404040] text-[#f9f9f9] rounded disabled:opacity-50"
+                            >
+                              {actionTypeId === item.document_type.id ? "…" : "Remplacer"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAdminClearVersion(item.document!.id)}
+                              disabled={actionDocId === item.document?.id}
+                              className="px-2 py-1 text-[10px] bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded disabled:opacity-50"
+                            >
+                              {actionDocId === item.document?.id ? "…" : "Supprimer"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplaceTarget({
+                                documentTypeId: item.document_type.id,
+                                documentTypeLabel: item.document_type.label,
+                              });
+                              replaceInputRef.current?.click();
+                            }}
+                            disabled={actionTypeId === item.document_type.id}
+                            className="px-2 py-1 text-[10px] bg-[#50b989] text-[#191a1d] rounded font-medium disabled:opacity-50"
+                          >
+                            {actionTypeId === item.document_type.id ? "…" : "Ajouter"}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                ref={replaceInputRef}
+                type="file"
+                className="hidden"
+                accept={ADMIN_UPLOAD_ACCEPT}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && replaceTarget) {
+                    handleAdminReplace(file, replaceTarget.documentTypeId, replaceTarget.documentTypeLabel);
+                    e.target.value = "";
+                  }
+                }}
+              />
             </div>
           )}
 

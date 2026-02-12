@@ -5,6 +5,7 @@ import type {
   FormationSummary,
   FormationWithElements,
   UserFormationProgress,
+  StepFormationItem,
 } from "@/types/formations";
 
 /**
@@ -57,6 +58,9 @@ export function useStepData({
   >([]);
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
   const [stepFormations, setStepFormations] = useState<FormationSummary[]>([]);
+  const [stepFormationItems, setStepFormationItems] = useState<
+    StepFormationItem[]
+  >([]);
   const [formationFull, setFormationFull] =
     useState<FormationWithElements | null>(null);
   const [formationProgress, setFormationProgress] =
@@ -178,8 +182,10 @@ export function useStepData({
           if (formationsRes.ok) {
             const formationsData = await formationsRes.json();
             setStepFormations(formationsData.formations ?? []);
+            setStepFormationItems(formationsData.items ?? []);
           } else {
             setStepFormations([]);
+            setStepFormationItems([]);
           }
         }
       } catch (error) {
@@ -191,6 +197,7 @@ export function useStepData({
         setCurrentStepFields([]);
         setUploadedDocuments([]);
         setStepFormations([]);
+        setStepFormationItems([]);
         setFormationFull(null);
         setFormationProgress(null);
       } finally {
@@ -225,6 +232,7 @@ export function useStepData({
     currentStepFields,
     uploadedDocuments,
     stepFormations,
+    stepFormationItems,
     formationFull,
     formationProgress,
     isLoading,

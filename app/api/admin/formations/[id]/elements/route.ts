@@ -65,9 +65,9 @@ export async function POST(
     }
 
     // Validate type
-    if (!["video_link", "video_upload", "image", "rich_text"].includes(body.type)) {
+    if (!["video_link", "video_upload", "image", "rich_text", "custom_html"].includes(body.type)) {
       return NextResponse.json(
-        { error: "Invalid type. Must be: video_link, video_upload, image, or rich_text" },
+        { error: "Invalid type. Must be: video_link, video_upload, image, rich_text, or custom_html" },
         { status: 400 }
       );
     }
@@ -121,6 +121,16 @@ export async function POST(
       }
     }
 
+    if (body.type === "custom_html") {
+      const payload = body.payload as { content?: string };
+      if (payload.content === undefined || payload.content === null) {
+        return NextResponse.json(
+          { error: "payload.content is required for custom_html type" },
+          { status: 400 }
+        );
+      }
+    }
+
     const supabase = await createClient();
 
     // Check if formation exists
@@ -137,6 +147,12 @@ export async function POST(
       );
     }
 
+    // Title: default "No title yet" if omitted or empty
+    const title =
+      body.title !== undefined && body.title !== null && String(body.title).trim() !== ""
+        ? String(body.title).trim()
+        : "No title yet";
+
     // Create element
     const { data: element, error } = await supabase
       .from("formation_elements")
@@ -144,6 +160,7 @@ export async function POST(
         formation_id: formationId,
         type: body.type,
         position: body.position,
+        title,
         payload: body.payload,
       })
       .select()

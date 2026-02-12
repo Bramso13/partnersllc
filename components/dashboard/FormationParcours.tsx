@@ -199,6 +199,9 @@ export function FormationParcours({
                 <span className="text-sm font-medium text-text-secondary">
                   Élément {currentElementIndex + 1} / {totalElements}
                 </span>
+                <span className="text-foreground font-semibold">
+                  {currentElement.title?.trim() || "No title yet"}
+                </span>
                 {completedElementIds.includes(currentElement.id) && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20">
                     <i className="fa-solid fa-check-circle"></i>
@@ -268,7 +271,7 @@ export function FormationParcours({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm truncate">
-                        {index + 1}. {getElementTypeLabel(element.type)}
+                        {index + 1}. {element.title?.trim() || "No title yet"}
                       </span>
                       {isCompleted && (
                         <i
@@ -289,17 +292,3 @@ export function FormationParcours({
   );
 }
 
-function getElementTypeLabel(type: string): string {
-  switch (type) {
-    case "video_link":
-      return "Vidéo (lien)";
-    case "video_upload":
-      return "Vidéo";
-    case "image":
-      return "Image";
-    case "rich_text":
-      return "Texte";
-    default:
-      return "Élément";
-  }
-}

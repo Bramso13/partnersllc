@@ -6,8 +6,9 @@ import type {
   VideoUploadPayload,
   ImagePayload,
   RichTextPayload,
+  CustomHtmlPayload,
 } from "@/types/formations";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeFormationHtml } from "@/lib/html-sanitize";
 
 interface FormationElementRendererProps {
   element: FormationElement;
@@ -30,6 +31,14 @@ export function FormationElementRenderer({
 
     case "rich_text":
       return <RichTextElement payload={element.payload as RichTextPayload} />;
+
+    case "custom_html":
+      return (
+        <CustomHtmlElement
+          title={element.title?.trim() || "No title yet"}
+          payload={element.payload as CustomHtmlPayload}
+        />
+      );
 
     default:
       return (
@@ -127,37 +136,7 @@ function ImageElement({ payload }: { payload: ImagePayload }) {
 
 // Rich Text Element
 function RichTextElement({ payload }: { payload: RichTextPayload }) {
-  // Sanitize HTML to prevent XSS
-  const sanitizedContent = DOMPurify.sanitize(payload.content, {
-    ALLOWED_TAGS: [
-      "p",
-      "br",
-      "strong",
-      "em",
-      "u",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "ul",
-      "ol",
-      "li",
-      "a",
-      "blockquote",
-      "code",
-      "pre",
-      "img",
-      "table",
-      "thead",
-      "tbody",
-      "tr",
-      "th",
-      "td",
-    ],
-    ALLOWED_ATTR: ["href", "target", "rel", "src", "alt", "class"],
-  });
+  const sanitizedContent = sanitizeFormationHtml(payload.content);
 
   return (
     <div
@@ -175,6 +154,36 @@ function RichTextElement({ payload }: { payload: RichTextPayload }) {
         prose-blockquote:border-l-accent prose-blockquote:text-text-secondary"
       dangerouslySetInnerHTML={{ __html: sanitizedContent }}
     />
+  );
+}
+
+// Custom HTML Element (Story 12.6): full HTML page (title + sanitized block)
+function CustomHtmlElement({
+  title,
+  payload,
+}: {
+  title: string;
+  payload: CustomHtmlPayload;
+}) {
+  const sanitizedContent = sanitizeFormationHtml(payload.content ?? "");
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+      <div
+        className="prose prose-invert max-w-none
+          prose-headings:text-foreground
+          prose-p:text-text-secondary
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-strong:text-foreground
+          prose-img:rounded-lg
+          prose-ul:text-text-secondary
+          prose-ol:text-text-secondary
+          prose-li:text-text-secondary
+          [&_iframe]:rounded-lg [&_iframe]:max-w-full"
+        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+      />
+    </div>
   );
 }
 

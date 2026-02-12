@@ -5,6 +5,7 @@ import {
   FormationSummary,
   FormationWithElements,
   UserFormationProgress,
+  StepFormationItem,
 } from "@/types/formations";
 import { ReactNode } from "react";
 
@@ -76,6 +77,7 @@ export interface UseStepDataReturn {
   currentStepFields: StepFieldWithValidation[];
   uploadedDocuments: any[];
   stepFormations: FormationSummary[];
+  stepFormationItems: StepFormationItem[];
   formationFull: FormationWithElements | null;
   formationProgress: UserFormationProgress | null;
   isLoading: boolean;
@@ -133,6 +135,7 @@ export interface TimerBlockMessageProps {
 
 export interface FormationRecommendationsProps {
   formations: FormationSummary[];
+  stepFormationItems: StepFormationItem[];
   isFormationStep: boolean;
 }
 

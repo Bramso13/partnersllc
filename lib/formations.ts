@@ -5,6 +5,9 @@ import type {
   Formation,
   FormationWithElements,
   FormationVisibilityConfig,
+  StepFormationCustom,
+  StepFormationCustomSummary,
+  StepFormationItem,
 } from "@/types/formations";
 
 /**
@@ -245,6 +248,70 @@ export async function getFormationsByStepForUser(
   );
 
   return accessible as Formation[];
+}
+
+/**
+ * Get custom formations for a step (Story 12.5). No visibility filter – if the client
+ * can see the step (via by-step), they can see these.
+ */
+export async function getStepFormationsCustom(
+  stepId: string
+): Promise<StepFormationCustomSummary[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("step_formation_custom")
+    .select("id, step_id, position, title")
+    .eq("step_id", stepId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    console.error("[getStepFormationsCustom]", error);
+    throw new Error("Failed to fetch step custom formations");
+  }
+
+  return (data ?? []) as StepFormationCustomSummary[];
+}
+
+/**
+ * Get one custom formation by id if the user has access (has a dossier with a product
+ * whose workflow contains this step). Used by GET /api/formations/step-custom/[id].
+ */
+export async function getStepFormationCustomForUser(
+  customId: string,
+  userId: string
+): Promise<StepFormationCustom | null> {
+  const supabase = await createClient();
+
+  const { data: custom, error: customError } = await supabase
+    .from("step_formation_custom")
+    .select("id, step_id, position, title, html_content")
+    .eq("id", customId)
+    .single();
+
+  if (customError || !custom) return null;
+
+  const stepId = (custom as StepFormationCustom).step_id;
+
+  // User has access if they have a dossier with a product that has this step in its workflow
+  const { data: dossiers } = await supabase
+    .from("dossiers")
+    .select("product_id")
+    .eq("user_id", userId);
+
+  const productIds = [...new Set((dossiers ?? []).map((d) => d.product_id))];
+  if (productIds.length === 0) return null;
+
+  const { data: productSteps } = await supabase
+    .from("product_steps")
+    .select("product_id")
+    .eq("step_id", stepId)
+    .in("product_id", productIds)
+    .limit(1);
+
+  if (!productSteps || productSteps.length === 0) return null;
+
+  return custom as StepFormationCustom;
 }
 
 /**

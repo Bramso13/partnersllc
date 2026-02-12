@@ -37,6 +37,27 @@ export async function createTwilioConversation(): Promise<{
   };
 }
 
+export async function createAddressConfiguration(
+  address: string,
+  friendlyName: string
+): Promise<void> {
+  const client = getTwilioClient();
+  const serviceSid = getServiceSid();
+
+  const addressConfig =
+    await client.conversations.v1.addressConfigurations.create({
+      type: "whatsapp",
+      address: `whatsapp:${address}`,
+      friendlyName,
+      "autoCreation.enabled": true,
+      "autoCreation.type": "webhook",
+      "autoCreation.conversationServiceSid": serviceSid,
+      "autoCreation.webhookUrl": `https://partners-llc.fr/api/webhooks/twilio`,
+      "autoCreation.webhookMethod": "post",
+      "autoCreation.webhookFilters": ["onParticipantAdded", "onMessageAdded"],
+    });
+}
+
 /**
  * Add a client participant via WhatsApp proxy binding.
  * The client's phone number (E.164 format) is used as the WhatsApp address.
@@ -63,7 +84,7 @@ export async function addClientParticipant(
     if (error.code === 50416) {
       console.warn(
         `Participant ${clientPhone} already exists in a conversation. ` +
-        `Error: ${error.message}`
+          `Error: ${error.message}`
       );
       // Check if participant is already in THIS conversation
       const participants = await client.conversations.v1
@@ -83,7 +104,7 @@ export async function addClientParticipant(
       // Participant is in another conversation - this is a real conflict
       throw new Error(
         `Phone number ${clientPhone} is already active in another conversation. ` +
-        `Close the other conversation first or use a different approach.`
+          `Close the other conversation first or use a different approach.`
       );
     }
 

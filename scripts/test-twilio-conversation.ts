@@ -34,6 +34,7 @@ async function testConversation() {
 
     // Étape 2: Ajouter votre numéro comme participant client
     // ⚠️ IMPORTANT: Remplacez par votre numéro en format E.164 (ex: +33612345678)
+    // Note: Configure d'abord l'Address Configuration avec: tsx scripts/setup-twilio-address-configuration.ts
     const YOUR_PHONE_NUMBER = process.env.TEST_PHONE_NUMBER || "+33XXXXXXXXX";
 
     if (YOUR_PHONE_NUMBER === "+33XXXXXXXXX") {
@@ -44,20 +45,20 @@ async function testConversation() {
       process.exit(1);
     }
 
-    // console.log(`📱 Ajout du participant client: ${YOUR_PHONE_NUMBER}`);
-    // const clientParticipantSid = await addClientParticipant(
-    //   conversationSid,
-    //   YOUR_PHONE_NUMBER
-    // );
-    // console.log(`✅ Participant client ajouté: ${clientParticipantSid}\n`);
+    console.log(`📱 Ajout du participant client: ${YOUR_PHONE_NUMBER}`);
+    const clientParticipantSid = await addClientParticipant(
+      conversationSid,
+      YOUR_PHONE_NUMBER
+    );
+    console.log(`✅ Participant client ajouté: ${clientParticipantSid}\n`);
 
-    // // Étape 3: Ajouter un admin (vous, via identity)
-    // console.log("👤 Ajout d'un participant admin...");
-    // const adminParticipantSid = await addAdminParticipant(
-    //   conversationSid,
-    //   "admin-test-001"
-    // );
-    // console.log(`✅ Participant admin ajouté: ${adminParticipantSid}\n`);
+    // Étape 3: Ajouter un admin (vous, via identity)
+    console.log("👤 Ajout d'un participant admin...");
+    const adminParticipantSid = await addAdminParticipant(
+      conversationSid,
+      "admin-test-001"
+    );
+    console.log(`✅ Participant admin ajouté: ${adminParticipantSid}\n`);
 
     // Étape 4: Envoyer un message de test
     console.log("💬 Envoi d'un message de test...");

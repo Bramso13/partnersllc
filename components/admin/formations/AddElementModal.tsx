@@ -26,6 +26,9 @@ export function AddElementModal({
   const [selectedType, setSelectedType] = useState<FormationElementType | null>(
     element?.type || null
   );
+  const [title, setTitle] = useState(
+    element?.title?.trim() ? element.title.trim() : "No title yet"
+  );
   const [loading, setLoading] = useState(false);
 
   // Form state for video_link
@@ -58,6 +61,13 @@ export function AddElementModal({
   const [richTextContent, setRichTextContent] = useState(
     element?.type === "rich_text"
       ? (element.payload as { content: string }).content
+      : ""
+  );
+
+  // Form state for custom_html
+  const [customHtmlContent, setCustomHtmlContent] = useState(
+    element?.type === "custom_html"
+      ? (element.payload as { content: string }).content ?? ""
       : ""
   );
 
@@ -179,6 +189,15 @@ export function AddElementModal({
           }
           payload = { content: richTextContent.trim() };
           break;
+
+        case "custom_html":
+          if (customHtmlContent === undefined || customHtmlContent === null) {
+            toast.error("Le contenu HTML est requis");
+            setLoading(false);
+            return;
+          }
+          payload = { content: String(customHtmlContent).trim() };
+          break;
       }
 
       if (!payload) {
@@ -193,12 +212,17 @@ export function AddElementModal({
         : `/api/admin/formations/${formationId}/elements`;
       const method = element ? "PUT" : "POST";
 
+      const titleValue =
+        title !== undefined && title !== null && String(title).trim() !== ""
+          ? String(title).trim()
+          : "No title yet";
+
       const body = element
-        ? { payload } // For update, only send payload
+        ? { title: titleValue, payload } // For update, send title + payload
         : {
-            // For create, send full data
             type: selectedType,
             position: nextPosition,
+            title: titleValue,
             payload,
           };
 
@@ -241,6 +265,23 @@ export function AddElementModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Title (all elements) */}
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                Titre
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                placeholder="No title yet"
+              />
+              <p className="text-sm text-brand-text-secondary mt-1">
+                Affiché dans le sommaire et la navigation du parcours
+              </p>
+            </div>
+
             {/* Type selection (only for new elements) */}
             {!element && (
               <div>
@@ -317,6 +358,24 @@ export function AddElementModal({
                     </div>
                     <div className="text-sm text-brand-text-secondary mt-1">
                       Contenu formaté
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedType("custom_html")}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      selectedType === "custom_html"
+                        ? "border-brand-accent bg-brand-accent/10"
+                        : "border-brand-border hover:border-brand-accent/50"
+                    }`}
+                  >
+                    <i className="fas fa-code text-2xl mb-2 text-brand-accent"></i>
+                    <div className="text-brand-text-primary font-medium">
+                      Page HTML
+                    </div>
+                    <div className="text-sm text-brand-text-secondary mt-1">
+                      HTML complet (styles, vidéos, iframes)
                     </div>
                   </button>
                 </div>
@@ -409,6 +468,24 @@ export function AddElementModal({
                 />
                 <p className="text-sm text-brand-text-secondary mt-2">
                   Vous pouvez utiliser du HTML ou Markdown
+                </p>
+              </div>
+            )}
+
+            {selectedType === "custom_html" && (
+              <div>
+                <label className="block text-sm font-medium text-brand-text-primary mb-2">
+                  Contenu HTML <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={customHtmlContent}
+                  onChange={(e) => setCustomHtmlContent(e.target.value)}
+                  rows={14}
+                  className="w-full px-4 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent font-mono text-sm"
+                  placeholder="<div>... HTML complet avec styles, images, vidéos, iframes (YouTube/Vimeo avec sandbox)...</div>"
+                />
+                <p className="text-sm text-brand-text-secondary mt-2">
+                  Page HTML complète (div, style, img, a, iframe en sandbox). Scripts et handlers inline sont supprimés à l&apos;affichage.
                 </p>
               </div>
             )}

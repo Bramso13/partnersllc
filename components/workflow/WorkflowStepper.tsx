@@ -156,9 +156,10 @@ export function WorkflowStepper({
         isAdminStep={isAdminStep}
       />
 
-      {/* Formations recommandées (Story 12.4 - non-FORMATION steps) */}
+      {/* Formations recommandées (Story 12.4 + 12.5 parcours + custom) */}
       <FormationRecommendations
         formations={stepData.stepFormations}
+        stepFormationItems={stepData.stepFormationItems}
         isFormationStep={isFormationStep}
       />
 
