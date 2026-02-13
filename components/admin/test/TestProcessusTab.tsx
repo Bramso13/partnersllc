@@ -94,7 +94,9 @@ export function TestProcessusTab({
 
   // Created dossier state
   const [createdDossierId, setCreatedDossierId] = useState<string | null>(null);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [createdClientEmail, setCreatedClientEmail] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Observation data
   const [dossierSummary, setDossierSummary] = useState<DossierSummary | null>(null);
@@ -148,7 +150,16 @@ export function TestProcessusTab({
         product_id: selectedProductId,
         initial_status: "QUALIFICATION",
       });
+
+      // Mark dossier as test
+      await fetch(`/api/admin/dossiers/${res.dossierId}/test-flag`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_test: true }),
+      });
+
       setCreatedDossierId(res.dossierId);
+      setCreatedUserId(res.userId);
       setCreatedClientEmail(testEmail);
       toast.success("Dossier de test créé avec succès");
       await loadObservation(res.dossierId);
@@ -172,6 +183,39 @@ export function TestProcessusTab({
     if (!createdDossierId) return;
     await loadObservation(createdDossierId);
   }, [createdDossierId, loadObservation]);
+
+  const handleRestart = useCallback(async () => {
+    if (!createdUserId) return;
+    if (
+      !window.confirm(
+        "Supprimer le user de test et toutes ses données (dossier, étapes, notifications, events) ? Cette action est irréversible."
+      )
+    )
+      return;
+
+    setIsResetting(true);
+    try {
+      const res = await fetch(`/api/admin/test/users/${createdUserId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Erreur lors de la suppression");
+      }
+      toast.success("Données de test supprimées. Vous pouvez relancer un test.");
+      // Reset all state
+      setCreatedDossierId(null);
+      setCreatedUserId(null);
+      setCreatedClientEmail(null);
+      setDossierSummary(null);
+      setEvents([]);
+      setNotifications([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    } finally {
+      setIsResetting(false);
+    }
+  }, [createdUserId]);
 
   // Derived: email deliveries + whatsapp deliveries from notifications
   const allDeliveries = notifications.flatMap((n) =>
@@ -282,19 +326,39 @@ export function TestProcessusTab({
       {/* Observation view */}
       {createdDossierId && (
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-base font-semibold text-[#f9f9f9]">
               Vue d&apos;observation
             </h3>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isLoadingObs}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#2d3033] text-[#b7b7b7] hover:text-[#f9f9f9] border border-[#363636] text-xs font-medium transition-colors disabled:opacity-50"
-            >
-              <i className={`fa-solid fa-rotate-right ${isLoadingObs ? "fa-spin" : ""}`} />
-              Rafraîchir
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isLoadingObs || isResetting}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#2d3033] text-[#b7b7b7] hover:text-[#f9f9f9] border border-[#363636] text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <i className={`fa-solid fa-rotate-right ${isLoadingObs ? "fa-spin" : ""}`} />
+                Rafraîchir
+              </button>
+              <button
+                type="button"
+                onClick={handleRestart}
+                disabled={isResetting || isLoadingObs}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {isResetting ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin" />
+                    Suppression…
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-trash-can" />
+                    Recommencer (supprimer données)
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Links */}

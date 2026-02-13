@@ -438,40 +438,45 @@ export function constructActionUrl(event: BaseEvent): string | null {
 }
 
 /**
- * Trigger notification delivery for all configured channels
+ * Trigger notification delivery for all configured channels.
+ * Awaited via Promise.allSettled to ensure deliveries complete before the
+ * serverless function exits (fire-and-forget would be killed by Vercel).
  */
 async function triggerNotificationDelivery(
   notificationId: string,
   channels: NotificationChannel[]
 ): Promise<void> {
-  // Process each channel asynchronously (don't wait)
+  const deliveryPromises: Promise<unknown>[] = [];
+
   for (const channel of channels) {
     switch (channel) {
       case "EMAIL":
-        processEmailNotification(notificationId).catch((error) => {
-          console.error(
-            `Error processing EMAIL notification ${notificationId}:`,
-            error
-          );
-        });
+        deliveryPromises.push(
+          processEmailNotification(notificationId).catch((error) => {
+            console.error(
+              `Error processing EMAIL notification ${notificationId}:`,
+              error
+            );
+          })
+        );
         break;
 
       case "WHATSAPP":
-        processWhatsAppNotification(notificationId).catch((error) => {
-          console.error(
-            `Error processing WHATSAPP notification ${notificationId}:`,
-            error
-          );
-        });
+        deliveryPromises.push(
+          processWhatsAppNotification(notificationId).catch((error) => {
+            console.error(
+              `Error processing WHATSAPP notification ${notificationId}:`,
+              error
+            );
+          })
+        );
         break;
 
       case "IN_APP":
         // In-app notifications are automatically created when notification record is inserted
-        // No additional processing needed
         break;
 
       case "SMS":
-        // SMS not yet implemented
         console.log(`SMS channel not yet implemented for notification ${notificationId}`);
         break;
 
@@ -479,6 +484,8 @@ async function triggerNotificationDelivery(
         console.warn(`Unknown channel type: ${channel}`);
     }
   }
+
+  await Promise.allSettled(deliveryPromises);
 }
 
 /**

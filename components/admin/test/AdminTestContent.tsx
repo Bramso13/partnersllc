@@ -5,12 +5,14 @@ import { BackofficeProvider } from "@/lib/contexts/backoffice/BackofficeContext"
 import { ProductsProvider } from "@/lib/contexts/products/ProductsContext";
 import { ConfigTab } from "./ConfigTab";
 import { TestProcessusTab } from "./TestProcessusTab";
+import { TestUsersTab } from "./TestUsersTab";
 
-type TabId = "config" | "processus";
+type TabId = "config" | "processus" | "users";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "config", label: "Config coordonnées", icon: "fa-sliders" },
   { id: "processus", label: "Test processus dossier", icon: "fa-diagram-project" },
+  { id: "users", label: "Users de test", icon: "fa-users" },
 ];
 
 const SESSION_KEY_EMAIL = "test_email";
@@ -85,6 +87,7 @@ export function AdminTestContent() {
                 onGoToConfig={() => setActiveTab("config")}
               />
             )}
+            {activeTab === "users" && <TestUsersTab />}
           </div>
         </div>
       </ProductsProvider>

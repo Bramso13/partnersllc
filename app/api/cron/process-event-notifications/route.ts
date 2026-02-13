@@ -100,12 +100,15 @@ export async function POST(request: NextRequest) {
     console.log("[CRON] Checking which events have already been processed...");
 
     for (const event of recentEvents as BaseEvent[]) {
-      // Check if event has already been processed
-      const { data: existingExecution, error: checkError } = await supabase
+      // Check if event has already been processed.
+      // Use limit(1) instead of maybeSingle() — an event processed by multiple
+      // rules produces multiple rows; maybeSingle() would error on >1 rows,
+      // causing existingExecution to be null and the event to be re-processed.
+      const { data: existingExecutions, error: checkError } = await supabase
         .from("notification_rule_executions")
         .select("id")
         .eq("event_id", event.id)
-        .maybeSingle();
+        .limit(1);
 
       if (checkError) {
         console.error(
@@ -115,8 +118,11 @@ export async function POST(request: NextRequest) {
         // Continue processing even if check fails
       }
 
-      // Only process if no execution exists OR if there were failures
-      if (!existingExecution) {
+      const alreadyProcessedEvent =
+        !checkError && existingExecutions && existingExecutions.length > 0;
+
+      // Only process if no execution record exists
+      if (!alreadyProcessedEvent) {
         eventsToProcess.push(event);
         console.log(
           `[CRON] Event ${event.id} (${event.event_type}) will be processed`
@@ -124,7 +130,7 @@ export async function POST(request: NextRequest) {
       } else {
         alreadyProcessed.push(event.id);
         console.log(
-          `[CRON] Event ${event.id} (${event.event_type}) already processed, skipping`
+          `[CRON] Event ${event.id} (${event.event_type}) already processed (${existingExecutions?.length ?? "?"} execution(s)), skipping`
         );
       }
     }
