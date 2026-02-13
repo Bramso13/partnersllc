@@ -1,18 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { EventType } from "@/lib/events";
 
 type TestResult = {
-  processed: number;
-  succeeded: number;
-  failed: number;
+  processed: number | undefined;
+  succeeded: number | undefined;
+  failed: number | undefined;
   error?: string;
   details?: any;
 };
 
 // Champs "humains" à afficher selon le type d'événement
-const humanFieldsConfig: Record<EventType, Array<{ key: string; label: string; type: "text" | "number" | "select"; options?: string[] }>> = {
+const humanFieldsConfig: Record<
+  EventType,
+  Array<{
+    key: string;
+    label: string;
+    type: "text" | "number" | "select";
+    options?: string[];
+  }>
+> = {
   DOSSIER_CREATED: [],
   DOSSIER_STATUS_CHANGED: [
     { key: "old_status", label: "Ancien statut", type: "text" },
@@ -29,9 +38,19 @@ const humanFieldsConfig: Record<EventType, Array<{ key: string; label: string; t
     { key: "mime_type", label: "Type MIME", type: "text" },
   ],
   DOCUMENT_REVIEWED: [
-    { key: "document_type", label: "Type de document", type: "select", options: ["PASSPORT", "DRIVER_LICENSE", "UTILITY_BILL", "OTHER"] },
+    {
+      key: "document_type",
+      label: "Type de document",
+      type: "select",
+      options: ["PASSPORT", "DRIVER_LICENSE", "UTILITY_BILL", "OTHER"],
+    },
     { key: "reviewer_name", label: "Nom du vérificateur", type: "text" },
-    { key: "review_status", label: "Statut", type: "select", options: ["APPROVED", "REJECTED"] },
+    {
+      key: "review_status",
+      label: "Statut",
+      type: "select",
+      options: ["APPROVED", "REJECTED"],
+    },
   ],
   DOCUMENT_DELIVERED: [
     { key: "document_count", label: "Nombre de documents", type: "number" },
@@ -40,14 +59,15 @@ const humanFieldsConfig: Record<EventType, Array<{ key: string; label: string; t
   ],
   PAYMENT_RECEIVED: [
     { key: "amount_paid", label: "Montant payé", type: "number" },
-    { key: "currency", label: "Devise", type: "select", options: ["EUR", "USD", "GBP"] },
+    {
+      key: "currency",
+      label: "Devise",
+      type: "select",
+      options: ["EUR", "USD", "GBP"],
+    },
   ],
-  PAYMENT_FAILED: [
-    { key: "reason", label: "Raison de l'échec", type: "text" },
-  ],
-  MESSAGE_SENT: [
-    { key: "content", label: "Contenu du message", type: "text" },
-  ],
+  PAYMENT_FAILED: [{ key: "reason", label: "Raison de l'échec", type: "text" }],
+  MESSAGE_SENT: [{ key: "content", label: "Contenu du message", type: "text" }],
   MANUAL_CLIENT_CREATED: [],
   ERROR: [
     { key: "error_type", label: "Type d'erreur", type: "text" },
@@ -56,8 +76,10 @@ const humanFieldsConfig: Record<EventType, Array<{ key: string; label: string; t
 };
 
 export default function TestNotificationsPage() {
+  const api = useApi();
   const [email, setEmail] = useState<string>("");
-  const [selectedEventType, setSelectedEventType] = useState<EventType>("DOSSIER_CREATED");
+  const [selectedEventType, setSelectedEventType] =
+    useState<EventType>("DOSSIER_CREATED");
   const [humanFields, setHumanFields] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
@@ -92,25 +114,22 @@ export default function TestNotificationsPage() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/admin/test-notifications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          eventType: selectedEventType,
-          humanFields,
-        }),
+      const data = await api.post<{
+        processed: number;
+        succeeded: number;
+        failed: number;
+        error?: string;
+      }>("/api/admin/test-notifications", {
+        email,
+        eventType: selectedEventType,
+        humanFields,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (data?.error !== undefined) {
         setResult({
-          processed: 0,
-          succeeded: 0,
-          failed: 0,
+          processed: data.processed ?? 0,
+          succeeded: data.succeeded ?? 0,
+          failed: data.failed ?? 0,
           error: data.error || "Erreur lors de l'exécution du test",
           details: data,
         });
@@ -138,7 +157,8 @@ export default function TestNotificationsPage() {
           🧪 Test des Notifications (Mode Simplifié)
         </h1>
         <p className="text-[#A0A0A0] mb-6">
-          Testez rapidement les notifications en saisissant uniquement votre email et les informations contextuelles
+          Testez rapidement les notifications en saisissant uniquement votre
+          email et les informations contextuelles
         </p>
 
         {/* Formulaire simplifié */}
@@ -167,7 +187,9 @@ export default function TestNotificationsPage() {
             </label>
             <select
               value={selectedEventType}
-              onChange={(e) => handleEventTypeChange(e.target.value as EventType)}
+              onChange={(e) =>
+                handleEventTypeChange(e.target.value as EventType)
+              }
               className="w-full bg-[#1A1C1F] border border-[#3D4043] rounded-lg px-4 py-3 text-[#F9F9F9] focus:outline-none focus:ring-2 focus:ring-[#4A9EFF]"
             >
               {Object.keys(humanFieldsConfig).map((type) => (
@@ -193,7 +215,9 @@ export default function TestNotificationsPage() {
                     {field.type === "select" && field.options ? (
                       <select
                         value={humanFields[field.key] || ""}
-                        onChange={(e) => updateHumanField(field.key, e.target.value)}
+                        onChange={(e) =>
+                          updateHumanField(field.key, e.target.value)
+                        }
                         className="w-full bg-[#1A1C1F] border border-[#3D4043] rounded-lg px-4 py-2 text-[#F9F9F9] focus:outline-none focus:ring-2 focus:ring-[#4A9EFF]"
                       >
                         <option value="">-- Sélectionner --</option>
@@ -210,7 +234,9 @@ export default function TestNotificationsPage() {
                         onChange={(e) =>
                           updateHumanField(
                             field.key,
-                            field.type === "number" ? parseFloat(e.target.value) || 0 : e.target.value
+                            field.type === "number"
+                              ? parseFloat(e.target.value) || 0
+                              : e.target.value
                           )
                         }
                         placeholder={`Saisir ${field.label.toLowerCase()}`}
@@ -245,7 +271,7 @@ export default function TestNotificationsPage() {
         {result && (
           <div className="bg-[#2D3033] rounded-xl p-6">
             <h2 className="text-xl font-bold text-[#F9F9F9] mb-4">Résultats</h2>
-            
+
             {result.error ? (
               <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-4">
                 <p className="text-red-400 font-semibold mb-2">❌ Erreur</p>
@@ -260,25 +286,35 @@ export default function TestNotificationsPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-[#1A1C1F] rounded-lg p-4">
-                    <p className="text-[#A0A0A0] text-sm mb-1">Règles traitées</p>
-                    <p className="text-2xl font-bold text-[#F9F9F9]">{result.processed}</p>
+                    <p className="text-[#A0A0A0] text-sm mb-1">
+                      Règles traitées
+                    </p>
+                    <p className="text-2xl font-bold text-[#F9F9F9]">
+                      {result.processed}
+                    </p>
                   </div>
                   <div className="bg-green-900/20 border border-green-500 rounded-lg p-4">
                     <p className="text-green-400 text-sm mb-1">Succès</p>
-                    <p className="text-2xl font-bold text-green-400">{result.succeeded}</p>
+                    <p className="text-2xl font-bold text-green-400">
+                      {result.succeeded}
+                    </p>
                   </div>
                   <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
                     <p className="text-red-400 text-sm mb-1">Échecs</p>
-                    <p className="text-2xl font-bold text-red-400">{result.failed}</p>
+                    <p className="text-2xl font-bold text-red-400">
+                      {result.failed}
+                    </p>
                   </div>
                 </div>
 
-                {result.succeeded > 0 && (
+                {result.succeeded && result.succeeded > 0 && (
                   <div className="bg-green-900/20 border border-green-500 rounded-lg p-4">
-                    <p className="text-green-400 font-semibold mb-2">✅ Notifications créées avec succès</p>
+                    <p className="text-green-400 font-semibold mb-2">
+                      ✅ Notifications créées avec succès
+                    </p>
                     <p className="text-green-300 text-sm">
-                      {result.succeeded} notification(s) ont été créée(s) et les emails devraient être envoyés à{" "}
-                      <strong>{email}</strong>
+                      {result.succeeded} notification(s) ont été créée(s) et les
+                      emails devraient être envoyés à <strong>{email}</strong>
                     </p>
                   </div>
                 )}

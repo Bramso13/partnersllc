@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-
-interface Agent {
-  id: string;
-  full_name: string;
-  email: string;
-}
-
-interface DossierAgentAssignments {
-  verificateur: Agent | null;
-  createur: Agent | null;
-}
+import {
+  useAgents,
+  type DossierAgentAssignments,
+} from "@/lib/contexts/agents/AgentsContext";
 
 interface DossierAgentAssignmentSectionProps {
   dossierId: string;
@@ -24,66 +17,49 @@ const inputClass =
 export function DossierAgentAssignmentSection({
   dossierId,
 }: DossierAgentAssignmentSectionProps) {
+  const {
+    agents,
+    isLoading,
+    fetchAgents,
+    fetchDossierAgentAssignments,
+    updateDossierAgentAssignment,
+  } = useAgents();
   const [assignments, setAssignments] = useState<DossierAgentAssignments>({
     verificateur: null,
     createur: null,
   });
-  const [verificateurAgents, setVerificateurAgents] = useState<Agent[]>([]);
-  const [createurAgents, setCreateurAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  const verificateurAgents = agents
+    .filter((a) => a.agent_type === "VERIFICATEUR")
+    .map((a) => ({
+      id: a.id,
+      full_name: a.name || a.email,
+      email: a.email,
+    }));
+  const createurAgents = agents
+    .filter((a) => a.agent_type === "CREATEUR")
+    .map((a) => ({
+      id: a.id,
+      full_name: a.name || a.email,
+      email: a.email,
+    }));
+
   useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetch(
-          `/api/admin/dossiers/${dossierId}/dossier-agent-assignments`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setAssignments(data);
-        }
-      } catch (e) {
-        console.error("Error fetching assignments:", e);
-      }
-    })();
+    fetchAgents();
+  }, [fetchAgents]);
+
+  const loadAssignments = useCallback(async () => {
+    try {
+      const data = await fetchDossierAgentAssignments(dossierId);
+      setAssignments(data);
+    } catch {
+      // ignore
+    }
   }, [dossierId]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/admin/agents");
-        if (!response.ok) throw new Error("Failed to fetch agents");
-        const data = await response.json();
-        const agents = data.agents || [];
-        setVerificateurAgents(
-          agents
-            .filter(
-              (a: { agent_type?: string }) => a.agent_type === "VERIFICATEUR"
-            )
-            .map((a: { id: string; name?: string; email: string }) => ({
-              id: a.id,
-              full_name: a.name || a.email,
-              email: a.email,
-            }))
-        );
-        setCreateurAgents(
-          agents
-            .filter((a: { agent_type?: string }) => a.agent_type === "CREATEUR")
-            .map((a: { id: string; name?: string; email: string }) => ({
-              id: a.id,
-              full_name: a.name || a.email,
-              email: a.email,
-            }))
-        );
-      } catch (e) {
-        console.error("Error fetching agents:", e);
-        toast.error("Erreur lors du chargement des agents");
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    loadAssignments();
   }, []);
 
   const handleAssignmentChange = async (
@@ -92,18 +68,7 @@ export function DossierAgentAssignmentSection({
   ) => {
     try {
       setIsSaving(true);
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/dossier-agent-assignments`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ assignmentType, agentId }),
-        }
-      );
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Erreur mise à jour");
-      }
+      await updateDossierAgentAssignment(dossierId, assignmentType, agentId);
       const list =
         assignmentType === "VERIFICATEUR" ? verificateurAgents : createurAgents;
       const selected = agentId
@@ -177,8 +142,8 @@ export function DossierAgentAssignmentSection({
       </div>
       <div className="rounded-lg bg-[#1e1f22] border border-[#363636] p-3 text-xs text-[#b7b7b7]">
         <p className="font-medium text-[#f9f9f9] mb-0.5">Note</p>
-        L’assignation dossier contrôle la visibilité dans « Mes dossiers ».
-        L’assignation par étape reste nécessaire pour le travail sur chaque
+        L'assignation dossier contrôle la visibilité dans « Mes dossiers ».
+        L'assignation par étape reste nécessaire pour le travail sur chaque
         étape.
       </div>
     </div>

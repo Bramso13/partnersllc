@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Product } from "@/types/products";
+import { usePaymentLinks } from "@/lib/contexts/payment-links/PaymentLinksContext";
 
 interface GeneratePaymentLinkModalProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ export function GeneratePaymentLinkModal({
   onSuccess,
   products,
 }: GeneratePaymentLinkModalProps) {
+  const { createPaymentLink } = usePaymentLinks();
   const [formData, setFormData] = useState({
     prospect_email: "",
     prospect_name: "",
@@ -31,15 +33,7 @@ export function GeneratePaymentLinkModal({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/payment-links/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error ?? "Échec de la création du lien");
-      }
+      await createPaymentLink(formData);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
@@ -78,34 +72,26 @@ export function GeneratePaymentLinkModal({
               required
               value={formData.prospect_email}
               onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  prospect_email: e.target.value,
-                }))
+                setFormData({ ...formData, prospect_email: e.target.value })
               }
               className={inputClass}
               placeholder="prospect@exemple.com"
             />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
-              Nom du prospect (optionnel)
+              Nom du prospect
             </label>
             <input
               type="text"
               value={formData.prospect_name}
               onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  prospect_name: e.target.value,
-                }))
+                setFormData({ ...formData, prospect_name: e.target.value })
               }
               className={inputClass}
               placeholder="Jean Dupont"
             />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
               Produit <span className="text-red-400">*</span>
@@ -114,61 +100,53 @@ export function GeneratePaymentLinkModal({
               required
               value={formData.product_id}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, product_id: e.target.value }))
+                setFormData({ ...formData, product_id: e.target.value })
               }
               className={inputClass}
             >
-              <option value="">Choisir un produit…</option>
-              {activeProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name} – {product.currency}{" "}
-                  {(product.price_amount / 100).toFixed(2)}
+              <option value="">Sélectionner un produit</option>
+              {activeProducts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
                 </option>
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-[#b7b7b7] mb-1.5">
-              Expiration (jours) <span className="text-red-400">*</span>
+              Expiration (jours)
             </label>
             <input
               type="number"
-              required
               min={1}
-              max={365}
               value={formData.expires_in_days}
               onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
+                setFormData({
+                  ...formData,
                   expires_in_days: parseInt(e.target.value, 10) || 30,
-                }))
+                })
               }
               className={inputClass}
             />
           </div>
-
           {error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <p className="text-sm text-red-400">{error}</p>
           )}
-
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 disabled:opacity-50 transition-colors"
+              className="flex-1 py-2.5 rounded-lg border border-[#363636] text-[#f9f9f9] text-sm font-medium hover:bg-[#363636]/50 disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 disabled:opacity-50 transition-colors"
+              className="flex-1 py-2.5 rounded-lg bg-[#50b989] text-[#191a1d] text-sm font-medium hover:bg-[#50b989]/90 disabled:opacity-50"
             >
-              {loading ? "Création…" : "Générer le lien"}
+              {loading ? "Création…" : "Générer"}
             </button>
           </div>
         </form>

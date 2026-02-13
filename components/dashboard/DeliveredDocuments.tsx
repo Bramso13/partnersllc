@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { DocumentWithDetails } from "@/lib/documents";
 import { toast } from "sonner";
 import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
@@ -11,6 +12,7 @@ interface DeliveredDocumentsProps {
 }
 
 export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
+  const api = useApi();
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -24,18 +26,10 @@ export function DeliveredDocuments({ documents }: DeliveredDocumentsProps) {
       setPreviewDocument(doc);
 
       const viewUrl = `/api/dossiers/${doc.dossier_id}/documents/${doc.id}/download`;
-      
-      const response = await fetch(viewUrl);
-      
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement du document");
-      }
-
-      const blob = await response.blob();
+      const blob = await api.getBlob(viewUrl);
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err) {
-      console.error("Error viewing document:", err);
       toast.error(
         err instanceof Error ? err.message : "Erreur lors du chargement du document"
       );

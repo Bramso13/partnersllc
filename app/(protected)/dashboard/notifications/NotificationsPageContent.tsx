@@ -26,9 +26,8 @@ export function NotificationsPageContent({
   userId,
 }: NotificationsPageContentProps) {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>(
-    initialNotifications
-  );
+  const [notifications, setNotifications] =
+    useState<Notification[]>(initialNotifications);
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +39,7 @@ export function NotificationsPageContent({
   // Load notifications when filter or page changes
   useEffect(() => {
     loadNotifications();
-  }, [filter, page, userId]);
+  }, [filter, page]);
 
   // Set up realtime subscription
   useEffect(() => {
@@ -79,7 +78,7 @@ export function NotificationsPageContent({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, []);
 
   async function loadNotifications() {
     setIsLoading(true);
@@ -213,7 +212,9 @@ export function NotificationsPageContent({
           notifications.map((notification) => {
             const isUnread = !notification.read_at;
             const icon = getNotificationIcon(notification.template_code);
-            const iconColor = getNotificationIconColor(notification.template_code);
+            const iconColor = getNotificationIconColor(
+              notification.template_code
+            );
 
             return (
               <button

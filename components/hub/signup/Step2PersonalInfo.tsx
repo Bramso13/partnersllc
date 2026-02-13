@@ -5,6 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 import PhoneInputWithCountrySelect from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { isValidPhoneNumber } from "react-phone-number-input";
@@ -58,6 +59,7 @@ export function Step2PersonalInfo({
   prefilledEmail = "",
   onSessionExpired,
 }: Step2PersonalInfoProps) {
+  const api = useApi();
   const [apiError, setApiError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,42 +103,27 @@ export function Step2PersonalInfo({
         body.password = data.password;
       }
 
-      const res = await fetch("/api/hub/signup/step2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (res.status === 401 || res.status === 404) {
-        const msg = json?.error ?? json?.message ?? "Session expirée";
-        if (
-          msg.toLowerCase().includes("session") ||
-          msg.toLowerCase().includes("expir")
-        ) {
-          onSessionExpired();
-          return;
-        }
-      }
-
-      if (!res.ok) {
-        if (res.status === 409 || json?.code === "EMAIL_TAKEN") {
-          setEmailTaken(true);
-          setApiError("Un compte existe déjà avec cet email.");
-          return;
-        }
-        setApiError(json?.error ?? json?.message ?? "Une erreur est survenue.");
-        return;
-      }
-
-      if (json.next_step === "step3") {
+      const json = await api.post<{ next_step?: string; code?: string }>(
+        "/api/hub/signup/step2",
+        body
+      );
+      if (json?.next_step === "step3") {
         window.location.href = `/hub/signup/step3?signup_session_id=${encodeURIComponent(signupSessionId)}`;
         return;
       }
       setApiError("Réponse serveur inattendue.");
-    } catch {
-      setApiError("Une erreur est survenue. Veuillez réessayer.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Une erreur est survenue.";
+      if (msg.toLowerCase().includes("session") || msg.toLowerCase().includes("expir")) {
+        onSessionExpired();
+        return;
+      }
+      if (msg.includes("existe déjà") || msg.includes("EMAIL_TAKEN")) {
+        setEmailTaken(true);
+        setApiError("Un compte existe déjà avec cet email.");
+        return;
+      }
+      setApiError(msg);
     } finally {
       setIsLoading(false);
     }

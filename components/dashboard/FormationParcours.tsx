@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 import type {
   FormationWithElements,
   UserFormationProgress,
@@ -23,6 +24,7 @@ export function FormationParcours({
   userId,
   embedded = false,
 }: FormationParcoursProps) {
+  const api = useApi();
   const [currentElementIndex, setCurrentElementIndex] = useState(0);
   const [completedElementIds, setCompletedElementIds] = useState<string[]>(
     initialProgress?.completed_element_ids || []
@@ -60,15 +62,9 @@ export function FormationParcours({
     const updateProgress = async () => {
       try {
         setIsUpdatingProgress(true);
-        await fetch(`/api/formations/${formation.id}/progress`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            last_element_id: currentElement.id,
-          }),
+        await api.patch(`/api/formations/${formation.id}/progress`, {
+          last_element_id: currentElement.id,
         });
-      } catch (error) {
-        console.error("Error updating progress:", error);
       } finally {
         setIsUpdatingProgress(false);
       }
@@ -85,17 +81,11 @@ export function FormationParcours({
     setCompletedElementIds(updatedCompletedIds);
 
     try {
-      await fetch(`/api/formations/${formation.id}/progress`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          completed_element_ids: updatedCompletedIds,
-          last_element_id: currentElement.id,
-        }),
+      await api.patch(`/api/formations/${formation.id}/progress`, {
+        completed_element_ids: updatedCompletedIds,
+        last_element_id: currentElement.id,
       });
-    } catch (error) {
-      console.error("Error marking as completed:", error);
-      // Revert on error
+    } catch {
       setCompletedElementIds(completedElementIds);
     }
   };
@@ -291,4 +281,3 @@ export function FormationParcours({
     </div>
   );
 }
-

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Product } from "@/types/products";
+
+import { useProducts } from "@/lib/contexts/products/ProductsContext";
 import { ProductsTable } from "./ProductsTable";
 import { CreateProductModal } from "./CreateProductModal";
 import { StepsTabContent } from "./StepsTabContent";
@@ -10,31 +11,13 @@ import { DocumentTypesTabContent } from "./DocumentTypesTabContent";
 type TabId = "produit" | "steps" | "document-types";
 
 export function ProductsContent() {
+  const { products, isLoading, error, fetchProducts } = useProducts();
   const [activeTab, setActiveTab] = useState<TabId>("produit");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const fetchProducts = async () => {
-    try {
-      setError(null);
-      const response = await fetch("/api/admin/products");
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-      const data = await response.json();
-      setProducts(data.products);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+    }, []);
 
   const handleProductCreated = () => {
     setShowCreateModal(false);
@@ -45,7 +28,7 @@ export function ProductsContent() {
     fetchProducts();
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-brand-text-secondary">
@@ -65,7 +48,6 @@ export function ProductsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
       <div className="flex gap-1 bg-brand-surface-light rounded-lg p-1">
         <button
           type="button"
@@ -104,7 +86,6 @@ export function ProductsContent() {
 
       {activeTab === "produit" && (
         <>
-          {/* Action Bar */}
           <div className="flex justify-between items-center">
             <div className="text-brand-text-secondary">
               {products.length} produit{products.length !== 1 ? "s" : ""} au

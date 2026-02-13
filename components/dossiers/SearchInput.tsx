@@ -18,11 +18,11 @@ export function SearchInput({
   const [localValue, setLocalValue] = useState(value);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const onChangeRef = useRef(onChange);
-  
+
   // Keep onChange ref updated without causing re-renders
   useEffect(() => {
     onChangeRef.current = onChange;
-  }, [onChange]);
+  }, []);
 
   useEffect(() => {
     // Clear existing timer
@@ -45,7 +45,7 @@ export function SearchInput({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [localValue, value, debounceMs]);
+  }, [localValue, value]);
 
   // Sync with external value changes (e.g., from URL or external updates)
   // This only runs when external value changes, not when localValue changes

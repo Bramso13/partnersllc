@@ -1,74 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { NotificationRule } from "@/lib/notifications/types";
+import { useEffect, useState, useCallback } from "react";
 import { NotificationRulesTable } from "./NotificationRulesTable";
 import { CreateRuleModal } from "./CreateRuleModal";
 import { EditRuleModal } from "./EditRuleModal";
 import { TestRuleModal } from "./TestRuleModal";
-import { EventType } from "@/lib/events";
+import { useNotifications } from "@/lib/contexts/notifications/NotificationsContext";
 
 export function NotificationRulesContent() {
-  const [rules, setRules] = useState<NotificationRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { rules, isLoading: loading, error, fetchRules } = useNotifications();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingRule, setEditingRule] = useState<NotificationRule | null>(null);
-  const [testingRule, setTestingRule] = useState<NotificationRule | null>(null);
+  const [editingRule, setEditingRule] = useState<
+    import("@/lib/notifications/types").NotificationRule | null
+  >(null);
+  const [testingRule, setTestingRule] = useState<
+    import("@/lib/notifications/types").NotificationRule | null
+  >(null);
 
-  // Filters
   const [eventTypeFilter, setEventTypeFilter] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
 
-  const fetchRules = async () => {
-    try {
-      setError(null);
-      setLoading(true);
-
-      // Build query params
-      const params = new URLSearchParams();
-      if (eventTypeFilter) params.append("event_type", eventTypeFilter);
-      if (activeFilter) params.append("is_active", activeFilter);
-      if (channelFilter) params.append("channel", channelFilter);
-
-      const response = await fetch(
-        `/api/admin/notification-rules?${params.toString()}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch notification rules");
-      }
-
-      const data = await response.json();
-      setRules(data.rules);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadRules = useCallback(() => {
+    fetchRules({
+      ...(eventTypeFilter ? { event_type: eventTypeFilter } : {}),
+      ...(activeFilter ? { is_active: activeFilter } : {}),
+      ...(channelFilter ? { channel: channelFilter } : {}),
+    });
+  }, [eventTypeFilter, activeFilter, channelFilter]);
 
   useEffect(() => {
-    fetchRules();
-  }, [eventTypeFilter, activeFilter, channelFilter]);
+    loadRules();
+  }, []);
 
   const handleRuleCreated = () => {
     setShowCreateModal(false);
-    fetchRules();
+    loadRules();
   };
 
   const handleRuleUpdated = () => {
     setEditingRule(null);
-    fetchRules();
+    loadRules();
   };
 
   const handleRuleDeleted = () => {
-    fetchRules();
+    loadRules();
   };
 
   const handleRuleToggled = () => {
-    fetchRules();
+    loadRules();
   };
 
   if (loading) {
@@ -111,9 +91,7 @@ export function NotificationRulesContent() {
             </label>
             <select
               value={eventTypeFilter || ""}
-              onChange={(e) =>
-                setEventTypeFilter(e.target.value || null)
-              }
+              onChange={(e) => setEventTypeFilter(e.target.value || null)}
               className="w-full px-3 py-2 bg-brand-bg-tertiary border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="">All Event Types</option>
@@ -134,9 +112,7 @@ export function NotificationRulesContent() {
             </label>
             <select
               value={activeFilter || ""}
-              onChange={(e) =>
-                setActiveFilter(e.target.value || null)
-              }
+              onChange={(e) => setActiveFilter(e.target.value || null)}
               className="w-full px-3 py-2 bg-brand-bg-tertiary border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="">All Statuses</option>
@@ -152,9 +128,7 @@ export function NotificationRulesContent() {
             </label>
             <select
               value={channelFilter || ""}
-              onChange={(e) =>
-                setChannelFilter(e.target.value || null)
-              }
+              onChange={(e) => setChannelFilter(e.target.value || null)}
               className="w-full px-3 py-2 bg-brand-bg-tertiary border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="">All Channels</option>

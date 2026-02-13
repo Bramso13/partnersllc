@@ -1,4 +1,5 @@
 import { useReducer, useCallback } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { validateForm } from "@/lib/validation";
 import type { UseStepFormReturn, FormState, FormAction, StepFieldWithValidation } from "../types";
 import type { StepField } from "@/types/qualification";
@@ -124,6 +125,7 @@ export function useStepForm({
   onNavigateNext: () => void;
   initialFormData?: Record<string, any>;
 }): UseStepFormReturn {
+  const api = useApi();
   const [state, dispatch] = useReducer(formReducer, {
     formData: initialFormData,
     errors: {},
@@ -231,28 +233,14 @@ export function useStepForm({
             throw new Error("Instance d'étape introuvable");
           }
 
-          const response = await fetch("/api/workflow/resubmit-step", {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              step_instance_id: currentStepInstance.id,
-              corrected_fields: rejectedFieldValues,
-            }),
+          await api.patch("/api/workflow/resubmit-step", {
+            step_instance_id: currentStepInstance.id,
+            corrected_fields: rejectedFieldValues,
           });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-              errorData.message || "Erreur lors de la resoumission"
-            );
-          }
 
           // Navigate to next step after successful resubmission
           onNavigateNext();
         } catch (error) {
-          console.error("Error resubmitting step:", error);
           alert(
             error instanceof Error
               ? error.message
@@ -283,7 +271,6 @@ export function useStepForm({
           // Navigate to next step after successful submission
           onNavigateNext();
         } catch (error) {
-          console.error("Error submitting step:", error);
           alert(
             error instanceof Error
               ? error.message
@@ -301,6 +288,7 @@ export function useStepForm({
       state.formData,
       onStepComplete,
       onNavigateNext,
+      api,
     ]
   );
 

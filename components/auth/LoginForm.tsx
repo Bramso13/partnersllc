@@ -34,7 +34,7 @@ export default function LoginForm() {
         "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter."
       );
     }
-  }, [searchParams]);
+  }, []);
 
   const {
     register,

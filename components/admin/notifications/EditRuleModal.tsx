@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NotificationRule, NotificationChannel } from "@/lib/notifications/types";
+import { useNotifications } from "@/lib/contexts/notifications/NotificationsContext";
 
 interface EditRuleModalProps {
   rule: NotificationRule;
@@ -10,6 +11,7 @@ interface EditRuleModalProps {
 }
 
 export function EditRuleModal({ rule, onClose, onSuccess }: EditRuleModalProps) {
+  const { updateRule } = useNotifications();
   const [formData, setFormData] = useState({
     template_code: rule.template_code,
     channels: [...rule.channels],
@@ -30,22 +32,12 @@ export function EditRuleModal({ rule, onClose, onSuccess }: EditRuleModalProps) 
       if (formData.conditions.trim()) {
         try {
           conditions = JSON.parse(formData.conditions);
-        } catch (e) {
+        } catch {
           throw new Error("Invalid JSON in conditions field");
         }
       }
 
-      const response = await fetch(`/api/admin/notification-rules/${rule.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, conditions }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to update rule");
-      }
-
+      await updateRule(rule.id, { ...formData, conditions });
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

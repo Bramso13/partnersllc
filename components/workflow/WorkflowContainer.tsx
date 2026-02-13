@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useApi } from "@/lib/api/useApi";
+import { useDossiers } from "@/lib/contexts/dossiers/DossiersContext";
 import { ProductStep } from "@/lib/workflow";
 import { WorkflowStepper } from "./WorkflowStepper";
-import { Product } from "@/types/qualification";
 import type { StepInstanceForTimer } from "./types";
 
 interface WorkflowContainerProps {
@@ -21,6 +22,8 @@ export function WorkflowContainer({
   userId,
   initialStepId,
 }: WorkflowContainerProps) {
+  const api = useApi();
+  const { fetchDossier } = useDossiers();
   const [productSteps, setProductSteps] = useState<ProductStep[]>([]);
   const [stepInstances, setStepInstances] = useState<StepInstanceForTimer[]>(
     []
@@ -31,14 +34,11 @@ export function WorkflowContainer({
   useEffect(() => {
     const loadProductSteps = async () => {
       try {
-        const response = await fetch(
+        const steps = await api.get<ProductStep[]>(
           `/api/workflow/product-steps?product_id=${productId}`
         );
-        if (!response.ok) throw new Error("Failed to load product steps");
-        const steps = await response.json();
-        setProductSteps(steps);
+        setProductSteps(Array.isArray(steps) ? steps : []);
       } catch (err) {
-        console.error("Error loading product steps:", err);
         setError(err instanceof Error ? err.message : "Erreur de chargement");
       } finally {
         setIsLoading(false);
@@ -51,10 +51,12 @@ export function WorkflowContainer({
   useEffect(() => {
     const loadStepInstances = async () => {
       try {
-        const response = await fetch(`/api/dossiers/${dossierId}`);
-        if (!response.ok) return;
-        const dossier = await response.json();
-        const instances = (dossier.step_instances ?? []).map(
+        const dossier = await fetchDossier(dossierId);
+        if (!dossier?.step_instances) {
+          setStepInstances([]);
+          return;
+        }
+        const instances = dossier.step_instances.map(
           (si: { step_id: string; completed_at: string | null }) => ({
             step_id: si.step_id,
             completed_at: si.completed_at ?? null,
@@ -71,24 +73,13 @@ export function WorkflowContainer({
 
   const handleStepComplete = async (
     stepId: string,
-    fieldValues: Record<string, any>
+    fieldValues: Record<string, unknown>
   ) => {
-    const response = await fetch("/api/workflow/submit-step", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        dossier_id: dossierId,
-        step_id: stepId,
-        field_values: fieldValues,
-      }),
+    await api.post("/api/workflow/submit-step", {
+      dossier_id: dossierId,
+      step_id: stepId,
+      field_values: fieldValues,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Erreur lors de la soumission");
-    }
   };
 
   if (isLoading) {

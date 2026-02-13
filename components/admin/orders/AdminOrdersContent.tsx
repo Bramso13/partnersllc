@@ -2,29 +2,38 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 import { formatCurrency } from "@/lib/utils/format-currency";
 import type { AdminOrderRow } from "@/app/api/admin/orders/route";
 
 export function AdminOrdersContent() {
+  const api = useApi();
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    const url = statusFilter
+    const path = statusFilter
       ? `/api/admin/orders?status=${encodeURIComponent(statusFilter)}`
       : "/api/admin/orders";
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch orders");
-        return res.json();
+    api
+      .get<{ orders: AdminOrderRow[] }>(path)
+      .then((data) => {
+        if (!cancelled) setOrders(data?.orders ?? []);
       })
-      .then((data) => setOrders(data.orders ?? []))
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [statusFilter]);
 
   return (

@@ -25,7 +25,7 @@ export function Step2PageClient() {
       redirectToStep1();
       return;
     }
-  }, [signupSessionId, redirectToStep1]);
+  }, [signupSessionId]);
 
   if (!signupSessionId || signupSessionId.trim() === "") {
     return (

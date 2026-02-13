@@ -1,6 +1,7 @@
 import { requireAdminAuth } from "@/lib/auth";
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { FormationsProvider } from "@/lib/contexts/formations/FormationsContext";
 import { FormationEditContent } from "@/components/admin/formations/FormationEditContent";
 import { LoadingSkeleton } from "@/components/dashboard/LoadingSkeleton";
 
@@ -17,18 +18,19 @@ export default async function FormationEditPage({
   await requireAdminAuth();
   const { id } = await params;
 
-  // If id is "new", we're creating a new formation
   const isNew = id === "new";
 
   return (
-    <div className="min-h-screen bg-brand-dark-bg">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <Suspense fallback={<LoadingSkeleton />}>
-            <FormationEditContent formationId={isNew ? null : id} />
-          </Suspense>
+    <FormationsProvider>
+      <div className="min-h-screen bg-brand-dark-bg">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Suspense fallback={<LoadingSkeleton />}>
+              <FormationEditContent formationId={isNew ? null : id} />
+            </Suspense>
+          </div>
         </div>
       </div>
-    </div>
+    </FormationsProvider>
   );
 }

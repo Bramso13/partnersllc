@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useConversations } from "@/lib/contexts/conversations/ConversationsContext";
 
 interface DossierConversationButtonProps {
   dossierId: string;
@@ -12,6 +13,7 @@ export function DossierConversationButton({
   dossierId,
 }: DossierConversationButtonProps) {
   const router = useRouter();
+  const { fetchConversations, createConversation } = useConversations();
   const [existingId, setExistingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -19,20 +21,16 @@ export function DossierConversationButton({
   useEffect(() => {
     (async () => {
       try {
-        const resp = await fetch(
-          `/api/admin/conversations?type=client&dossier_id=${dossierId}`
-        );
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.conversations?.length > 0) {
-            setExistingId(data.conversations[0].id);
-          }
+        const list = await fetchConversations({ type: "client", dossier_id: dossierId });
+        const arr = Array.isArray(list) ? list : [];
+        if (arr.length > 0 && arr[0] && typeof arr[0] === "object" && "id" in arr[0]) {
+          setExistingId((arr[0] as { id: string }).id);
         }
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [dossierId]);
+  }, [dossierId, fetchConversations]);
 
   const handleClick = async () => {
     if (existingId) {
@@ -41,17 +39,13 @@ export function DossierConversationButton({
     }
     setIsCreating(true);
     try {
-      const resp = await fetch("/api/admin/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "client", dossier_id: dossierId }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error ?? "Échec création");
+      const res = await createConversation({ type: "client", dossier_id: dossierId });
+      const id = res?.conversation?.id;
+      if (id) {
+        router.push(`/admin/conversations/clients/${id}`);
+      } else {
+        throw new Error(res?.error ?? "Échec création");
       }
-      const data = await resp.json();
-      router.push(`/admin/conversations/clients/${data.conversation.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur création");
     } finally {

@@ -7,6 +7,7 @@ import type {
   TwilioConversationParticipant,
   AdminProfileSummary,
 } from "@/types/conversations";
+import { ConversationsProvider } from "@/lib/contexts/conversations/ConversationsContext";
 import { ConversationDetailContent } from "@/components/admin/conversations/ConversationDetailContent";
 
 export const metadata: Metadata = {
@@ -100,18 +101,20 @@ export default async function ConversationDetailPage({
   const allAdmins = (allAdminsRaw ?? []) as AdminProfileSummary[];
 
   return (
-    <div className="min-h-screen bg-brand-dark-bg">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto">
-          <ConversationDetailContent
+    <ConversationsProvider>
+      <div className="min-h-screen bg-brand-dark-bg">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto">
+            <ConversationDetailContent
             conversation={conversation}
             initialMessages={messages}
             participants={participants}
             adminProfiles={adminProfiles}
             allAdmins={allAdmins}
           />
+          </div>
         </div>
       </div>
-    </div>
+    </ConversationsProvider>
   );
 }

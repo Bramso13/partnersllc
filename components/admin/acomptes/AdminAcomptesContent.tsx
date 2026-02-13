@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 import { formatCurrency } from "@/lib/utils/format-currency";
 import type { AcompteRow } from "@/app/api/admin/acomptes/route";
 import type { AdminOrderRow } from "@/app/api/admin/orders/route";
@@ -9,6 +10,7 @@ import type { AdminOrderRow } from "@/app/api/admin/orders/route";
 type Tab = "acomptes" | "orders";
 
 export function AdminAcomptesContent() {
+  const api = useApi();
   const [tab, setTab] = useState<Tab>("acomptes");
   const [acomptes, setAcomptes] = useState<AcompteRow[]>([]);
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
@@ -21,10 +23,10 @@ export function AdminAcomptesContent() {
     setLoadingAcomptes(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/acomptes");
-      if (!res.ok) throw new Error("Failed to fetch acomptes");
-      const data = await res.json();
-      setAcomptes(data.acomptes ?? []);
+      const data = await api.get<{ acomptes?: AcompteRow[] }>(
+        "/api/admin/acomptes"
+      );
+      setAcomptes(data?.acomptes ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -36,10 +38,10 @@ export function AdminAcomptesContent() {
     setLoadingOrders(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/orders");
-      if (!res.ok) throw new Error("Failed to fetch orders");
-      const data = await res.json();
-      setOrders(data.orders ?? []);
+      const data = await api.get<{ orders?: AdminOrderRow[] }>(
+        "/api/admin/orders"
+      );
+      setOrders(data?.orders ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -49,26 +51,20 @@ export function AdminAcomptesContent() {
 
   useEffect(() => {
     fetchAcomptes();
-  }, [fetchAcomptes]);
+  }, []);
 
   useEffect(() => {
     if (tab === "orders") fetchOrders();
-  }, [tab, fetchOrders]);
+  }, [tab]);
 
   const handleMarkBalancePaid = useCallback(
     async (depositOrderId: string) => {
       setMarkingId(depositOrderId);
       setError(null);
       try {
-        const res = await fetch("/api/admin/acomptes/mark-balance-paid", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deposit_order_id: depositOrderId }),
+        await api.post("/api/admin/acomptes/mark-balance-paid", {
+          deposit_order_id: depositOrderId,
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error ?? "Échec");
-        }
         await fetchAcomptes();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erreur");
@@ -76,7 +72,7 @@ export function AdminAcomptesContent() {
         setMarkingId(null);
       }
     },
-    [fetchAcomptes]
+    [api, fetchAcomptes]
   );
 
   return (

@@ -1,5 +1,6 @@
 import { requireAdminAuth } from "@/lib/auth";
 import { Metadata } from "next";
+import { NotificationsProvider } from "@/lib/contexts/notifications/NotificationsContext";
 import { NotificationRulesContent } from "@/components/admin/notifications/NotificationRulesContent";
 
 export const metadata: Metadata = {
@@ -10,5 +11,9 @@ export const metadata: Metadata = {
 export default async function NotificationRulesPage() {
   await requireAdminAuth();
 
-  return <NotificationRulesContent />;
+  return (
+    <NotificationsProvider>
+      <NotificationRulesContent />
+    </NotificationsProvider>
+  );
 }

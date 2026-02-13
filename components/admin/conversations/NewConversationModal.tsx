@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { useConversations } from "@/lib/contexts/conversations/ConversationsContext";
 import type { DossierForNewConversation } from "@/types/conversations";
 
 interface NewConversationModalProps {
@@ -15,6 +16,7 @@ export function NewConversationModal({
   onClose,
   onConversationCreated,
 }: NewConversationModalProps) {
+  const { fetchConversations, createConversation } = useConversations();
   const [search, setSearch] = useState("");
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(
     null
@@ -36,35 +38,18 @@ export function NewConversationModal({
     if (!selectedDossierId) return;
     setIsCreating(true);
     try {
-      // Check if conversation already exists for this dossier
-      const checkResp = await fetch(
-        `/api/admin/conversations?type=client&dossier_id=${selectedDossierId}`
-      );
-      if (checkResp.ok) {
-        const checkData = await checkResp.json();
-        if (checkData.conversations && checkData.conversations.length > 0) {
-          onConversationCreated(checkData.conversations[0].id);
-          return;
-        }
+      const existing = await fetchConversations({ type: "client", dossier_id: selectedDossierId });
+      const list = Array.isArray(existing) ? existing : [];
+      if (list.length > 0 && list[0] && typeof list[0] === "object" && "id" in list[0]) {
+        onConversationCreated((list[0] as { id: string }).id);
+        return;
       }
-
-      // Create new conversation
-      const createResp = await fetch("/api/admin/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "client",
-          dossier_id: selectedDossierId,
-        }),
-      });
-
-      if (!createResp.ok) {
-        const errorData = await createResp.json();
-        throw new Error(errorData.error ?? "Échec de la création");
+      const res = await createConversation({ type: "client", dossier_id: selectedDossierId });
+      if (res?.conversation?.id) {
+        onConversationCreated(res.conversation.id);
+      } else {
+        throw new Error(res?.error ?? "Échec de la création");
       }
-
-      const createData = await createResp.json();
-      onConversationCreated(createData.conversation.id);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erreur lors de la création"

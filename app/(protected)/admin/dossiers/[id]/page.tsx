@@ -1,6 +1,8 @@
-import { requireAdminAuth, requireAgentAuth } from "@/lib/auth";
+import { requireAdminAuth } from "@/lib/auth";
 import { getAdminDossierById } from "@/lib/dossiers";
 import { getProductSteps, ProductStep } from "@/lib/workflow";
+import { AgentsProvider } from "@/lib/contexts/agents/AgentsContext";
+import { ConversationsProvider } from "@/lib/contexts/conversations/ConversationsContext";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -38,17 +40,21 @@ export default async function AdminDossierDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark-bg">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <Suspense fallback={<LoadingSkeleton />}>
-            <AdminDossierDetailContent
-              dossier={dossier}
-              productSteps={productSteps}
-            />
-          </Suspense>
+    <AgentsProvider>
+      <ConversationsProvider>
+      <div className="min-h-screen bg-brand-dark-bg">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Suspense fallback={<LoadingSkeleton />}>
+              <AdminDossierDetailContent
+                dossier={dossier}
+                productSteps={productSteps}
+              />
+            </Suspense>
+          </div>
         </div>
       </div>
-    </div>
+      </ConversationsProvider>
+    </AgentsProvider>
   );
 }

@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+import { useApi } from "@/lib/api/useApi";
+import { useClients } from "@/lib/contexts/clients/ClientsContext";
+import type { CreateClientData } from "@/lib/contexts/clients/types";
 
 interface Product {
   id: string;
@@ -20,7 +24,9 @@ export function CreateClientModal({
   onClose,
   onClientCreated,
 }: CreateClientModalProps) {
-  const [formData, setFormData] = useState({
+  const api = useApi();
+  const { createClient } = useClients();
+  const [formData, setFormData] = useState<CreateClientData>({
     full_name: "",
     email: "",
     phone: "",
@@ -37,11 +43,24 @@ export function CreateClientModal({
     product_id?: string;
   }>({});
 
-  // Fetch products when modal opens
+  const fetchProducts = useCallback(async () => {
+    setIsLoadingProducts(true);
+    setError(null);
+    try {
+      const data = await api.get<{ products?: Product[] }>(
+        "/api/admin/products/active"
+      );
+      setProducts(data?.products ?? []);
+    } catch {
+      setError("Impossible de charger les produits");
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       fetchProducts();
-      // Reset form when modal opens
       setFormData({
         full_name: "",
         email: "",
@@ -53,46 +72,25 @@ export function CreateClientModal({
     }
   }, [open]);
 
-  const fetchProducts = async () => {
-    setIsLoadingProducts(true);
-    try {
-      const response = await fetch("/api/admin/products/active");
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
-      } else {
-        setError("Impossible de charger les produits");
-      }
-    } catch (err) {
-      setError("Erreur lors du chargement des produits");
-    } finally {
-      setIsLoadingProducts(false);
-    }
-  };
-
   const validateForm = (): boolean => {
     const errors: typeof validationErrors = {};
 
-    // Full name validation
     if (!formData.full_name.trim()) {
       errors.full_name = "Le nom complet est obligatoire";
     }
 
-    // Email validation
     if (!formData.email.trim()) {
       errors.email = "L'email est obligatoire";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = "Format d'email invalide";
     }
 
-    // Phone validation
     if (!formData.phone.trim()) {
       errors.phone = "Le téléphone est obligatoire";
     } else if (formData.phone.trim().length < 8) {
       errors.phone = "Numéro de téléphone invalide (minimum 8 caractères)";
     }
 
-    // Product validation
     if (!formData.product_id) {
       errors.product_id = "Veuillez sélectionner un produit";
     }
@@ -112,33 +110,18 @@ export function CreateClientModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/admin/clients/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de la création du client");
-      }
-
-      // Success
+      await createClient(formData);
       onClientCreated();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleInputChange = (
-    field: keyof typeof formData,
-    value: string
-  ) => {
+  const handleInputChange = (field: keyof CreateClientData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -170,11 +153,8 @@ export function CreateClientModal({
         className="bg-[#2D3033] rounded-xl max-w-lg w-full p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-[#F9F9F9]">
-            Créer un client
-          </h2>
+          <h2 className="text-xl font-bold text-[#F9F9F9]">Créer un client</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-[#363636] rounded-lg transition-colors"
@@ -183,9 +163,7 @@ export function CreateClientModal({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Nom complet *
@@ -208,7 +186,6 @@ export function CreateClientModal({
             )}
           </div>
 
-          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Email *
@@ -231,7 +208,6 @@ export function CreateClientModal({
             )}
           </div>
 
-          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Téléphone *
@@ -254,7 +230,6 @@ export function CreateClientModal({
             )}
           </div>
 
-          {/* Product Select */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Produit *
@@ -267,7 +242,9 @@ export function CreateClientModal({
             ) : (
               <select
                 value={formData.product_id}
-                onChange={(e) => handleInputChange("product_id", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("product_id", e.target.value)
+                }
                 className={`w-full px-4 py-3 bg-[#191A1D] border rounded-lg text-[#F9F9F9] focus:outline-none transition-colors ${
                   validationErrors.product_id
                     ? "border-red-500 focus:border-red-500"
@@ -290,7 +267,6 @@ export function CreateClientModal({
             )}
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-400">
               <i className="fa-solid fa-exclamation-triangle mr-2"></i>
@@ -298,7 +274,6 @@ export function CreateClientModal({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"

@@ -65,37 +65,41 @@ function getSmtpConfig() {
  * Get default from email address
  */
 function getDefaultFrom(): string {
-  return process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@partnersllc.com";
+  return (
+    process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@partnersllc.com"
+  );
 }
 
 // =========================================================
 // TRANSPORTER
 // =========================================================
 
-let transporter: Transporter | null = null;
-
 /**
- * Get or create nodemailer transporter
+ * Create a fresh transporter for each use.
+ * Singleton transporters cause stale TCP sockets in serverless environments
+ * (Vercel recycles lambdas between cron invocations; the SMTP connection is
+ * dead by then → Hostinger responds with 421 timeout exceeded).
  */
-function getTransporter(): Transporter {
-  if (!transporter) {
-    const config = getSmtpConfig();
-    transporter = nodemailer.createTransport(config);
-  }
-  return transporter;
+function createTransporter(): Transporter {
+  return nodemailer.createTransport({
+    ...getSmtpConfig(),
+    // pool: false, // no persistent connection — create/close per send
+  });
 }
 
 /**
  * Verify SMTP connection
  */
 export async function verifyEmailConnection(): Promise<boolean> {
+  const transport = createTransporter();
   try {
-    const transport = getTransporter();
     await transport.verify();
     return true;
   } catch (error) {
     console.error("Email connection verification failed:", error);
     return false;
+  } finally {
+    transport.close();
   }
 }
 
@@ -153,8 +157,8 @@ export async function sendEmail(
     throw new Error("Missing required email fields: subject, html, or text");
   }
 
+  const transport = createTransporter();
   try {
-    const transport = getTransporter();
     const from = options.from || getDefaultFrom();
 
     const mailOptions = {
@@ -209,6 +213,8 @@ export async function sendEmail(
     };
 
     throw emailError;
+  } finally {
+    transport.close();
   }
 }
 

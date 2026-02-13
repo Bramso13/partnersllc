@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+
+import { useApi } from "@/lib/api/useApi";
 import { DocumentType } from "@/types/products";
 import { CreateDocumentTypeModal } from "./CreateDocumentTypeModal";
 import { EditDocumentTypeModal } from "./EditDocumentTypeModal";
 
 export function DocumentTypesTabContent() {
+  const api = useApi();
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,22 +16,20 @@ export function DocumentTypesTabContent() {
   const [editingDocumentType, setEditingDocumentType] =
     useState<DocumentType | null>(null);
 
-  const fetchDocumentTypes = async () => {
+  const fetchDocumentTypes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch("/api/admin/document-types");
-      if (!response.ok) {
-        throw new Error("Failed to fetch document types");
-      }
-      const data = await response.json();
-      setDocumentTypes(data.documentTypes || []);
+      const data = await api.get<{ documentTypes: DocumentType[] }>(
+        "/api/admin/document-types"
+      );
+      setDocumentTypes(data?.documentTypes ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -64,7 +65,6 @@ export function DocumentTypesTabContent() {
 
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
       <div className="flex justify-between items-center">
         <div className="text-brand-text-secondary">
           {documentTypes.length} type{documentTypes.length !== 1 ? "s" : ""} de
@@ -78,7 +78,6 @@ export function DocumentTypesTabContent() {
         </button>
       </div>
 
-      {/* Document Types Table */}
       <div className="bg-brand-card-bg rounded-lg border border-brand-border overflow-hidden">
         <table className="w-full">
           <thead className="bg-brand-surface-light border-b border-brand-border">
@@ -164,7 +163,6 @@ export function DocumentTypesTabContent() {
         </table>
       </div>
 
-      {/* Modals */}
       {showCreateModal && (
         <CreateDocumentTypeModal
           onClose={() => setShowCreateModal(false)}

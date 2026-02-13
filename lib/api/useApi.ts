@@ -58,12 +58,16 @@ export function useApi() {
     options?: RequestInit
   ): Promise<T> {
     const url = `${baseUrl}${path}`;
+    const isFormData = body instanceof FormData;
+    const headers: HeadersInit = isFormData
+      ? { ...(options?.headers as Record<string, string> ?? {}) }
+      : { ...DEFAULT_HEADERS, ...(options?.headers as Record<string, string> ?? {}) };
     const response = await fetch(url, {
       ...DEFAULT_REQUEST_INIT,
       ...options,
       method: "POST",
-      headers: { ...DEFAULT_HEADERS, ...options?.headers } as HeadersInit,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers,
+      body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
     });
     return handleResponse<T>(response);
   }
@@ -109,6 +113,30 @@ export function useApi() {
       headers: { ...DEFAULT_HEADERS, ...options?.headers } as HeadersInit,
     });
     return handleResponse<T>(response);
+  }
+
+  /** GET request that returns a Blob (e.g. CSV export). */
+  async function getBlob(path: string, options?: RequestInit): Promise<Blob> {
+    const url = `${baseUrl}${path}`;
+    const response = await fetch(url, {
+      ...DEFAULT_REQUEST_INIT,
+      ...options,
+      method: "GET",
+      headers: { ...options?.headers } as HeadersInit,
+    });
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        try {
+          const payload: ApiErrorPayload = await response.json();
+          throw new Error(typeof payload.error === "string" ? payload.error : "Request failed");
+        } catch (e) {
+          if (e instanceof Error && e.message !== "Request failed") throw e;
+        }
+      }
+      throw new Error("Request failed");
+    }
+    return response.blob();
   }
 
   /**
@@ -170,5 +198,6 @@ export function useApi() {
     patch,
     delete: deleteMethod,
     batch,
+    getBlob,
   };
 }

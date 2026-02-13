@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { NotificationChannel } from "@/lib/notifications/types";
 import { EventType } from "@/lib/events";
+import { useNotifications } from "@/lib/contexts/notifications/NotificationsContext";
 
 interface CreateRuleModalProps {
   onClose: () => void;
@@ -10,6 +11,7 @@ interface CreateRuleModalProps {
 }
 
 export function CreateRuleModal({ onClose, onSuccess }: CreateRuleModalProps) {
+  const { createRule } = useNotifications();
   const [formData, setFormData] = useState({
     event_type: "STEP_COMPLETED" as EventType,
     template_code: "STEP_COMPLETED",
@@ -27,30 +29,16 @@ export function CreateRuleModal({ onClose, onSuccess }: CreateRuleModalProps) {
     setError(null);
 
     try {
-      // Parse conditions JSON if provided
       let conditions = null;
       if (formData.conditions.trim()) {
         try {
           conditions = JSON.parse(formData.conditions);
-        } catch (e) {
+        } catch {
           throw new Error("Invalid JSON in conditions field");
         }
       }
 
-      const response = await fetch("/api/admin/notification-rules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          conditions,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create rule");
-      }
-
+      await createRule({ ...formData, conditions });
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

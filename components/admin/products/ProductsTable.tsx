@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Product } from "@/types/products";
+import { useProducts } from "@/lib/contexts/products/ProductsContext";
 import { formatPrice } from "@/lib/products-client";
 import { format } from "date-fns";
 import { EditProductModal } from "./EditProductModal";
@@ -24,6 +25,7 @@ export function ProductsTable({
   onProductUpdated,
 }: ProductsTableProps) {
   const router = useRouter();
+  const { updateProduct } = useProducts();
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -36,12 +38,7 @@ export function ProductsTable({
       const next = !product.is_test;
       setTogglingTestId(product.id);
       try {
-        const res = await fetch(`/api/admin/products/${product.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ is_test: next }),
-        });
-        if (!res.ok) throw new Error("Échec de la mise à jour");
+        await updateProduct(product.id, { is_test: next });
         toast.success(
           next ? "Produit marqué comme test" : "Produit retiré du mode test"
         );
@@ -52,7 +49,7 @@ export function ProductsTable({
         setTogglingTestId(null);
       }
     },
-    [onProductUpdated]
+    [updateProduct, onProductUpdated]
   );
 
   const handleSort = (field: SortField) => {

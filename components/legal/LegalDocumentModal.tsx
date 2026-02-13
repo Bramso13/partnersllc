@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 
 interface LegalDocumentModalProps {
   isOpen: boolean;
@@ -15,11 +16,11 @@ export function LegalDocumentModal({
   documentType,
   title,
 }: LegalDocumentModalProps) {
+  const api = useApi();
   const [content, setContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Charger le contenu du document
   useEffect(() => {
     if (!isOpen) return;
 
@@ -28,14 +29,11 @@ export function LegalDocumentModal({
 
     const loadDocument = async () => {
       try {
-        const response = await fetch(`/api/documents-legaux/${documentType}`);
-        if (!response.ok) {
-          throw new Error("Erreur lors du chargement du document");
-        }
-        const data = await response.json();
-        setContent(data.content || "");
-      } catch (err) {
-        console.error("Error loading document:", err);
+        const data = await api.get<{ content?: string }>(
+          `/api/documents-legaux/${documentType}`
+        );
+        setContent(data?.content || "");
+      } catch {
         setError("Impossible de charger le document");
       } finally {
         setIsLoading(false);
@@ -57,7 +55,7 @@ export function LegalDocumentModal({
 
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {

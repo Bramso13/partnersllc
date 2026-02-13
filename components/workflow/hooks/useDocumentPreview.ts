@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type { UseDocumentPreviewReturn } from "../types";
 
 /**
@@ -16,6 +17,7 @@ import type { UseDocumentPreviewReturn } from "../types";
 export function useDocumentPreview(
   dossierId: string
 ): UseDocumentPreviewReturn {
+  const api = useApi();
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -27,19 +29,11 @@ export function useDocumentPreview(
       setShowPreview(true);
       setPreviewDocument(doc);
 
-      // Fetch document blob from API
       const viewUrl = `/api/dossiers/${dossierId}/documents/${doc.id}/download`;
-      const response = await fetch(viewUrl);
-
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement du document");
-      }
-
-      const blob = await response.blob();
+      const blob = await api.getBlob(viewUrl);
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err) {
-      console.error("Error viewing document:", err);
       toast.error(
         err instanceof Error
           ? err.message

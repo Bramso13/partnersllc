@@ -1,30 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Formation } from "@/types/formations";
-import { FormationsTable } from "./FormationsTable";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useFormations } from "@/lib/contexts/formations/FormationsContext";
+import { FormationsTable } from "./FormationsTable";
 
 export function FormationsListContent() {
-  const [formations, setFormations] = useState<Formation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchFormations = async () => {
-    try {
-      setError(null);
-      const response = await fetch("/api/admin/formations");
-      if (!response.ok) {
-        throw new Error("Failed to fetch formations");
-      }
-      const data = await response.json();
-      setFormations(data.formations);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { formations, isLoading, error, fetchFormations } = useFormations();
 
   useEffect(() => {
     fetchFormations();
@@ -34,7 +16,7 @@ export function FormationsListContent() {
     fetchFormations();
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-brand-text-secondary">
@@ -54,11 +36,10 @@ export function FormationsListContent() {
 
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
       <div className="flex justify-between items-center">
         <div className="text-brand-text-secondary">
-          {formations.length} formation{formations.length !== 1 ? "s" : ""}{" "}
-          au total
+          {formations.length} formation{formations.length !== 1 ? "s" : ""} au
+          total
         </div>
         <Link
           href="/admin/formations/new"
@@ -68,7 +49,6 @@ export function FormationsListContent() {
         </Link>
       </div>
 
-      {/* Formations Table */}
       {formations.length === 0 ? (
         <div className="bg-brand-card-bg rounded-lg p-8 text-center">
           <i className="fas fa-graduation-cap text-4xl text-brand-text-secondary mb-4"></i>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
 import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";
 
@@ -28,6 +29,7 @@ interface AdminDeliveredDocumentsSectionProps {
 export function AdminDeliveredDocumentsSection({
   dossierId,
 }: AdminDeliveredDocumentsSectionProps) {
+  const api = useApi();
   const [documents, setDocuments] = useState<AdminDeliveredDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,20 +40,14 @@ export function AdminDeliveredDocumentsSection({
       try {
         setLoading(true);
         setError(null);
-
-        const response = await fetch(
+        const data = await api.get<{ documents?: AdminDeliveredDocument[] }>(
           `/api/dossiers/${dossierId}/admin-delivered-documents`
         );
-
-        if (!response.ok) {
-          throw new Error("Erreur lors du chargement des documents");
-        }
-
-        const data = await response.json();
-        setDocuments(data.documents || []);
+        setDocuments(data?.documents || []);
       } catch (err) {
-        console.error("Error fetching admin-delivered documents:", err);
-        setError(err instanceof Error ? err.message : "Une erreur est survenue");
+        setError(
+          err instanceof Error ? err.message : "Une erreur est survenue"
+        );
       } finally {
         setLoading(false);
       }
@@ -161,7 +157,12 @@ export function AdminDeliveredDocumentsSection({
                   )}
                   {doc.current_version?.file_size_bytes && (
                     <p className="text-xs text-brand-text-secondary">
-                      {(doc.current_version.file_size_bytes / 1024 / 1024).toFixed(2)} MB
+                      {(
+                        doc.current_version.file_size_bytes /
+                        1024 /
+                        1024
+                      ).toFixed(2)}{" "}
+                      MB
                     </p>
                   )}
                 </div>

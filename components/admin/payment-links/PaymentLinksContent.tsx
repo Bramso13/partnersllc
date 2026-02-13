@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  PaymentLinkWithDetails,
-  PaymentLinkAnalytics,
-  ConversionFunnelData,
-  PaymentLinkFilters,
-} from "@/types/payment-links";
-import { Product } from "@/types/products";
+import type { PaymentLinkFilters } from "@/types/payment-links";
+import { usePaymentLinks } from "@/lib/contexts/payment-links/PaymentLinksContext";
 import { AnalyticsCards } from "./AnalyticsCards";
 import { PaymentLinksFilters } from "./PaymentLinksFilters";
 import { PaymentLinksTable } from "./PaymentLinksTable";
@@ -16,101 +11,33 @@ import { GeneratePaymentLinkModal } from "./GeneratePaymentLinkModal";
 import { toast } from "sonner";
 
 export function PaymentLinksContent() {
-  const [paymentLinks, setPaymentLinks] = useState<PaymentLinkWithDetails[]>(
-    []
-  );
-  const [products, setProducts] = useState<Product[]>([]);
-  const [analytics, setAnalytics] = useState<PaymentLinkAnalytics | null>(null);
-  const [funnelData, setFunnelData] = useState<ConversionFunnelData | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    paymentLinks,
+    products,
+    analytics,
+    funnelData,
+    isLoading: loading,
+    error,
+    fetchProducts,
+    fetchPaymentLinks,
+    fetchAnalytics,
+    fetchFunnelData,
+    createPaymentLink,
+    bulkExpire,
+    exportCsv,
+  } = usePaymentLinks();
   const [filters, setFilters] = useState<PaymentLinkFilters>({});
   const [selectedLinks, setSelectedLinks] = useState<string[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch("/api/admin/products");
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products ?? []);
-      }
-    } catch (err) {
-      console.error("Error fetching products:", err);
-    }
-  };
-
-  const fetchPaymentLinks = async () => {
-    try {
-      setError(null);
-      const params = new URLSearchParams();
-      if (filters.status?.length)
-        params.append("status", filters.status.join(","));
-      if (filters.product_id?.length)
-        params.append("product_id", filters.product_id.join(","));
-      if (filters.search) params.append("search", filters.search);
-      if (filters.date_range) {
-        params.append("date_start", filters.date_range.start);
-        params.append("date_end", filters.date_range.end);
-      }
-
-      const response = await fetch(`/api/admin/payment-links?${params}`);
-      if (!response.ok) throw new Error("Erreur chargement des liens");
-      const data = await response.json();
-      setPaymentLinks(data.payment_links ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnalytics = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (filters.date_range) {
-        params.append("date_start", filters.date_range.start);
-        params.append("date_end", filters.date_range.end);
-      }
-      const response = await fetch(
-        `/api/admin/payment-links/analytics?${params}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data.analytics ?? null);
-      }
-    } catch (err) {
-      console.error("Error fetching analytics:", err);
-    }
-  };
-
-  const fetchFunnelData = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (filters.date_range) {
-        params.append("date_start", filters.date_range.start);
-        params.append("date_end", filters.date_range.end);
-      }
-      const response = await fetch(`/api/admin/payment-links/funnel?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setFunnelData(data.funnel ?? null);
-      }
-    } catch (err) {
-      console.error("Error fetching funnel:", err);
-    }
-  };
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
   useEffect(() => {
-    fetchPaymentLinks();
-    fetchAnalytics();
-    fetchFunnelData();
+    fetchPaymentLinks(filters);
+    fetchAnalytics(filters);
+    fetchFunnelData(filters);
   }, [filters]);
 
   const handleFilterChange = (newFilters: PaymentLinkFilters) => {
@@ -128,45 +55,37 @@ export function PaymentLinksContent() {
       return;
     }
     try {
-      const response = await fetch("/api/admin/payment-links/bulk-expire", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ link_ids: selectedLinks }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok) {
-        toast.success(data.message ?? "Liens expirés");
-        setSelectedLinks([]);
-        fetchPaymentLinks();
-        fetchAnalytics();
-      } else {
-        toast.error(data.error ?? "Échec de l’expiration");
-      }
-    } catch (err) {
-      toast.error("Erreur lors de l’expiration");
+      const data = await bulkExpire(selectedLinks);
+      toast.success(data.message ?? "Liens expirés");
+      setSelectedLinks([]);
+      fetchPaymentLinks(filters);
+      fetchAnalytics(filters);
+    } catch {
+      toast.error("Échec de l'expiration");
     }
   };
 
   const handleExport = async () => {
     try {
-      const response = await fetch("/api/admin/payment-links/export");
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `payment-links-${new Date().toISOString().split("T")[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        toast.success("Export téléchargé");
-      } else {
-        toast.error("Échec de l’export");
-      }
-    } catch (err) {
-      toast.error("Erreur lors de l’export");
+      const blob = await exportCsv();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payment-links-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Export téléchargé");
+    } catch {
+      toast.error("Erreur lors de l'export");
     }
+  };
+
+  const refetch = () => {
+    fetchPaymentLinks(filters);
+    fetchAnalytics(filters);
+    fetchFunnelData(filters);
   };
 
   if (loading) {
@@ -186,10 +105,7 @@ export function PaymentLinksContent() {
         <p className="text-red-400 text-sm mb-4">{error}</p>
         <button
           type="button"
-          onClick={() => {
-            setLoading(true);
-            fetchPaymentLinks();
-          }}
+          onClick={() => refetch()}
           className="text-sm text-[#50b989] hover:underline"
         >
           Réessayer
@@ -259,9 +175,7 @@ export function PaymentLinksContent() {
           onClose={() => setShowGenerateModal(false)}
           onSuccess={() => {
             setShowGenerateModal(false);
-            fetchPaymentLinks();
-            fetchAnalytics();
-            fetchFunnelData();
+            refetch();
           }}
           products={products}
         />

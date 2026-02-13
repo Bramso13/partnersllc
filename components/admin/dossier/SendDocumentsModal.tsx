@@ -18,7 +18,12 @@ interface SelectedFile {
 }
 
 interface AdminDocumentItem {
-  document_type: { id: string; code: string; label: string; description: string | null };
+  document_type: {
+    id: string;
+    code: string;
+    label: string;
+    description: string | null;
+  };
   document?: {
     id: string;
     status: string;
@@ -34,7 +39,8 @@ interface AdminDocumentItem {
 
 const MAX_FILE_SIZE_MB = 10;
 const ALLOWED_TYPES = ["pdf", "jpg", "jpeg", "png"];
-const ADMIN_UPLOAD_ACCEPT = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const ADMIN_UPLOAD_ACCEPT =
+  ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export function SendDocumentsModal({
   dossierId,
@@ -56,7 +62,10 @@ export function SendDocumentsModal({
   const [actionDocId, setActionDocId] = useState<string | null>(null);
   const [actionTypeId, setActionTypeId] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
-  const [replaceTarget, setReplaceTarget] = useState<{ documentTypeId: string; documentTypeLabel: string } | null>(null);
+  const [replaceTarget, setReplaceTarget] = useState<{
+    documentTypeId: string;
+    documentTypeLabel: string;
+  } | null>(null);
 
   const fetchAdminDocuments = useCallback(async () => {
     if (!stepInstanceId || !dossierId) {
@@ -80,17 +89,15 @@ export function SendDocumentsModal({
 
   useEffect(() => {
     fetchAdminDocuments();
-  }, [fetchAdminDocuments]);
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/document-types")
       .then((res) =>
-        res
-          .json()
-          .then((data: { document_types?: DocumentType[] }) => ({
-            ok: res.ok,
-            data,
-          }))
+        res.json().then((data: { document_types?: DocumentType[] }) => ({
+          ok: res.ok,
+          data,
+        }))
       )
       .then(({ ok, data }) => {
         setDocumentTypes(ok ? (data.document_types ?? []) : []);
@@ -131,7 +138,11 @@ export function SendDocumentsModal({
     setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const handleAdminReplace = async (file: File, documentTypeId: string, documentTypeLabel: string) => {
+  const handleAdminReplace = async (
+    file: File,
+    documentTypeId: string,
+    documentTypeLabel: string
+  ) => {
     if (!stepInstanceId || !dossierId) return;
     setError(null);
     setActionTypeId(documentTypeId);
@@ -140,10 +151,13 @@ export function SendDocumentsModal({
       formData.append("file", file);
       formData.append("document_type_id", documentTypeId);
       formData.append("step_instance_id", stepInstanceId);
-      const res = await fetch(`/api/admin/dossiers/${dossierId}/admin-documents/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(
+        `/api/admin/dossiers/${dossierId}/admin-documents/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur remplacement");
       await fetchAdminDocuments();
@@ -251,7 +265,9 @@ export function SendDocumentsModal({
               {loadingAdminDocs ? (
                 <p className="text-xs text-[#b7b7b7]">Chargement…</p>
               ) : adminDocuments.length === 0 ? (
-                <p className="text-xs text-[#b7b7b7]">Aucun type de document requis pour cette étape.</p>
+                <p className="text-xs text-[#b7b7b7]">
+                  Aucun type de document requis pour cette étape.
+                </p>
               ) : (
                 <ul className="space-y-2 max-h-48 overflow-y-auto rounded-lg border border-[#363636] p-2">
                   {adminDocuments.map((item) => (
@@ -268,7 +284,9 @@ export function SendDocumentsModal({
                             {item.document.current_version.file_name}
                           </p>
                         ) : (
-                          <p className="text-[10px] text-[#b7b7b7] mt-0.5">Aucun fichier</p>
+                          <p className="text-[10px] text-[#b7b7b7] mt-0.5">
+                            Aucun fichier
+                          </p>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -294,15 +312,21 @@ export function SendDocumentsModal({
                               disabled={actionTypeId === item.document_type.id}
                               className="px-2 py-1 text-[10px] bg-[#363636] hover:bg-[#404040] text-[#f9f9f9] rounded disabled:opacity-50"
                             >
-                              {actionTypeId === item.document_type.id ? "…" : "Remplacer"}
+                              {actionTypeId === item.document_type.id
+                                ? "…"
+                                : "Remplacer"}
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleAdminClearVersion(item.document!.id)}
+                              onClick={() =>
+                                handleAdminClearVersion(item.document!.id)
+                              }
                               disabled={actionDocId === item.document?.id}
                               className="px-2 py-1 text-[10px] bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded disabled:opacity-50"
                             >
-                              {actionDocId === item.document?.id ? "…" : "Supprimer"}
+                              {actionDocId === item.document?.id
+                                ? "…"
+                                : "Supprimer"}
                             </button>
                           </>
                         ) : (
@@ -318,7 +342,9 @@ export function SendDocumentsModal({
                             disabled={actionTypeId === item.document_type.id}
                             className="px-2 py-1 text-[10px] bg-[#50b989] text-[#191a1d] rounded font-medium disabled:opacity-50"
                           >
-                            {actionTypeId === item.document_type.id ? "…" : "Ajouter"}
+                            {actionTypeId === item.document_type.id
+                              ? "…"
+                              : "Ajouter"}
                           </button>
                         )}
                       </div>
@@ -334,7 +360,11 @@ export function SendDocumentsModal({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file && replaceTarget) {
-                    handleAdminReplace(file, replaceTarget.documentTypeId, replaceTarget.documentTypeLabel);
+                    handleAdminReplace(
+                      file,
+                      replaceTarget.documentTypeId,
+                      replaceTarget.documentTypeLabel
+                    );
                     e.target.value = "";
                   }
                 }}

@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { getDossierById } from "@/lib/dossiers";
 import { getProductSteps, ProductStep } from "@/lib/workflow";
+import { DossiersProvider } from "@/lib/contexts/dossiers/DossiersContext";
 import { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -46,19 +47,21 @@ export default async function DossierDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark-bg">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <Suspense fallback={<LoadingSkeleton />}>
-            <DossierDetailContent
-              dossier={dossier}
-              productSteps={productSteps}
-              initialStepId={step_id}
-              user={user}
-            />
-          </Suspense>
+    <DossiersProvider>
+      <div className="min-h-screen bg-brand-dark-bg">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Suspense fallback={<LoadingSkeleton />}>
+              <DossierDetailContent
+                dossier={dossier}
+                productSteps={productSteps}
+                initialStepId={step_id}
+                user={user}
+              />
+            </Suspense>
+          </div>
         </div>
       </div>
-    </div>
+    </DossiersProvider>
   );
 }

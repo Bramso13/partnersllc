@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 import { formatCurrency } from "@/lib/utils/format-currency";
 import type { AdminOrderDetail } from "@/app/api/admin/orders/[id]/route";
 import type { OrderPayment } from "@/types/orders";
@@ -21,6 +22,7 @@ interface AdminOrderDetailContentProps {
 export function AdminOrderDetailContent({
   orderId,
 }: AdminOrderDetailContentProps) {
+  const api = useApi();
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,13 +39,10 @@ export function AdminOrderDetailContent({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}`);
-      if (!res.ok) {
-        if (res.status === 404) throw new Error("Commande introuvable");
-        throw new Error("Erreur chargement");
-      }
-      const data = await res.json();
-      setOrder(data.order);
+      const data = await api.get<{ order: AdminOrderDetail }>(
+        `/api/admin/orders/${orderId}`
+      );
+      setOrder(data?.order ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -53,7 +52,7 @@ export function AdminOrderDetailContent({
 
   useEffect(() => {
     fetchOrder();
-  }, [fetchOrder]);
+  }, []);
 
   const handleAddPayment = useCallback(
     async (e: React.FormEvent) => {
@@ -68,19 +67,11 @@ export function AdminOrderDetailContent({
       const paidAtISO = new Date(paidAt).toISOString();
       setSubmitting(true);
       try {
-        const res = await fetch(`/api/admin/orders/${orderId}/payments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: amountCents,
-            paid_at: paidAtISO,
-            payment_method: paymentMethod || undefined,
-          }),
+        await api.post(`/api/admin/orders/${orderId}/payments`, {
+          amount: amountCents,
+          paid_at: paidAtISO,
+          payment_method: paymentMethod || undefined,
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error ?? "Échec");
-        }
         setAmountEuros("");
         setPaidAt(new Date().toISOString().slice(0, 16));
         setPaymentMethod("");
@@ -92,7 +83,7 @@ export function AdminOrderDetailContent({
         setSubmitting(false);
       }
     },
-    [orderId, amountEuros, paidAt, paymentMethod, fetchOrder]
+    [orderId, amountEuros, paidAt, paymentMethod]
   );
 
   if (loading) {

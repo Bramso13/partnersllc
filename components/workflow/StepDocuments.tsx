@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { DocumentType } from "@/lib/workflow";
 import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
 import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";
@@ -29,15 +30,7 @@ export function StepDocuments({
   uploadedDocuments,
   onDocumentUploaded,
 }: StepDocumentsProps) {
-  console.log("[StepDocuments] Props:", {
-    dossierId,
-    stepInstanceId,
-    requiredDocumentsCount: requiredDocuments?.length || 0,
-    uploadedDocumentsCount: uploadedDocuments?.length || 0,
-    requiredDocuments,
-    uploadedDocuments,
-  });
-
+  const api = useApi();
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeDocumentTypeId, setActiveDocumentTypeId] = useState<string | null>(null);
@@ -73,19 +66,7 @@ export function StepDocuments({
       formData.append("document_type_id", documentType.id);
       formData.append("step_instance_id", stepInstanceId);
 
-      // Upload document
-      const response = await fetch("/api/workflow/upload-document", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to upload document");
-      }
-
-      const result = await response.json();
-      console.log("[StepDocuments] Upload successful:", result);
+      await api.post("/api/workflow/upload-document", formData);
 
       // Wait a bit to ensure database is updated, then refresh documents list
       await new Promise((resolve) => setTimeout(resolve, 500));

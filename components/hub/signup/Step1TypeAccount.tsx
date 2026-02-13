@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { useApi } from "@/lib/api/useApi";
 import Link from "next/link";
 import { UserPlus, Building } from "lucide-react";
 
@@ -31,6 +32,7 @@ type Step1FormData = z.infer<typeof step1Schema>;
 const SIGNUP_SESSION_KEY = "hub_signup_session_id";
 
 export function Step1TypeAccount() {
+  const api = useApi();
   const [accountType, setAccountType] = useState<"new" | "existing_llc" | null>(
     null
   );
@@ -79,38 +81,22 @@ export function Step1TypeAccount() {
         body.email = data.email;
       }
 
-      const res = await fetch("/api/hub/signup/step1", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          setApiError("Email non trouvé dans nos clients LLC");
-          return;
-        }
-        if (res.status === 401 || res.status === 410) {
-          router.replace("/hub/signup/step1");
-          return;
-        }
-        setApiError(
-          typeof json?.error === "string"
-            ? json.error
-            : "Une erreur est survenue. Veuillez réessayer."
-        );
-        return;
-      }
-
-      const sessionId = json.signup_session_id;
+      const json = await api.post<{ signup_session_id?: string }>(
+        "/api/hub/signup/step1",
+        body
+      );
+      const sessionId = json?.signup_session_id;
       if (sessionId) {
         sessionStorage.setItem(SIGNUP_SESSION_KEY, sessionId);
       }
       router.push("/hub/signup/step2");
-    } catch {
-      setApiError("Une erreur est survenue. Veuillez réessayer.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("session") || msg.toLowerCase().includes("expir")) {
+        router.replace("/hub/signup/step1");
+        return;
+      }
+      setApiError(msg || "Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setIsSubmitting(false);
     }

@@ -32,11 +32,15 @@ const SORT_OPTIONS = [
   { value: "status_az", label: "Statut A-Z" },
 ];
 
-export function AdminDossiersFilters({ totalDossiers }: AdminDossiersFiltersProps) {
+export function AdminDossiersFilters({
+  totalDossiers,
+}: AdminDossiersFiltersProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
+  const [searchInput, setSearchInput] = useState(
+    searchParams.get("search") || ""
+  );
 
   // Debounced search
   useEffect(() => {
@@ -46,22 +50,24 @@ export function AdminDossiersFilters({ totalDossiers }: AdminDossiersFiltersProp
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
+  }, []);
 
   const updateQueryParam = (key: string, value: string) => {
     const params = new URLSearchParams();
-    
+
     // Preserve existing params
     searchParams.forEach((val, k) => {
       if (k !== key) params.set(k, val);
     });
-    
+
     // Set new value or delete if empty
     if (value && value !== "all") {
       params.set(key, value);
     }
 
-    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
     router.replace(newUrl, { scroll: false });
   };
 
@@ -77,7 +83,9 @@ export function AdminDossiersFilters({ totalDossiers }: AdminDossiersFiltersProp
     setSearchInput("");
   };
 
-  const hasFilters = searchInput || (searchParams.get("status") && searchParams.get("status") !== "all");
+  const hasFilters =
+    searchInput ||
+    (searchParams.get("status") && searchParams.get("status") !== "all");
 
   return (
     <div className="bg-[#2D3033] rounded-xl p-6 mb-6">

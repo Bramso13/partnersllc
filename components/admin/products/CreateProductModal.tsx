@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProductFormData, ProductType, Product } from "@/types/products";
+import { useProducts } from "@/lib/contexts/products/ProductsContext";
 
 interface CreateProductModalProps {
   onClose: () => void;
@@ -23,10 +24,9 @@ export function CreateProductModal({
   onSuccess,
 }: CreateProductModalProps) {
   const router = useRouter();
+  const { createProduct, products: allProducts } = useProducts();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fullProducts, setFullProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     description: "",
@@ -39,31 +39,7 @@ export function CreateProductModal({
     full_product_id: null,
   });
 
-  // Charger les produits non-acomptes pour le dropdown
-  useEffect(() => {
-    const fetchFullProducts = async () => {
-      setLoadingProducts(true);
-      try {
-        const response = await fetch("/api/admin/products");
-        if (response.ok) {
-          const data = await response.json();
-          // Filtrer les produits non-acomptes
-          const nonDepositProducts = data.products.filter(
-            (p: Product) => !p.is_deposit
-          );
-          setFullProducts(nonDepositProducts);
-        }
-      } catch (err) {
-        console.error("Error fetching products:", err);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
-    if (formData.is_deposit) {
-      fetchFullProducts();
-    }
-  }, [formData.is_deposit]);
+  const fullProducts = allProducts.filter((p: Product) => !p.is_deposit);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +47,6 @@ export function CreateProductModal({
     setError(null);
 
     try {
-      // Validation
       if (formData.name.length < 3 || formData.name.length > 100) {
         throw new Error("Name must be between 3 and 100 characters");
       }
@@ -88,25 +63,12 @@ export function CreateProductModal({
         throw new Error("Invalid Stripe Price ID format");
       }
 
-      // Validation : si is_deposit = true, full_product_id est requis
       if (formData.is_deposit && !formData.full_product_id) {
         throw new Error("Un produit acompte doit être associé à un produit complet");
       }
 
-      const response = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const product = await createProduct(formData);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create product");
-      }
-
-      const { product } = await response.json();
-
-      // Redirect to workflow configuration
       router.push(`/admin/products/${product.id}/workflow`);
       onSuccess();
     } catch (err) {
@@ -119,7 +81,6 @@ export function CreateProductModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-brand-card border border-brand-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-brand-border flex items-center justify-between sticky top-0 bg-brand-card">
           <h2 className="text-xl font-semibold text-brand-text-primary">
             Create New Product
@@ -132,7 +93,6 @@ export function CreateProductModal({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
@@ -140,7 +100,6 @@ export function CreateProductModal({
             </div>
           )}
 
-          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Name <span className="text-red-400">*</span>
@@ -159,7 +118,6 @@ export function CreateProductModal({
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Description
@@ -175,7 +133,6 @@ export function CreateProductModal({
             />
           </div>
 
-          {/* Type */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Type <span className="text-red-400">*</span>
@@ -199,7 +156,6 @@ export function CreateProductModal({
             </select>
           </div>
 
-          {/* Price */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Price (USD) <span className="text-red-400">*</span>
@@ -223,7 +179,6 @@ export function CreateProductModal({
             </div>
           </div>
 
-          {/* Stripe Product ID */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Stripe Product ID <span className="text-red-400">*</span>
@@ -244,7 +199,6 @@ export function CreateProductModal({
             </p>
           </div>
 
-          {/* Stripe Price ID */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Stripe Price ID <span className="text-red-400">*</span>
@@ -265,7 +219,6 @@ export function CreateProductModal({
             </p>
           </div>
 
-          {/* Is Deposit */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -288,16 +241,12 @@ export function CreateProductModal({
             </label>
           </div>
 
-          {/* Full Product Selection (si is_deposit = true) */}
           {formData.is_deposit && (
             <div>
               <label className="block text-sm font-medium text-brand-text-primary mb-1">
                 Produit complet associé <span className="text-red-400">*</span>
               </label>
-              {loadingProducts ? (
-                <div className="text-sm text-brand-text-secondary">Chargement...</div>
-              ) : (
-                <select
+              <select
                   required
                   value={formData.full_product_id || ""}
                   onChange={(e) =>
@@ -315,14 +264,12 @@ export function CreateProductModal({
                     </option>
                   ))}
                 </select>
-              )}
               <p className="mt-1 text-xs text-brand-text-secondary">
                 Sélectionnez le produit complet auquel cet acompte est associé
               </p>
             </div>
           )}
 
-          {/* Active */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -341,7 +288,6 @@ export function CreateProductModal({
             </label>
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+
+import { useClients } from "@/lib/contexts/clients/ClientsContext";
+import type { ClientProfile } from "@/lib/contexts/clients/types";
+import type { BaseEvent } from "@/lib/events";
 import { ClientStatusModal } from "./ClientStatusModal";
 import { EventTimeline } from "@/components/EventTimeline";
-import type { ClientProfile } from "@/lib/clients";
-import type { BaseEvent } from "@/lib/events";
 
 interface ClientProfileSlideOverProps {
   clientId: string;
@@ -18,70 +20,61 @@ export function ClientProfileSlideOver({
   onClose,
   onStatusChanged,
 }: ClientProfileSlideOverProps) {
-  const [client, setClient] = useState<any>(null);
+  const {
+    getClient,
+    updateClientStatus,
+    fetchClientEvents,
+    fetchClientDossiers,
+  } = useClients();
+  const [client, setClient] = useState<ClientProfile | null>(null);
   const [events, setEvents] = useState<BaseEvent[]>([]);
-  const [dossiers, setDossiers] = useState<any[]>([]);
+  const [dossiers, setDossiers] = useState<
+    {
+      id: string;
+      status: string;
+      created_at: string;
+      product?: { name: string };
+    }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchClientData() {
+    async function load() {
       setIsLoading(true);
       try {
-        // Fetch client profile
-        const clientRes = await fetch(`/api/admin/clients/${clientId}`);
-        if (clientRes.ok) {
-          const clientData = await clientRes.json();
-          setClient(clientData);
-        }
-
-        // Fetch recent events
-        const eventsRes = await fetch(`/api/admin/clients/${clientId}/events`);
-        if (eventsRes.ok) {
-          const eventsData = await eventsRes.json();
-          setEvents(eventsData);
-        }
-
-        // Fetch dossiers
-        const dossiersRes = await fetch(
-          `/api/admin/clients/${clientId}/dossiers`
-        );
-        if (dossiersRes.ok) {
-          const dossiersData = await dossiersRes.json();
-          setDossiers(dossiersData);
-        }
-      } catch (error) {
-        console.error("Error fetching client data:", error);
+        const [clientData, eventsData, dossiersData] = await Promise.all([
+          getClient(clientId),
+          fetchClientEvents(clientId),
+          fetchClientDossiers(clientId),
+        ]);
+        setClient(clientData ?? null);
+        setEvents(eventsData);
+        setDossiers(dossiersData);
       } finally {
         setIsLoading(false);
       }
     }
-
-    fetchClientData();
+    load();
   }, [clientId]);
 
-  const handleStatusChanged = () => {
+  const handleStatusChanged = async () => {
     setStatusModalOpen(false);
     onStatusChanged();
-    // Refresh client data
     setIsLoading(true);
-    fetch(`/api/admin/clients/${clientId}`)
-      .then((res) => res.json())
-      .then((data) => setClient(data))
-      .finally(() => setIsLoading(false));
+    try {
+      const clientData = await getClient(clientId);
+      setClient(clientData ?? null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/70 z-40"
-        onClick={onClose}
-      ></div>
+      <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose}></div>
 
-      {/* Slide-over Panel */}
       <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-[#191A1D] z-50 overflow-y-auto shadow-2xl">
-        {/* Header */}
         <div className="sticky top-0 bg-[#2D3033] border-b border-[#363636] px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-[#F9F9F9]">Profil Client</h2>
           <button
@@ -98,7 +91,6 @@ export function ClientProfileSlideOver({
           </div>
         ) : client ? (
           <div className="p-6 space-y-6">
-            {/* Client Info Card */}
             <div className="bg-[#2D3033] rounded-xl p-6">
               <div className="flex items-start gap-4 mb-6">
                 <div className="w-16 h-16 rounded-full bg-[#50B88A] flex items-center justify-center text-white font-bold text-2xl">
@@ -156,7 +148,6 @@ export function ClientProfileSlideOver({
               </dl>
             </div>
 
-            {/* Quick Actions */}
             <div className="flex gap-3">
               <button
                 onClick={() => setStatusModalOpen(true)}
@@ -174,7 +165,6 @@ export function ClientProfileSlideOver({
               </Link>
             </div>
 
-            {/* Dossiers Summary */}
             <div className="bg-[#2D3033] rounded-xl p-6">
               <h3 className="text-lg font-bold text-[#F9F9F9] mb-4">
                 Dossiers ({dossiers.length})
@@ -208,7 +198,6 @@ export function ClientProfileSlideOver({
               )}
             </div>
 
-            {/* Recent Activity */}
             <div className="bg-[#2D3033] rounded-xl p-6">
               <h3 className="text-lg font-bold text-[#F9F9F9] mb-4">
                 Activité récente
@@ -227,7 +216,6 @@ export function ClientProfileSlideOver({
         )}
       </div>
 
-      {/* Status Modal */}
       {statusModalOpen && (
         <ClientStatusModal
           clientId={clientId}
@@ -255,7 +243,8 @@ function StatusBadge({ status }: { status: string }) {
     },
   };
 
-  const { label, color } = config[status as keyof typeof config] || config.PENDING;
+  const { label, color } =
+    config[status as keyof typeof config] || config.PENDING;
 
   return (
     <span
@@ -268,11 +257,26 @@ function StatusBadge({ status }: { status: string }) {
 
 function DossierStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string }> = {
-    DRAFT: { label: "Brouillon", color: "bg-gray-400/10 text-gray-400 border-gray-400/20" },
-    IN_PROGRESS: { label: "En cours", color: "bg-blue-400/10 text-blue-400 border-blue-400/20" },
-    PENDING_REVIEW: { label: "En révision", color: "bg-yellow-400/10 text-yellow-400 border-yellow-400/20" },
-    COMPLETED: { label: "Terminé", color: "bg-green-400/10 text-green-400 border-green-400/20" },
-    CANCELLED: { label: "Annulé", color: "bg-red-400/10 text-red-400 border-red-400/20" },
+    DRAFT: {
+      label: "Brouillon",
+      color: "bg-gray-400/10 text-gray-400 border-gray-400/20",
+    },
+    IN_PROGRESS: {
+      label: "En cours",
+      color: "bg-blue-400/10 text-blue-400 border-blue-400/20",
+    },
+    PENDING_REVIEW: {
+      label: "En révision",
+      color: "bg-yellow-400/10 text-yellow-400 border-yellow-400/20",
+    },
+    COMPLETED: {
+      label: "Terminé",
+      color: "bg-green-400/10 text-green-400 border-green-400/20",
+    },
+    CANCELLED: {
+      label: "Annulé",
+      color: "bg-red-400/10 text-red-400 border-red-400/20",
+    },
   };
 
   const { label, color } = config[status] || config.DRAFT;

@@ -31,9 +31,11 @@ export function ClientsFilters({
       params.set("status", filters.status);
     }
 
-    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    const newUrl = params.toString()
+      ? `?${params.toString()}`
+      : window.location.pathname;
     router.replace(newUrl, { scroll: false });
-  }, [filters, router]);
+  }, [filters]);
 
   // Debounced search
   useEffect(() => {
@@ -43,7 +45,7 @@ export function ClientsFilters({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
+  }, []);
 
   const handleStatusChange = (status: string) => {
     onFiltersChange({

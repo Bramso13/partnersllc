@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Product, ProductType } from "@/types/products";
+import { useProducts } from "@/lib/contexts/products/ProductsContext";
 
 interface EditProductModalProps {
   product: Product;
@@ -23,45 +24,22 @@ export function EditProductModal({
   onClose,
   onSuccess,
 }: EditProductModalProps) {
+  const { updateProduct, products: allProducts } = useProducts();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fullProducts, setFullProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
   const [formData, setFormData] = useState({
     name: product.name,
     description: product.description || "",
     type: product.dossier_type as ProductType,
-    price: product.price_amount / 100, // Convert cents to dollars
+    price: product.price_amount / 100,
     active: product.active,
     is_deposit: product.is_deposit || false,
     full_product_id: product.full_product_id || null,
   });
 
-  // Charger les produits non-acomptes pour le dropdown
-  useEffect(() => {
-    const fetchFullProducts = async () => {
-      setLoadingProducts(true);
-      try {
-        const response = await fetch("/api/admin/products");
-        if (response.ok) {
-          const data = await response.json();
-          // Filtrer les produits non-acomptes et exclure le produit actuel
-          const nonDepositProducts = data.products.filter(
-            (p: Product) => !p.is_deposit && p.id !== product.id
-          );
-          setFullProducts(nonDepositProducts);
-        }
-      } catch (err) {
-        console.error("Error fetching products:", err);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
-    if (formData.is_deposit) {
-      fetchFullProducts();
-    }
-  }, [formData.is_deposit, product.id]);
+  const fullProducts = allProducts.filter(
+    (p: Product) => !p.is_deposit && p.id !== product.id
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +47,6 @@ export function EditProductModal({
     setError(null);
 
     try {
-      // Validation
       if (formData.name.length < 3 || formData.name.length > 100) {
         throw new Error("Name must be between 3 and 100 characters");
       }
@@ -78,22 +55,11 @@ export function EditProductModal({
         throw new Error("Price must be at least $0.01");
       }
 
-      // Validation : si is_deposit = true, full_product_id est requis
       if (formData.is_deposit && !formData.full_product_id) {
         throw new Error("Un produit acompte doit être associé à un produit complet");
       }
 
-      const response = await fetch(`/api/admin/products/${product.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to update product");
-      }
-
+      await updateProduct(product.id, formData);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -105,7 +71,6 @@ export function EditProductModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-brand-card border border-brand-border rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-brand-border flex items-center justify-between sticky top-0 bg-brand-card">
           <h2 className="text-xl font-semibold text-brand-text-primary">
             Edit Product
@@ -118,7 +83,6 @@ export function EditProductModal({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
@@ -126,7 +90,6 @@ export function EditProductModal({
             </div>
           )}
 
-          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Name <span className="text-red-400">*</span>
@@ -145,7 +108,6 @@ export function EditProductModal({
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Description
@@ -161,7 +123,6 @@ export function EditProductModal({
             />
           </div>
 
-          {/* Type */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Type <span className="text-red-400">*</span>
@@ -185,7 +146,6 @@ export function EditProductModal({
             </select>
           </div>
 
-          {/* Price */}
           <div>
             <label className="block text-sm font-medium text-brand-text-primary mb-1">
               Price (USD) <span className="text-red-400">*</span>
@@ -212,7 +172,6 @@ export function EditProductModal({
             </p>
           </div>
 
-          {/* Is Deposit */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -235,16 +194,12 @@ export function EditProductModal({
             </label>
           </div>
 
-          {/* Full Product Selection (si is_deposit = true) */}
           {formData.is_deposit && (
             <div>
               <label className="block text-sm font-medium text-brand-text-primary mb-1">
                 Produit complet associé <span className="text-red-400">*</span>
               </label>
-              {loadingProducts ? (
-                <div className="text-sm text-brand-text-secondary">Chargement...</div>
-              ) : (
-                <select
+              <select
                   required
                   value={formData.full_product_id || ""}
                   onChange={(e) =>
@@ -262,14 +217,12 @@ export function EditProductModal({
                     </option>
                   ))}
                 </select>
-              )}
               <p className="mt-1 text-xs text-brand-text-secondary">
                 Sélectionnez le produit complet auquel cet acompte est associé
               </p>
             </div>
           )}
 
-          {/* Stripe IDs (Read-only) */}
           <div className="bg-brand-dark-bg/50 border border-brand-border rounded-lg p-4 space-y-2">
             <p className="text-sm font-medium text-brand-text-primary">
               Stripe Configuration (Read-only)
@@ -288,7 +241,6 @@ export function EditProductModal({
             </div>
           </div>
 
-          {/* Active */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -307,7 +259,6 @@ export function EditProductModal({
             </label>
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"

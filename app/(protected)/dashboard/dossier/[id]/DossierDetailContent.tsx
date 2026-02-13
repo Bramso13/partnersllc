@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import type { DossierWithDetails } from "@/types/dossiers";
 import { ProductStep } from "@/lib/workflow";
+import { useDossiers } from "@/lib/contexts/dossiers/DossiersContext";
+import { useApi } from "@/lib/api/useApi";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { RejectionWarningBanner } from "@/components/dashboard/RejectionWarningBanner";
 import { AdminDeliveredDocumentsSection } from "@/components/dashboard/AdminDeliveredDocumentsSection";
@@ -43,6 +45,8 @@ export function DossierDetailContent({
   const t = useTranslations("dashboard.dossier");
   const searchParams = useSearchParams();
   const stepIdFromUrl = searchParams.get("step_id") || initialStepId;
+  const { fetchDossierAdvisor } = useDossiers();
+  const api = useApi();
 
   // Check for rejected steps and count rejected fields - memoize to prevent infinite loops
   const rejectedSteps = useMemo(() => {
@@ -115,63 +119,45 @@ export function DossierDetailContent({
         let firstRejectedStepId: string | undefined;
 
         for (const rejectedStep of rejectedSteps) {
-          const response = await fetch(
+          const stepInstance = await api.get<{ id: string }>(
             `/api/workflow/step-instance?dossier_id=${dossier.id}&step_id=${rejectedStep.step_id}`
           );
 
-          if (response.ok) {
-            const stepInstance = await response.json();
-            if (stepInstance) {
-              // Fetch rejected fields count
-              const fieldsResponse = await fetch(
-                `/api/workflow/step-fields?step_id=${rejectedStep.step_id}&step_instance_id=${stepInstance.id}`
-              );
-
-              if (fieldsResponse.ok) {
-                const fields = await fieldsResponse.json();
-                const rejectedFields = fields.filter(
-                  (f: any) => f.validationStatus === "REJECTED"
-                );
-
-                totalRejectedFields += rejectedFields.length;
-                if (!firstRejectedStepId && rejectedFields.length > 0) {
-                  firstRejectedStepId = rejectedStep.step_id;
-                }
-              }
+          if (stepInstance?.id) {
+            const fields = await api.get<{ validationStatus?: string }[]>(
+              `/api/workflow/step-fields?step_id=${rejectedStep.step_id}&step_instance_id=${stepInstance.id}`
+            );
+            const rejectedFields = (Array.isArray(fields) ? fields : []).filter(
+              (f) => f.validationStatus === "REJECTED"
+            );
+            totalRejectedFields += rejectedFields.length;
+            if (!firstRejectedStepId && rejectedFields.length > 0) {
+              firstRejectedStepId = rejectedStep.step_id;
             }
           }
         }
 
         setRejectedFieldsCount(totalRejectedFields);
         setRejectedStepId(firstRejectedStepId);
-      } catch (error) {
-        // Reset ref on error so we can retry
+      } catch {
         lastFetchedStepIdsRef.current = "";
-        console.error("Error fetching rejected fields:", error);
       } finally {
         setIsLoadingRejections(false);
       }
     };
 
     fetchRejectedFields();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rejectedStepIds, dossier.id]);
 
   // Fetch advisor information
   useEffect(() => {
-    const fetchAdvisor = async () => {
-      try {
-        const response = await fetch(`/api/dossiers/${dossier.id}/advisor`);
-        if (response.ok) {
-          const advisorData = await response.json();
-          setAdvisor(advisorData);
-        }
-      } catch (error) {
-        console.error("Error fetching advisor:", error);
-      }
+    let cancelled = false;
+    fetchDossierAdvisor(dossier.id).then((advisorData) => {
+      if (!cancelled && advisorData) setAdvisor(advisorData);
+    });
+    return () => {
+      cancelled = true;
     };
-
-    fetchAdvisor();
   }, [dossier.id]);
 
   // If step_id is in URL, show workflow
@@ -302,7 +288,8 @@ export function DossierDetailContent({
                   <div className="space-y-3">
                     {clientSteps.map((item) => {
                       const { productStep, stepInstance } = item;
-                      const validationStatus = stepInstance?.validation_status ?? null;
+                      const validationStatus =
+                        stepInstance?.validation_status ?? null;
 
                       let statusText = t("status.notEntered");
                       let statusColor =
@@ -395,8 +382,6 @@ export function DossierDetailContent({
                       const { productStep, stepInstance } = item;
                       const validationStatus =
                         stepInstance?.validation_status ?? null;
-
-                      console.log("validationStatus", validationStatus);
 
                       let statusText = t("status.pending");
                       let statusColor =

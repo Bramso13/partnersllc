@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status"); // "all", "failed", "sent"
     const channel = searchParams.get("channel"); // "EMAIL", "WHATSAPP", or null for all
+    const dossierId = searchParams.get("dossier_id"); // filter by dossier
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "25", 10);
     const offset = (page - 1) * limit;
 
     // Build the query
-    const query = supabase
+    let query = supabase
       .from("notifications")
       .select(
         `
@@ -59,6 +60,10 @@ export async function GET(request: NextRequest) {
       )
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (dossierId) {
+      query = query.eq("dossier_id", dossierId);
+    }
 
     const { data: notifications, error, count } = await query;
 

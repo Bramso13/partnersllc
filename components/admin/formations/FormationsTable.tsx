@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Formation } from "@/types/formations";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useFormations } from "@/lib/contexts/formations/FormationsContext";
+import { useApi } from "@/lib/api/useApi";
 
 interface FormationsTableProps {
   formations: Formation[];
@@ -16,30 +18,28 @@ export function FormationsTable({
   onFormationDeleted,
 }: FormationsTableProps) {
   const router = useRouter();
+  const { deleteFormation } = useFormations();
+  const api = useApi();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [elementsCount, setElementsCount] = useState<Record<string, number>>(
     {}
   );
 
-  // Fetch element counts for each formation
-  useState(() => {
+  useEffect(() => {
     formations.forEach(async (formation) => {
       try {
-        const response = await fetch(
+        const data = await api.get<{ elements?: unknown[] }>(
           `/api/admin/formations/${formation.id}/elements`
         );
-        if (response.ok) {
-          const data = await response.json();
-          setElementsCount((prev) => ({
-            ...prev,
-            [formation.id]: data.elements?.length || 0,
-          }));
-        }
-      } catch (error) {
-        console.error("Error fetching element count:", error);
+        setElementsCount((prev) => ({
+          ...prev,
+          [formation.id]: data?.elements?.length ?? 0,
+        }));
+      } catch {
+        // ignore
       }
     });
-  });
+  }, [formations]);
 
   const handleDelete = async (formation: Formation) => {
     if (
@@ -52,18 +52,10 @@ export function FormationsTable({
 
     setDeletingId(formation.id);
     try {
-      const response = await fetch(`/api/admin/formations/${formation.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete formation");
-      }
-
+      await deleteFormation(formation.id);
       toast.success("Formation supprimée avec succès");
       onFormationDeleted();
-    } catch (error) {
-      console.error("Error deleting formation:", error);
+    } catch {
       toast.error("Erreur lors de la suppression de la formation");
     } finally {
       setDeletingId(null);
@@ -74,12 +66,13 @@ export function FormationsTable({
     switch (formation.visibility_type) {
       case "all":
         return "Tous les clients";
-      case "by_product_ids":
+      case "by_product_ids": {
         const config = formation.visibility_config as {
           product_ids?: string[];
         };
         const count = config.product_ids?.length || 0;
         return `${count} produit${count > 1 ? "s" : ""}`;
+      }
       case "by_dossier_type":
         return "Par type de dossier";
       default:

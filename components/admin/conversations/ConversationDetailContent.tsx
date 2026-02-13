@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type {
   AdminConversationWithDossier,
   TwilioConversationMessage,
@@ -27,14 +28,14 @@ export function ConversationDetailContent({
   adminProfiles,
   allAdmins,
 }: ConversationDetailContentProps) {
+  const api = useApi();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] =
     useState<TwilioConversationMessage[]>(initialMessages);
   const [messageBody, setMessageBody] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [showParticipantSelector, setShowParticipantSelector] =
-    useState(false);
+  const [showParticipantSelector, setShowParticipantSelector] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const profileMap = useRef<Map<string, string>>(new Map());
@@ -51,13 +52,10 @@ export function ConversationDetailContent({
   useEffect(() => {
     const pollMessages = async () => {
       try {
-        const resp = await fetch(
+        const data = await api.get<{ messages?: TwilioConversationMessage[] }>(
           `/api/admin/conversations/${conversation.id}`
         );
-        if (resp.ok) {
-          const data = await resp.json();
-          setMessages(data.messages);
-        }
+        if (data?.messages) setMessages(data.messages);
       } catch {
         // Silently fail on polling errors
       }
@@ -71,7 +69,8 @@ export function ConversationDetailContent({
     if ((!messageBody.trim() && !selectedFile) || isSending) return;
     setIsSending(true);
 
-    const body = messageBody.trim() || (selectedFile ? `📎 ${selectedFile.name}` : "");
+    const body =
+      messageBody.trim() || (selectedFile ? `📎 ${selectedFile.name}` : "");
 
     // Optimistic UI
     const optimisticMessage: TwilioConversationMessage = {
@@ -90,72 +89,52 @@ export function ConversationDetailContent({
     setSelectedFile(null);
 
     try {
-      // Utiliser FormData si fichier, sinon JSON
-      let resp;
+      const path = `/api/admin/conversations/${conversation.id}/messages`;
+      let data: { message?: TwilioConversationMessage };
       if (fileToSend) {
         const formData = new FormData();
         formData.append("body", body);
         formData.append("file", fileToSend);
-
-        resp = await fetch(
-          `/api/admin/conversations/${conversation.id}/messages`,
-          {
-            method: "POST",
-            body: formData,
-          }
+        data = await api.post<{ message: TwilioConversationMessage }>(
+          path,
+          formData
         );
       } else {
-        resp = await fetch(
-          `/api/admin/conversations/${conversation.id}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ body }),
-          }
-        );
+        data = await api.post<{ message: TwilioConversationMessage }>(path, {
+          body,
+        });
       }
-
-      if (!resp.ok) {
-        const errorData = await resp.json();
-        throw new Error(errorData.error ?? "Échec de l'envoi");
-      }
-
-      const data = await resp.json();
       setMessages((prev) =>
-        prev.map((m) => (m.id === optimisticMessage.id ? data.message : m))
+        prev.map((m) =>
+          m.id === optimisticMessage.id ? (data?.message ?? m) : m
+        )
       );
 
       if (fileToSend) {
         toast.success(`Fichier "${fileToSend.name}" envoyé`);
       }
     } catch (error) {
-      setMessages((prev) =>
-        prev.filter((m) => m.id !== optimisticMessage.id)
-      );
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
       toast.error(
         error instanceof Error ? error.message : "Erreur lors de l'envoi"
       );
     } finally {
       setIsSending(false);
     }
-  }, [messageBody, selectedFile, isSending, conversation.id, conversation.dossier_id]);
+  }, [
+    messageBody,
+    selectedFile,
+    isSending,
+    conversation.id,
+    conversation.dossier_id,
+  ]);
 
   const handleAddParticipant = async (profileId: string) => {
     try {
-      const resp = await fetch(
+      await api.post(
         `/api/admin/conversations/${conversation.id}/participants`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profile_id: profileId }),
-        }
+        { profile_id: profileId }
       );
-
-      if (!resp.ok) {
-        const errorData = await resp.json();
-        throw new Error(errorData.error ?? "Échec de l'ajout");
-      }
-
       toast.success("Participant ajouté avec succès");
       setShowParticipantSelector(false);
     } catch (error) {
@@ -170,9 +149,7 @@ export function ConversationDetailContent({
     return profileMap.current.get(profileId) ?? "Admin";
   };
 
-  const participantProfileIds = new Set(
-    participants.map((p) => p.profile_id)
-  );
+  const participantProfileIds = new Set(participants.map((p) => p.profile_id));
   const availableAdmins = allAdmins.filter(
     (a) => !participantProfileIds.has(a.id)
   );
@@ -208,9 +185,7 @@ export function ConversationDetailContent({
             </p>
           </div>
           <button
-            onClick={() =>
-              setShowParticipantSelector(!showParticipantSelector)
-            }
+            onClick={() => setShowParticipantSelector(!showParticipantSelector)}
             className="px-3 py-1.5 text-sm border border-brand-stroke rounded-lg text-brand-text-secondary hover:text-brand-text-primary hover:border-brand-accent transition-colors"
           >
             <i className="fas fa-user-plus mr-1.5"></i>

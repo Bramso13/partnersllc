@@ -28,7 +28,8 @@ export function UseApiTest() {
         if (!cancelled) setData(res);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Erreur inconnue");
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Erreur inconnue");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -36,7 +37,7 @@ export function UseApiTest() {
     return () => {
       cancelled = true;
     };
-  }, [api]);
+  }, []);
 
   if (loading) return <p className="text-muted-foreground">Chargement…</p>;
   if (error) return <p className="text-destructive">Erreur: {error}</p>;

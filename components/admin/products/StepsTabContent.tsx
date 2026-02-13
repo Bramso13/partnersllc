@@ -53,7 +53,7 @@ export function StepsTabContent() {
 
   useEffect(() => {
     fetchSteps();
-  }, [fetchSteps]);
+  }, []);
 
   const fetchStepConfig = useCallback(async (stepId: string) => {
     setLoadingConfig((prev) => ({ ...prev, [stepId]: true }));
@@ -83,7 +83,7 @@ export function StepsTabContent() {
     if (expandedStepId) {
       fetchStepConfig(expandedStepId);
     }
-  }, [expandedStepId, fetchStepConfig]);
+  }, [expandedStepId]);
 
   useEffect(() => {
     if (showFieldModal || addingDocTypeStepId) {

@@ -523,7 +523,7 @@ export function AdminDocumentUploadSection({
                       >
                         Voir
                       </button>
-                      {docItem.document.status !== "DELIVERED" && (
+                      {
                         <>
                           <button
                             type="button"
@@ -572,31 +572,33 @@ export function AdminDocumentUploadSection({
                             )}
                             Supprimer
                           </button>
-                          <button
-                            onClick={() =>
-                              handleDeliver(
-                                docItem.document!.id,
-                                docItem.document_type.label
-                              )
-                            }
-                            disabled={isCurrentlyDelivering}
-                            className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1.5"
-                            title="Livrer au client"
-                          >
-                            {isCurrentlyDelivering ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Livraison...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="w-3 h-3" />
-                                Livrer au client
-                              </>
-                            )}
-                          </button>
+                          {docItem.document.status !== "DELIVERED" && (
+                            <button
+                              onClick={() =>
+                                handleDeliver(
+                                  docItem.document!.id,
+                                  docItem.document_type.label
+                                )
+                              }
+                              disabled={isCurrentlyDelivering}
+                              className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-1.5"
+                              title="Livrer au client"
+                            >
+                              {isCurrentlyDelivering ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Livraison...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-3 h-3" />
+                                  Livrer au client
+                                </>
+                              )}
+                            </button>
+                          )}
                         </>
-                      )}
+                      }
                     </div>
                   </div>
                 )}

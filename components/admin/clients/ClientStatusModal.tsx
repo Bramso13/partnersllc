@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useClients } from "@/lib/contexts/clients/ClientsContext";
+
 interface ClientStatusModalProps {
   clientId: string;
   onClose: () => void;
@@ -13,6 +15,7 @@ export function ClientStatusModal({
   onClose,
   onSuccess,
 }: ClientStatusModalProps) {
+  const { updateClientStatus } = useClients();
   const [status, setStatus] = useState<"PENDING" | "ACTIVE" | "SUSPENDED">(
     "ACTIVE"
   );
@@ -32,21 +35,13 @@ export function ClientStatusModal({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/clients/${clientId}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reason }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Erreur lors du changement de statut");
-      }
-
+      await updateClientStatus(clientId, status, reason);
       onSuccess();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Une erreur est survenue"
       );
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -60,7 +55,6 @@ export function ClientStatusModal({
         className="bg-[#2D3033] rounded-xl max-w-md w-full p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-[#F9F9F9]">
             Modifier le statut
@@ -73,9 +67,7 @@ export function ClientStatusModal({
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Status Select */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Nouveau statut
@@ -93,7 +85,6 @@ export function ClientStatusModal({
             </select>
           </div>
 
-          {/* Reason Input */}
           <div>
             <label className="block text-sm font-medium text-[#F9F9F9] mb-2">
               Raison du changement *
@@ -108,7 +99,6 @@ export function ClientStatusModal({
             />
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-400">
               <i className="fa-solid fa-exclamation-triangle mr-2"></i>
@@ -116,7 +106,6 @@ export function ClientStatusModal({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"

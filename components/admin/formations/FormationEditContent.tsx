@@ -9,6 +9,7 @@ import {
 } from "@/types/formations";
 import { Product } from "@/types/products";
 import { toast } from "sonner";
+import { useFormations } from "@/lib/contexts/formations/FormationsContext";
 import { FormationForm } from "./FormationForm";
 import { FormationElementsManager } from "./FormationElementsManager";
 
@@ -20,39 +21,33 @@ export function FormationEditContent({
   formationId,
 }: FormationEditContentProps) {
   const router = useRouter();
+  const { getFormation } = useFormations();
   const [formation, setFormation] = useState<Formation | null>(null);
   const [loading, setLoading] = useState(!!formationId);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (formationId) {
-      fetchFormation();
-    }
-  }, [formationId]);
-
-  const fetchFormation = async () => {
     if (!formationId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/admin/formations/${formationId}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch formation");
-      }
-
-      const data = await response.json();
-      setFormation(data.formation);
-    } catch (err) {
-      console.error("Error fetching formation:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load formation"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getFormation(formationId)
+      .then((data) => {
+        if (!cancelled && data) setFormation(data);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : "Failed to load formation"
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formationId]);
 
   const handleFormationSaved = (savedFormation: Formation) => {
     setFormation(savedFormation);
@@ -111,15 +106,10 @@ export function FormationEditContent({
       </div>
 
       {/* Formation Form */}
-      <FormationForm
-        formation={formation}
-        onSaved={handleFormationSaved}
-      />
+      <FormationForm formation={formation} onSaved={handleFormationSaved} />
 
       {/* Elements Manager - Only show for existing formations */}
-      {formation && (
-        <FormationElementsManager formationId={formation.id} />
-      )}
+      {formation && <FormationElementsManager formationId={formation.id} />}
     </div>
   );
 }

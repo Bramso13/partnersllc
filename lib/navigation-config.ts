@@ -169,6 +169,16 @@ export const adminNavConfig: NavConfig = {
           icon: "fa-gear",
           label: "Paramètres",
         },
+        {
+          href: "/admin/backoffice",
+          icon: "fa-database",
+          label: "Back-office Données",
+        },
+        {
+          href: "/admin/test",
+          icon: "fa-flask",
+          label: "Test",
+        },
       ],
     },
   ],

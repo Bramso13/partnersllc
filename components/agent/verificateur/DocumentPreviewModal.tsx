@@ -21,10 +21,11 @@ export function DocumentPreviewModal({
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [onClose]);
+  }, []);
 
   // Determine file type
-  const isPdf = url.toLowerCase().includes(".pdf") || url.includes("application/pdf");
+  const isPdf =
+    url.toLowerCase().includes(".pdf") || url.includes("application/pdf");
   const isImage =
     url.toLowerCase().includes(".jpg") ||
     url.toLowerCase().includes(".jpeg") ||

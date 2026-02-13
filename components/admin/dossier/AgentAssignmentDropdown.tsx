@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { StepInstance, Step } from "@/types/dossiers";
+import { useAgents } from "@/lib/contexts/agents/AgentsContext";
 
 interface AgentAssignmentDropdownProps {
   dossierId: string;
@@ -11,12 +12,6 @@ interface AgentAssignmentDropdownProps {
     | undefined;
 }
 
-interface Agent {
-  id: string;
-  name: string;
-  email: string;
-}
-
 const inputClass =
   "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -24,49 +19,27 @@ export function AgentAssignmentDropdown({
   dossierId,
   currentStepInstance,
 }: AgentAssignmentDropdownProps) {
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { agents, isLoading, fetchAgents, assignStepToDossier } = useAgents();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(
     currentStepInstance?.assigned_to ?? null
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetch("/api/admin/agents");
-        if (!response.ok) throw new Error("Erreur chargement agents");
-        const data = await response.json();
-        setAgents(Array.isArray(data) ? data : (data.agents ?? []));
-      } catch {
-        setError("Erreur lors du chargement des agents");
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    fetchAgents();
   }, []);
+
+  useEffect(() => {
+    setSelectedAgentId(currentStepInstance?.assigned_to ?? null);
+  }, [currentStepInstance?.assigned_to]);
 
   const handleAssignmentChange = async (newAgentId: string) => {
     if (!currentStepInstance || newAgentId === (selectedAgentId ?? "")) return;
     setIsUpdating(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/assign-agent`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            stepInstanceId: currentStepInstance.id,
-            agentId: newAgentId,
-          }),
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur lors de l'assignation");
-      }
+      await assignStepToDossier(dossierId, currentStepInstance.id, newAgentId);
       setSelectedAgentId(newAgentId);
       window.location.reload();
     } catch (err) {

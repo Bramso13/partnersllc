@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+
 import type { ClientWithDossierCount } from "@/lib/clients";
+import { useClients } from "@/lib/contexts/clients/ClientsContext";
 import { ClientStatusModal } from "./ClientStatusModal";
 
 interface ClientsTableProps {
@@ -24,6 +26,7 @@ export function ClientsTable({
   totalPages,
   onPageChange,
 }: ClientsTableProps) {
+  const { archiveClient } = useClients();
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -57,30 +60,12 @@ export function ClientsTable({
     setOpenDropdownId(null);
 
     try {
-      const response = await fetch(`/api/admin/clients/${clientId}/archive`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reason: "Archivage manuel par l'administrateur",
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        alert(
-          `Erreur lors de l'archivage: ${error.error || "Erreur inconnue"}`
-        );
-        return;
-      }
-
-      const data = await response.json();
-      alert("Client et dossiers archivés avec succès");
+      await archiveClient(clientId, "Archivage manuel par l'administrateur");
       onRefresh();
-    } catch (error) {
-      console.error("Error archiving client:", error);
-      alert("Erreur lors de l'archivage du client");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors de l'archivage du client";
+      alert(message);
     } finally {
       setIsArchiving(null);
     }
@@ -97,7 +82,6 @@ export function ClientsTable({
   return (
     <>
       <div className="bg-[#2D3033] rounded-xl overflow-hidden">
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#191A1D] border-b border-[#363636]">
@@ -232,7 +216,6 @@ export function ClientsTable({
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-[#363636]">
             <div className="text-sm text-[#B7B7B7]">
@@ -258,7 +241,6 @@ export function ClientsTable({
         )}
       </div>
 
-      {/* Status Modal */}
       {statusModalOpen && selectedClientId && (
         <ClientStatusModal
           clientId={selectedClientId}

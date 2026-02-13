@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useApi } from "@/lib/api/useApi";
 import { Product } from "@/types/qualification";
 import { ProductSelectionCard } from "@/components/qualification/ProductSelectionCard";
 import { ProductSelectionGrid } from "@/components/qualification/ProductSelectionGrid";
@@ -40,6 +41,7 @@ export function EmptyState({
   currentStepInstance,
   initialStepId,
 }: EmptyStateProps) {
+  const api = useApi();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(
@@ -116,23 +118,19 @@ export function EmptyState({
     );
   }
 
-  // Load products if not provided
   useEffect(() => {
     if (products.length === 0) {
       const loadProducts = async () => {
         try {
-          const response = await fetch("/api/products");
-          if (response.ok) {
-            const data = await response.json();
-            setProducts(data);
-          }
-        } catch (error) {
-          console.error("Error loading products:", error);
+          const data = await api.get<Product[]>("/api/products");
+          if (Array.isArray(data)) setProducts(data);
+        } catch {
+          // keep empty
         }
       };
       loadProducts();
     }
-  }, []);
+  }, [products.length]);
 
   const handleProductSelect = async (product: Product) => {
     setIsLoading(true);
@@ -141,7 +139,6 @@ export function EmptyState({
       // After dossier creation, reload the page to show workflow
       window.location.reload();
     } catch (error) {
-      console.error("Error selecting product:", error);
       alert(
         error instanceof Error
           ? error.message

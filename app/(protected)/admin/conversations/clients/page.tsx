@@ -5,6 +5,7 @@ import type {
   AdminConversationWithDossier,
   DossierForNewConversation,
 } from "@/types/conversations";
+import { ConversationsProvider } from "@/lib/contexts/conversations/ConversationsContext";
 import { ConversationsClientsContent } from "@/components/admin/conversations/ConversationsClientsContent";
 
 export const metadata: Metadata = {
@@ -33,12 +34,8 @@ export default async function ConversationsClientsPage() {
     .eq("type", "client")
     .order("updated_at", { ascending: false });
 
-  console.log("Supabase response:", { data: rawConversations, error });
-
   const conversations =
     (rawConversations as AdminConversationWithDossier[]) ?? [];
-
-  console.log("Final conversations:", conversations);
 
   // Fetch dossiers for the "new conversation" modal
   const { data: rawDossiers } = await supabase
@@ -69,23 +66,25 @@ export default async function ConversationsClientsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-brand-dark-bg">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-brand-text-primary">
-              Conversations
-            </h1>
-            <p className="text-brand-text-secondary mt-1">
-              Gérer les conversations WhatsApp avec les clients et les agents
-            </p>
+    <ConversationsProvider>
+      <div className="min-h-screen bg-brand-dark-bg">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-brand-text-primary">
+                Conversations
+              </h1>
+              <p className="text-brand-text-secondary mt-1">
+                Gérer les conversations WhatsApp avec les clients et les agents
+              </p>
+            </div>
+            <ConversationsClientsContent
+              initialConversations={conversations}
+              dossiers={dossiers}
+            />
           </div>
-          <ConversationsClientsContent
-            initialConversations={conversations}
-            dossiers={dossiers}
-          />
         </div>
       </div>
-    </div>
+    </ConversationsProvider>
   );
 }

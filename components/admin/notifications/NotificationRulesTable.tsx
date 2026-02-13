@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NotificationRule, NotificationChannel } from "@/lib/notifications/types";
+import { useNotifications } from "@/lib/contexts/notifications/NotificationsContext";
 
 interface NotificationRulesTableProps {
   rules: NotificationRule[];
@@ -18,27 +19,17 @@ export function NotificationRulesTable({
   onDelete,
   onToggle,
 }: NotificationRulesTableProps) {
+  const { deleteRule, toggleRule } = useNotifications();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const handleDelete = async (ruleId: string) => {
-    if (!confirm("Are you sure you want to delete this rule?")) {
-      return;
-    }
-
+    if (!confirm("Are you sure you want to delete this rule?")) return;
     setDeletingId(ruleId);
     try {
-      const response = await fetch(`/api/admin/notification-rules/${ruleId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete rule");
-      }
-
+      await deleteRule(ruleId);
       onDelete();
-    } catch (error) {
-      console.error("Error deleting rule:", error);
+    } catch {
       alert("Failed to delete rule. Please try again.");
     } finally {
       setDeletingId(null);
@@ -48,20 +39,9 @@ export function NotificationRulesTable({
   const handleToggle = async (ruleId: string) => {
     setTogglingId(ruleId);
     try {
-      const response = await fetch(
-        `/api/admin/notification-rules/${ruleId}/toggle`,
-        {
-          method: "POST",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to toggle rule");
-      }
-
+      await toggleRule(ruleId);
       onToggle();
-    } catch (error) {
-      console.error("Error toggling rule:", error);
+    } catch {
       alert("Failed to toggle rule. Please try again.");
     } finally {
       setTogglingId(null);

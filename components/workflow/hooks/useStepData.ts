@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useApi } from "@/lib/api/useApi";
 import type { UseStepDataReturn, StepFieldWithValidation } from "../types";
 import type { StepInstance } from "@/types/dossiers";
 import type {
@@ -51,6 +52,7 @@ export function useStepData({
   isFormationStep: boolean;
   formationId?: string | null;
 }): UseStepDataReturn {
+  const api = useApi();
   const [currentStepInstance, setCurrentStepInstance] =
     useState<StepInstance | null>(null);
   const [currentStepFields, setCurrentStepFields] = useState<
@@ -83,16 +85,14 @@ export function useStepData({
       setIsLoading(true);
       try {
         // First, get step instance for this step (will be created in DRAFT if it doesn't exist)
-        const instanceResponse = await fetch(
-          `/api/workflow/step-instance?dossier_id=${dossierId}&step_id=${stepId}`
-        );
         let stepInstance: StepInstance | null = null;
-        if (instanceResponse.ok) {
-          stepInstance = await instanceResponse.json();
-          if (stepInstance) {
-            console.log("[useStepData] Step instance:", stepInstance);
-            setCurrentStepInstance(stepInstance);
-          }
+        try {
+          stepInstance = await api.get<StepInstance>(
+            `/api/workflow/step-instance?dossier_id=${dossierId}&step_id=${stepId}`
+          );
+          if (stepInstance) setCurrentStepInstance(stepInstance);
+        } catch {
+          // Instance may not exist yet
         }
 
         // Load fields with values if step instance exists (only for client steps, not ADMIN/FORMATION)
@@ -103,9 +103,7 @@ export function useStepData({
             ? `/api/workflow/step-fields?step_id=${stepId}&step_instance_id=${stepInstanceId}`
             : `/api/workflow/step-fields?step_id=${stepId}`;
 
-          const fieldsResponse = await fetch(fieldsUrl);
-          if (!fieldsResponse.ok) throw new Error("Failed to load step fields");
-          fields = await fieldsResponse.json();
+          fields = await api.get<StepFieldWithValidation[]>(fieldsUrl);
           setCurrentStepFields(fields);
         } else {
           // Admin and FORMATION steps don't have fields
@@ -117,34 +115,16 @@ export function useStepData({
           ? `/api/workflow/dossier-documents?dossier_id=${dossierId}&step_instance_id=${stepInstanceId}`
           : `/api/workflow/dossier-documents?dossier_id=${dossierId}`;
 
-        console.log("[useStepData] Loading documents from:", docsUrl);
-        const docsResponse = await fetch(docsUrl);
-        console.log(
-          "[useStepData] Documents response status:",
-          docsResponse.status
-        );
-        if (docsResponse.ok) {
-          const docs = await docsResponse.json();
-          console.log("[useStepData] Documents loaded:", docs);
-          // For admin steps, filter to only show documents uploaded by agents
-          // For client steps, show all documents
+        try {
+          const docs = await api.get<any[]>(docsUrl);
           const filteredDocs = isAdminStep
             ? docs.filter((doc: any) => {
                 const uploadedByType = doc.current_version?.uploaded_by_type;
                 return uploadedByType === "AGENT";
               })
             : docs;
-          console.log("[useStepData] Filtered documents:", {
-            isAdminStep,
-            totalDocs: docs.length,
-            filteredDocs: filteredDocs.length,
-          });
           setUploadedDocuments(filteredDocs);
-        } else {
-          console.error(
-            "[useStepData] Failed to load documents:",
-            await docsResponse.text()
-          );
+        } catch {
           setUploadedDocuments([]);
         }
 
@@ -153,16 +133,16 @@ export function useStepData({
           // Fetch full formation with elements for inline display
           setFormationLoading(true);
           try {
-            const formRes = await fetch(`/api/formations/${formationId}`);
-            if (formRes.ok) {
-              const { formation, progress } = await formRes.json();
-              setFormationFull(formation ?? null);
-              setFormationProgress(progress ?? null);
-              // Also set in stepFormations for consistency
-              if (formation) {
-                setStepFormations([formation]);
-              }
-            } else {
+            const data = await api.get<{
+              formation?: FormationWithElements;
+              progress?: UserFormationProgress;
+            }>(`/api/formations/${formationId}`);
+            const formation = data?.formation ?? null;
+            const progress = data?.progress ?? null;
+            setFormationFull(formation);
+            setFormationProgress(progress);
+            if (formation) setStepFormations([formation]);
+            else {
               setFormationFull(null);
               setFormationProgress(null);
               setStepFormations([]);
@@ -178,20 +158,21 @@ export function useStepData({
           // Not a formation step, or no formation ID
           setFormationFull(null);
           setFormationProgress(null);
-          const formationsRes = await fetch(`/api/formations/by-step/${stepId}`);
-          if (formationsRes.ok) {
-            const formationsData = await formationsRes.json();
+          try {
+            const formationsData = await api.get<{
+              formations?: FormationSummary[];
+              items?: StepFormationItem[];
+            }>(`/api/formations/by-step/${stepId}`);
             setStepFormations(formationsData.formations ?? []);
             setStepFormationItems(formationsData.items ?? []);
-          } else {
+          } catch {
             setStepFormations([]);
             setStepFormationItems([]);
           }
         }
-      } catch (error) {
+      } catch {
         // Reset ref on error so we can retry
         lastLoadedStepIdRef.current = null;
-        console.error("[useStepData] Error loading step data:", error);
         // Reset all states on error
         setCurrentStepInstance(null);
         setCurrentStepFields([]);
@@ -214,9 +195,8 @@ export function useStepData({
       ? `/api/workflow/dossier-documents?dossier_id=${dossierId}&step_instance_id=${stepInstanceId}`
       : `/api/workflow/dossier-documents?dossier_id=${dossierId}`;
 
-    const docsResponse = await fetch(docsUrl);
-    if (docsResponse.ok) {
-      const docs = await docsResponse.json();
+    try {
+      const docs = await api.get<any[]>(docsUrl);
       const filteredDocs = isAdminStep
         ? docs.filter((doc: any) => {
             const uploadedByType = doc.current_version?.uploaded_by_type;
@@ -224,6 +204,8 @@ export function useStepData({
           })
         : docs;
       setUploadedDocuments(filteredDocs);
+    } catch {
+      // keep current uploadedDocuments
     }
   };
 

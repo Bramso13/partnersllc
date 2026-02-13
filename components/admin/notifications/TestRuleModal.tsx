@@ -2,14 +2,26 @@
 
 import { useState } from "react";
 import { NotificationRule } from "@/lib/notifications/types";
-import { BaseEvent } from "@/lib/events";
+import { useNotifications } from "@/lib/contexts/notifications/NotificationsContext";
 
 interface TestRuleModalProps {
   rule: NotificationRule;
   onClose: () => void;
 }
 
+type TestRuleResult = {
+  matched: boolean;
+  reason?: string;
+  notification_preview?: {
+    title: string;
+    message: string;
+    action_url?: string | null;
+    channel_previews?: Record<string, unknown>;
+  };
+};
+
 export function TestRuleModal({ rule, onClose }: TestRuleModalProps) {
+  const { testRule } = useNotifications();
   const [eventPayload, setEventPayload] = useState(
     JSON.stringify(
       {
@@ -28,30 +40,17 @@ export function TestRuleModal({ rule, onClose }: TestRuleModalProps) {
     )
   );
   const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<TestRuleResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleTest = async () => {
     setTesting(true);
     setError(null);
     setResult(null);
-
     try {
       const event = JSON.parse(eventPayload);
-
-      const response = await fetch(`/api/admin/notification-rules/${rule.id}/test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to test rule");
-      }
-
-      setResult(data);
+      const data = await testRule(rule.id, { event });
+      setResult(data as TestRuleResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -104,25 +103,25 @@ export function TestRuleModal({ rule, onClose }: TestRuleModalProps) {
                     <div className="space-y-3">
                       <div>
                         <div className="text-sm text-brand-text-secondary mb-1">Title:</div>
-                        <div className="text-brand-text-primary">{result.notification_preview.title}</div>
+                        <div className="text-brand-text-primary">{result.notification_preview?.title}</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-brand-text-secondary mb-1">Message:</div>
-                        <div className="text-brand-text-primary">{result.notification_preview.message}</div>
+                        <div className="text-brand-text-primary">{result.notification_preview?.message}</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-brand-text-secondary mb-1">Action URL:</div>
                         <div className="text-brand-accent text-sm font-mono">
-                          {result.notification_preview.action_url || "None"}
+                          {result.notification_preview?.action_url || "None"}
                         </div>
                       </div>
 
                       <div>
                         <div className="text-sm text-brand-text-secondary mb-2">Channel Previews:</div>
                         <div className="space-y-2">
-                          {Object.entries(result.notification_preview.channel_previews || {}).map(
+                          {Object.entries(result.notification_preview?.channel_previews || {}).map(
                             ([channel, preview]: [string, any]) => (
                               <div key={channel} className="bg-brand-bg-tertiary p-3 rounded-lg">
                                 <div className="text-sm font-medium text-brand-text-primary mb-2">

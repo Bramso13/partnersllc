@@ -42,7 +42,7 @@ export function Sidebar({ role, navConfig, isOpen, onClose }: SidebarProps) {
     if (window.innerWidth < 768) {
       onClose();
     }
-  }, [pathname, onClose]);
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {

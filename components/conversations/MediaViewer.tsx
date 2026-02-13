@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 
 interface MediaViewerProps {
   media: {
@@ -16,16 +17,13 @@ interface MediaViewerProps {
 }
 
 export function MediaViewer({ media, uploaderName }: MediaViewerProps) {
+  const api = useApi();
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      // Télécharger via l'API
-      const response = await fetch(`/api/conversations/media/${media.id}`);
-      if (!response.ok) throw new Error("Download failed");
-
-      const blob = await response.blob();
+      const blob = await api.getBlob(`/api/conversations/media/${media.id}`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -34,8 +32,7 @@ export function MediaViewer({ media, uploaderName }: MediaViewerProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
-      console.error("Download error:", error);
+    } catch {
       alert("Erreur lors du téléchargement");
     } finally {
       setIsDownloading(false);

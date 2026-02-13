@@ -1,4 +1,5 @@
 import { requireAdminAuth } from "@/lib/auth";
+import { AgentsProvider } from "@/lib/contexts/agents/AgentsContext";
 import { AgentsManagementContent } from "@/components/admin/agents/AgentsManagementContent";
 
 export const metadata = {
@@ -9,5 +10,9 @@ export const metadata = {
 export default async function AdminAgentsPage() {
   await requireAdminAuth();
 
-  return <AgentsManagementContent />;
+  return (
+    <AgentsProvider>
+      <AgentsManagementContent />
+    </AgentsProvider>
+  );
 }

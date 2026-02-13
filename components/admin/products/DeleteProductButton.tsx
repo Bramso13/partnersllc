@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Product } from "@/types/products";
+import { useProducts } from "@/lib/contexts/products/ProductsContext";
 
 interface DeleteProductButtonProps {
   product: Product;
@@ -12,6 +13,7 @@ export function DeleteProductButton({
   product,
   onDeleted,
 }: DeleteProductButtonProps) {
+  const { deleteProduct } = useProducts();
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +23,7 @@ export function DeleteProductButton({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/admin/products?id=${product.id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete product");
-      }
-
+      await deleteProduct(product.id);
       onDeleted();
       setShowConfirm(false);
     } catch (err) {
@@ -56,14 +47,12 @@ export function DeleteProductButton({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-brand-card border border-brand-border rounded-lg max-w-md w-full">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-brand-border">
           <h3 className="text-lg font-semibold text-brand-text-primary">
             Delete Product
           </h3>
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-4">
           <p className="text-brand-text-secondary">
             Are you sure you want to delete{" "}
@@ -87,7 +76,6 @@ export function DeleteProductButton({
           )}
         </div>
 
-        {/* Actions */}
         <div className="px-6 py-4 border-t border-brand-border flex justify-end gap-3">
           <button
             onClick={() => setShowConfirm(false)}
