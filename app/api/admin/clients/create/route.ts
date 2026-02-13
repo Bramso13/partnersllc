@@ -219,6 +219,21 @@ export async function POST(request: NextRequest) {
 
       // 12. Create events
 
+      // Generate a password-reset link so the user can set their password
+      let setPasswordUrl: string | null = null;
+      try {
+        const { data: linkData } = await adminSupabase.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: {
+            redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password`,
+          },
+        });
+        setPasswordUrl = linkData?.properties?.action_link ?? null;
+      } catch (linkErr) {
+        console.error("Error generating set-password link:", linkErr);
+      }
+
       // MANUAL_CLIENT_CREATED event
       const { error: manualClientCreatedError } = await adminSupabase.from("events").insert({
         entity_type: "profile",
@@ -230,6 +245,8 @@ export async function POST(request: NextRequest) {
           user_id: newUserId,
           email: email,
           product_id: product_id,
+          product_name: product.name,
+          set_password_url: setPasswordUrl,
         },
       }); 
 

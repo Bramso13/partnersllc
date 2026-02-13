@@ -60,6 +60,11 @@ interface AdminStepCompletedData extends BaseTemplateData {
   message?: string;
 }
 
+interface SetPasswordEmailData extends BaseTemplateData {
+  setPasswordUrl: string;
+  productName?: string;
+}
+
 // =========================================================
 // BASE TEMPLATE STYLES
 // =========================================================
@@ -435,6 +440,39 @@ export function generateAdminDocumentDeliveredEmail(
       content.replace(/<[^>]*>/g, ""),
       data.dossierUrl,
       "Voir mon dossier"
+    ),
+  };
+}
+
+/**
+ * Set password email — sent when admin creates a client manually
+ */
+export function generateSetPasswordEmail(data: SetPasswordEmailData): { html: string; text: string } {
+  const title = "Votre compte a été créé — Choisissez votre mot de passe";
+  const productSection = data.productName
+    ? `<p>Vous avez été inscrit pour le produit <strong>${data.productName}</strong>.</p>`
+    : "";
+
+  const content = `
+    <p>Bonjour ${data.userName},</p>
+    <p>Votre compte Partners LLC a été créé par notre équipe.</p>
+    ${productSection}
+    <p>Pour accéder à votre espace, veuillez choisir votre mot de passe en cliquant sur le bouton ci-dessous.</p>
+    <p style="color: #6b7280; font-size: 14px;">Ce lien est valable <strong>24 heures</strong>. Après expiration, contactez notre équipe pour en obtenir un nouveau.</p>
+  `;
+
+  return {
+    html: generateEmailHTML(
+      title,
+      content,
+      data.setPasswordUrl,
+      "Choisir mon mot de passe"
+    ),
+    text: generatePlainText(
+      title,
+      content.replace(/<[^>]*>/g, ""),
+      data.setPasswordUrl,
+      "Choisir mon mot de passe"
     ),
   };
 }

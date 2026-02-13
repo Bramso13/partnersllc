@@ -15,6 +15,7 @@ import {
   generatePaymentReminderEmail,
   generateAdminDocumentDeliveredEmail,
   generateAdminStepCompletedEmail,
+  generateSetPasswordEmail,
 } from "./email-templates";
 
 // =========================================================
@@ -149,6 +150,16 @@ async function generateEmailContent(
   const userName = userEmail.full_name || userEmail.email.split("@")[0];
 
   switch (templateCode) {
+    case "SET_PASSWORD": {
+      const setPasswordUrl = payload.set_password_url;
+      if (!setPasswordUrl) return null;
+      return generateSetPasswordEmail({
+        userName,
+        setPasswordUrl,
+        productName: payload.product_name,
+      });
+    }
+
     case "WELCOME":
       return generateWelcomeEmail({
         userName,
@@ -627,11 +638,18 @@ export async function processWhatsAppNotification(
       };
     }
 
+    // Build content variables for templates that require them
+    const contentVariables: Record<string, string> | undefined =
+      notif.template_code === "SET_PASSWORD"
+        ? { "1": "test1", "2": "test2" }
+        : undefined;
+
     // Send WhatsApp message
     try {
       const result = await sendWhatsAppMessage({
         to: formattedPhone,
         message: messageContent,
+        contentVariables,
       });
 
       // Update delivery record on success

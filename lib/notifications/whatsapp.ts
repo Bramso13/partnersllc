@@ -1,6 +1,8 @@
 // =========================================================
-// WHATSAPP SERVICE
+// WHATSAPP SERVICE — via Twilio Messages API + Content Templates
 // =========================================================
+
+import Twilio from "twilio";
 
 // =========================================================
 // TYPES
@@ -8,7 +10,8 @@
 
 export interface WhatsAppOptions {
   to: string;
-  message: string;
+  message?: string; // kept for interface compatibility — ignored when using content template
+  contentVariables?: Record<string, string>; // optional template variable overrides
 }
 
 export interface WhatsAppResult {
@@ -26,11 +29,31 @@ export interface WhatsAppError {
 // CONFIGURATION
 // =========================================================
 
-function getWhatsAppConfig() {
-  return {
-    apiUrl: process.env.WHATSAPP_API_URL || "https://api.whatsapp.com",
-    apiToken: process.env.WHATSAPP_API_TOKEN,
-  };
+const WHATSAPP_TEMPLATE_SID =
+  process.env.TWILIO_WHATSAPP_TEMPLATE_SID || "HX0145e679df838543ba4566830b435755";
+
+function getTwilioClient(): Twilio.Twilio {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !authToken) {
+    throw {
+      message: "Twilio credentials not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)",
+      code: "CONFIG_ERROR",
+    } as WhatsAppError;
+  }
+  return Twilio(accountSid, authToken);
+}
+
+function getWhatsAppFrom(): string {
+  const num = process.env.TWILIO_WHATSAPP_NUMBER;
+  if (!num) {
+    throw {
+      message: "TWILIO_WHATSAPP_NUMBER not configured",
+      code: "CONFIG_ERROR",
+    } as WhatsAppError;
+  }
+  // ensure whatsapp: prefix
+  return num.startsWith("whatsapp:") ? num : `whatsapp:${num}`;
 }
 
 // =========================================================
@@ -53,7 +76,6 @@ export function formatToE164(phone: string): string | null {
     if (cleaned.startsWith("00")) {
       cleaned = "+" + cleaned.slice(2);
     } else {
-      // Assume it's missing the + prefix
       cleaned = "+" + cleaned;
     }
   }
@@ -79,8 +101,7 @@ export function isValidE164(phone: string): boolean {
 // =========================================================
 
 function getRetryDelay(attempt: number): number {
-  // Exponential backoff: 1s, 2s, 4s
-  return Math.pow(2, attempt) * 1000;
+  return Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
 }
 
 function sleep(ms: number): Promise<void> {
@@ -92,16 +113,15 @@ function sleep(ms: number): Promise<void> {
 // =========================================================
 
 /**
- * Send WhatsApp message with retry logic
+ * Send a WhatsApp message via Twilio Messages API using a Content Template.
+ * The `message` field in options is ignored — content is defined by the template.
  */
 export async function sendWhatsAppMessage(
   options: WhatsAppOptions,
   retryCount: number = 0
 ): Promise<WhatsAppResult> {
   const maxRetries = 3;
-  const config = getWhatsAppConfig();
 
-  // Validate and format phone number
   const formattedPhone = formatToE164(options.to);
   if (!formattedPhone) {
     throw {
@@ -110,94 +130,63 @@ export async function sendWhatsAppMessage(
     } as WhatsAppError;
   }
 
-  // Check API token
-  if (!config.apiToken) {
-    throw {
-      message: "WhatsApp API token not configured",
-      code: "CONFIG_ERROR",
-    } as WhatsAppError;
-  }
-
   try {
-    // WhatsApp Business API call
-    const response = await fetch(`${config.apiUrl}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiToken}`,
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: formattedPhone,
-        type: "text",
-        text: {
-          preview_url: true,
-          body: options.message,
-        },
-      }),
-    });
+    const client = getTwilioClient();
+    const from = getWhatsAppFrom();
+    const to = `whatsapp:${formattedPhone}`;
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.error?.message ||
-        errorData.message ||
-        `HTTP ${response.status}`;
+    const createParams: Parameters<typeof client.messages.create>[0] = {
+      from,
+      to,
+      contentSid: WHATSAPP_TEMPLATE_SID,
+    };
 
-      // Check if retryable
-      if (retryCount < maxRetries && response.status >= 500) {
-        const delay = getRetryDelay(retryCount);
-        console.warn(
-          `WhatsApp send failed (attempt ${retryCount + 1}/${maxRetries + 1}), retrying in ${delay}ms:`,
-          errorMessage
-        );
-        await sleep(delay);
-        return sendWhatsAppMessage(options, retryCount + 1);
-      }
+    if (options.contentVariables && Object.keys(options.contentVariables).length > 0) {
+      createParams.contentVariables = JSON.stringify(options.contentVariables);
+    }
 
+    const message = await client.messages.create(createParams);
+
+    return {
+      messageId: message.sid,
+      status: message.status,
+    };
+  } catch (error: any) {
+    // Twilio SDK errors have a numeric `status` field for HTTP status
+    const httpStatus: number = error.status ?? 0;
+    const isRetryable =
+      httpStatus >= 500 ||
+      error.code === "ECONNREFUSED" ||
+      error.code === "ETIMEDOUT";
+
+    if (retryCount < maxRetries && isRetryable) {
+      const delay = getRetryDelay(retryCount);
+      console.warn(
+        `WhatsApp send failed (attempt ${retryCount + 1}/${maxRetries + 1}), retrying in ${delay}ms:`,
+        error.message
+      );
+      await sleep(delay);
+      return sendWhatsAppMessage(options, retryCount + 1);
+    }
+
+    // Normalize to WhatsAppError
+    if (error.message && (error.code !== undefined || error.response !== undefined)) {
       throw {
-        message: errorMessage,
-        code: `HTTP_${response.status}`,
-        response: JSON.stringify(errorData),
+        message: error.message,
+        code: error.code !== undefined ? String(error.code) : undefined,
+        response: error.moreInfo || error.detail || undefined,
       } as WhatsAppError;
     }
 
-    const data = await response.json();
-    return {
-      messageId: data.messages?.[0]?.id || data.id || "",
-      status: data.messages?.[0]?.message_status || "sent",
-    };
-  } catch (error: any) {
-    // Handle network errors
-    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
-      if (retryCount < maxRetries) {
-        const delay = getRetryDelay(retryCount);
-        console.warn(
-          `WhatsApp connection failed (attempt ${retryCount + 1}/${maxRetries + 1}), retrying in ${delay}ms:`,
-          error.message
-        );
-        await sleep(delay);
-        return sendWhatsAppMessage(options, retryCount + 1);
-      }
-    }
-
-    // Re-throw WhatsAppError as-is
-    if (error.message && (error.code || error.response)) {
-      throw error;
-    }
-
-    // Wrap other errors
     throw {
       message: error.message || "Unknown error sending WhatsApp message",
-      code: error.code || "UNKNOWN",
-      response: error.response,
+      code: "UNKNOWN",
     } as WhatsAppError;
   }
 }
 
 // =========================================================
-// WHATSAPP MESSAGE TEMPLATES
+// WHATSAPP MESSAGE TEMPLATES (kept for compatibility)
 // =========================================================
 
 export function generateStepCompletedWhatsApp(data: {
@@ -210,9 +199,5 @@ export function generateStepCompletedWhatsApp(data: {
     ? `\n\nProchaine étape : ${data.nextStepName}`
     : "\n\nVotre dossier est maintenant complet !";
 
-  return `✅ Étape terminée
-
-L'étape "${data.stepName}" de votre dossier a été terminée avec succès.${nextStepText}
-
-Consultez votre dossier : ${data.dossierUrl}`;
+  return `✅ Étape terminée\n\nL'étape "${data.stepName}" de votre dossier a été terminée avec succès.${nextStepText}\n\nConsultez votre dossier : ${data.dossierUrl}`;
 }

@@ -386,6 +386,12 @@ function buildNotificationContent(
         message: `Le paiement a échoué. Veuillez réessayer.`,
       };
 
+    case "SET_PASSWORD":
+      return {
+        title: "Votre compte a été créé",
+        message: "Votre compte Partners LLC a été créé. Cliquez sur le lien reçu par email pour choisir votre mot de passe.",
+      };
+
     case "WELCOME":
       return {
         title: "Bienvenue",
@@ -548,7 +554,6 @@ export async function retryFailedRuleExecutions(
     for (const execution of failedExecutions) {
       retried++;
 
-      const rule = execution.notification_rules as any as NotificationRule;
       const event = execution.events as any as BaseEvent;
 
       try {
