@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 
 interface CreateDocumentTypeModalProps {
   onClose: () => void;
@@ -23,6 +24,7 @@ export function CreateDocumentTypeModal({
   onClose,
   onSuccess,
 }: CreateDocumentTypeModalProps) {
+  const api = useApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -54,23 +56,13 @@ export function CreateDocumentTypeModal({
         throw new Error("Select at least one file type");
       }
 
-      const response = await fetch("/api/admin/document-types", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: generateCode(formData.label),
-          label: formData.label,
-          description: formData.description || null,
-          max_file_size_mb: formData.max_file_size_mb,
-          allowed_extensions: formData.allowed_extensions,
-        }),
+      await api.post("/api/admin/document-types", {
+        code: generateCode(formData.label),
+        label: formData.label,
+        description: formData.description || null,
+        max_file_size_mb: formData.max_file_size_mb,
+        allowed_extensions: formData.allowed_extensions,
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create document type");
-      }
-
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

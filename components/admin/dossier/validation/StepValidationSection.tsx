@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useApi } from "@/lib/api/useApi";
 import { StepValidationCard } from "./StepValidationCard";
 
 export interface StepFieldValue {
@@ -73,32 +74,31 @@ interface StepValidationSectionProps {
 export function StepValidationSection({
   dossierId,
 }: StepValidationSectionProps) {
+  const api = useApi();
   const [stepInstances, setStepInstances] = useState<StepInstanceWithFields[]>(
     []
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSteps = async () => {
+  const fetchSteps = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(
+      const data = await api.get<{ stepInstances?: StepInstanceWithFields[] }>(
         `/api/admin/dossiers/${dossierId}/validation`
       );
-      if (!response.ok) throw new Error("Erreur chargement étapes");
-      const data = await response.json();
-      setStepInstances(data.stepInstances ?? []);
+      setStepInstances(data?.stepInstances ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
-  };
+  }, [dossierId]);
 
   useEffect(() => {
     fetchSteps();
-  }, [dossierId]);
+  }, []);
 
   if (loading) {
     return (

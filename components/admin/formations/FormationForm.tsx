@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
   Formation,
   CreateFormationRequest,
@@ -9,6 +9,7 @@ import {
 } from "@/types/formations";
 import { Product } from "@/types/products";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 interface FormationFormProps {
   formation: Formation | null;
@@ -16,16 +17,16 @@ interface FormationFormProps {
 }
 
 export function FormationForm({ formation, onSaved }: FormationFormProps) {
+  const api = useApi();
   const [titre, setTitre] = useState(formation?.titre || "");
-  const [description, setDescription] = useState(
-    formation?.description || ""
+  const [description, setDescription] = useState(formation?.description || "");
+  const [visibilityType, setVisibilityType] = useState<FormationVisibilityType>(
+    formation?.visibility_type || "all"
   );
-  const [visibilityType, setVisibilityType] =
-    useState<FormationVisibilityType>(formation?.visibility_type || "all");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
     formation?.visibility_type === "by_product_ids"
-      ? ((formation.visibility_config as { product_ids?: string[] })
-          .product_ids || [])
+      ? (formation.visibility_config as { product_ids?: string[] })
+          .product_ids || []
       : []
   );
   const [vignettePreview, setVignettePreview] = useState<string | null>(
@@ -36,23 +37,22 @@ export function FormationForm({ formation, onSaved }: FormationFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/products");
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
+      const data = await api.get<{ products?: Product[] }>(
+        "/api/admin/products"
+      );
+      setProducts(data?.products ?? []);
+    } catch {
+      // keep current
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleVignetteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,21 +75,12 @@ export function FormationForm({ formation, onSaved }: FormationFormProps) {
     formData.append("folder", "vignettes");
 
     try {
-      // We'll use the existing document upload endpoint pattern
-      // or create a dedicated upload endpoint
-      const response = await fetch("/api/admin/formations/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
-      return data.path || data.url;
-    } catch (error) {
-      console.error("Error uploading vignette:", error);
+      const data = await api.post<{ path?: string; url?: string }>(
+        "/api/admin/formations/upload",
+        formData
+      );
+      return data?.path ?? data?.url ?? null;
+    } catch {
       toast.error("Erreur lors de l'upload de la vignette");
       return null;
     }
@@ -133,30 +124,19 @@ export function FormationForm({ formation, onSaved }: FormationFormProps) {
         visibility_config,
       };
 
-      const url = formation
-        ? `/api/admin/formations/${formation.id}`
-        : "/api/admin/formations";
-      const method = formation ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to save formation");
-      }
-
-      const data = await response.json();
+      const data = formation
+        ? await api.put<{ formation: Formation }>(
+            `/api/admin/formations/${formation.id}`,
+            payload
+          )
+        : await api.post<{ formation: Formation }>(
+            "/api/admin/formations",
+            payload
+          );
       onSaved(data.formation);
     } catch (error) {
-      console.error("Error saving formation:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la sauvegarde"
+        error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       );
     } finally {
       setLoading(false);
@@ -324,8 +304,8 @@ export function FormationForm({ formation, onSaved }: FormationFormProps) {
           {loading
             ? "Enregistrement..."
             : formation
-            ? "Mettre à jour"
-            : "Créer la formation"}
+              ? "Mettre à jour"
+              : "Créer la formation"}
         </button>
       </div>
     </form>

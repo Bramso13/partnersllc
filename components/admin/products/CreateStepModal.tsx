@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Step, StepType } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 
 const UPPER_SNAKE_CASE_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
@@ -37,6 +38,7 @@ interface FormErrors {
 }
 
 export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
+  const api = useApi();
   const [formData, setFormData] = useState<FormData>({
     code: "",
     label: "",
@@ -65,10 +67,13 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
     if (formData.step_type !== "FORMATION") return;
     let cancelled = false;
     setFormationsLoading(true);
-    fetch("/api/admin/formations")
-      .then((res) => (res.ok ? res.json() : { formations: [] }))
+    api
+      .get<{ formations?: { id: string; titre: string }[] }>("/api/admin/formations")
       .then((data) => {
-        if (!cancelled) setFormations(data.formations ?? []);
+        if (!cancelled) setFormations(data?.formations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setFormations([]);
       })
       .finally(() => {
         if (!cancelled) setFormationsLoading(false);
@@ -76,7 +81,7 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [formData.step_type]);
+  }, [api, formData.step_type]);
 
   const validateCode = async (code: string): Promise<string | undefined> => {
     if (!code) return "Le code est requis";
@@ -87,13 +92,12 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
     }
     setIsValidating(true);
     try {
-      const res = await fetch(
+      const data = await api.get<{ exists?: boolean }>(
         `/api/admin/steps/check-code?code=${encodeURIComponent(code)}`
       );
-      const data = await res.json();
-      if (data.exists) return "Ce code existe déjà.";
-    } catch (err) {
-      console.error(err);
+      if (data?.exists) return "Ce code existe déjà.";
+    } catch {
+      // keep no error
     } finally {
       setIsValidating(false);
     }
@@ -164,13 +168,7 @@ export function CreateStepModal({ onClose, onSuccess }: CreateStepModalProps) {
         payload.timer_delay_minutes = null;
       }
 
-      const res = await fetch("/api/admin/steps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de la création");
+      const data = await api.post<{ step: Step }>("/api/admin/steps", payload);
       onSuccess(data.step);
       onClose();
     } catch (err) {

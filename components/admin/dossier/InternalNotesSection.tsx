@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useApi } from "@/lib/api/useApi";
 import { fr } from "date-fns/locale";
 
 interface InternalNote {
@@ -20,44 +21,42 @@ const inputClass =
   "w-full px-3 py-2 rounded-lg bg-[#191a1d] border border-[#363636] text-[#f9f9f9] placeholder-[#b7b7b7]/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#50b989] focus:border-transparent resize-none";
 
 export function InternalNotesSection({ dossierId }: InternalNotesSectionProps) {
+  const api = useApi();
   const [notes, setNotes] = useState<InternalNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/notes`);
-      if (!response.ok) throw new Error("Erreur chargement notes");
-      const data = await response.json();
-      setNotes(Array.isArray(data) ? data : []);
-    } catch (e) {
+      const data = await api.get<InternalNote[] | { notes?: InternalNote[] }>(
+        `/api/admin/dossiers/${dossierId}/notes`
+      );
+      const list = Array.isArray(data)
+        ? data
+        : ((data as { notes?: InternalNote[] })?.notes ?? []);
+      setNotes(list);
+    } catch {
       setError("Erreur lors du chargement des notes");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [api, dossierId]);
 
   useEffect(() => {
     fetchNotes();
-  }, [dossierId]);
+  }, []);
 
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     setIsSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ noteText: newNote.trim() }),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Erreur ajout note");
-      }
-      const added = await response.json();
+      const added = await api.post<InternalNote>(
+        `/api/admin/dossiers/${dossierId}/notes`,
+        { noteText: newNote.trim() }
+      );
       setNotes((prev) => [added, ...prev]);
       setNewNote("");
     } catch (e) {

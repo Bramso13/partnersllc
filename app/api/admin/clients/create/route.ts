@@ -162,6 +162,25 @@ export async function POST(request: NextRequest) {
         throw new Error("Erreur lors de la création du dossier");
       }
 
+      // 8b. Auto-assign first CREATEUR agent to dossier
+      const { data: createurAgent } = await adminSupabase
+        .from("agents")
+        .select("id")
+        .eq("agent_type", "CREATEUR")
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (createurAgent) {
+        await adminSupabase
+          .from("dossier_agent_assignments")
+          .insert({
+            dossier_id: dossier.id,
+            agent_id: createurAgent.id,
+            assignment_type: "CREATEUR",
+          });
+      }
+
       // 9. Get product steps and create step instances
       const { data: productSteps, error: productStepsError } = await adminSupabase
         .from("product_steps")

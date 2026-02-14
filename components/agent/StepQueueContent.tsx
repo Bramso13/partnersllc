@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { AgentStepQueueItem } from "@/lib/agent-steps";
+import { useApi } from "@/lib/api/useApi";
 import { StepFilters } from "./StepFilters";
 import { StepCard } from "./StepCard";
 
@@ -13,31 +14,32 @@ interface StepQueueContentProps {
 type SortKey = "assigned_at" | "step_type" | "client_name";
 
 export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
+  const api = useApi();
   const t = useTranslations("agent.steps");
   const [steps, setSteps] = useState<AgentStepQueueItem[]>(initialSteps);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("assigned_at");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const refreshSteps = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const json = await api.get<{ steps?: AgentStepQueueItem[] }>(
+        "/api/agent/steps"
+      );
+      setSteps(json?.steps ?? []);
+    } catch {
+      // keep current steps on error
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
   // Auto-refresh toutes les 60s
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        setIsRefreshing(true);
-        const res = await fetch("/api/agent/steps");
-        if (res.ok) {
-          const json = await res.json();
-          setSteps(json.steps || []);
-        }
-      } catch (e) {
-        console.error("Erreur lors du rafraîchissement de la queue", e);
-      } finally {
-        setIsRefreshing(false);
-      }
-    }, 60000);
-
+    const interval = setInterval(refreshSteps, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshSteps]);
 
   const filteredSteps = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -84,6 +86,7 @@ export function StepQueueContent({ initialSteps }: StepQueueContentProps) {
         sortBy={sortBy}
         onSortChange={setSortBy}
         isRefreshing={isRefreshing}
+        onRefresh={refreshSteps}
       />
 
       {filteredSteps.length === 0 ? (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type { WorkflowStepConfig } from "./WorkflowConfigContent";
 
 interface WorkflowTemplate {
@@ -24,6 +25,7 @@ export function LoadTemplateModal({
   onApply,
   onClose,
 }: LoadTemplateModalProps) {
+  const api = useApi();
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -33,14 +35,11 @@ export function LoadTemplateModal({
     async function fetchTemplates() {
       try {
         setError(null);
-        const response = await fetch("/api/admin/workflow-templates");
-        if (!response.ok) {
-          throw new Error("Failed to fetch templates");
-        }
-        const data = await response.json();
-        setTemplates(data.templates ?? []);
-      } catch (err) {
-        console.error("Error fetching templates:", err);
+        const data = await api.get<{ templates?: WorkflowTemplate[] }>(
+          "/api/admin/workflow-templates"
+        );
+        setTemplates(data?.templates ?? []);
+      } catch {
         setError("Erreur lors du chargement des templates");
       } finally {
         setLoading(false);
@@ -54,20 +53,22 @@ export function LoadTemplateModal({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/admin/workflow-templates/${templateId}`
-      );
+      const data = await api.get<{
+        template?: {
+          steps?: Array<{
+            step_id: string;
+            position: number;
+            is_required: boolean;
+            estimated_duration_hours: number | null;
+            dossier_status_on_approval: string | null;
+            step: unknown;
+            document_types: unknown[];
+            custom_fields: unknown[];
+          }>;
+        };
+      }>(`/api/admin/workflow-templates/${templateId}`);
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError("Template non trouvé");
-          return;
-        }
-        throw new Error("Failed to fetch template");
-      }
-
-      const data = await response.json();
-      const rawSteps = data.template?.steps ?? [];
+      const rawSteps = data?.template?.steps ?? [];
 
       if (rawSteps.length === 0) {
         toast.info("Ce template est vide");
@@ -121,8 +122,7 @@ export function LoadTemplateModal({
         "Template chargé. Cliquez sur « Save & Return » pour appliquer au produit."
       );
       onClose();
-    } catch (err) {
-      console.error("Error applying template:", err);
+    } catch {
       setError("Erreur lors du chargement du template");
     } finally {
       setApplyingId(null);

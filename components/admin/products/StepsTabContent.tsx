@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Step } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 import { CreateStepModal } from "./CreateStepModal";
 import { EditStepModal } from "./EditStepModal";
 import { CustomFieldModal } from "./workflow/CustomFieldModal";
@@ -15,6 +16,7 @@ interface StepDocumentTypeRow {
 }
 
 export function StepsTabContent() {
+  const api = useApi();
   const [steps, setSteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +42,8 @@ export function StepsTabContent() {
   const fetchSteps = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch("/api/admin/steps");
-      if (!res.ok) throw new Error("Échec du chargement des steps");
-      const data = await res.json();
-      setSteps(data.steps ?? []);
+      const data = await api.get<{ steps?: Step[] }>("/api/admin/steps");
+      setSteps(data?.steps ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -53,27 +53,27 @@ export function StepsTabContent() {
 
   useEffect(() => {
     fetchSteps();
-  }, []);
+  }, [fetchSteps]);
 
   const fetchStepConfig = useCallback(async (stepId: string) => {
     setLoadingConfig((prev) => ({ ...prev, [stepId]: true }));
     try {
-      const [fieldsRes, docTypesRes] = await Promise.all([
-        fetch(`/api/admin/steps/${stepId}/fields`),
-        fetch(`/api/admin/steps/${stepId}/document-types`),
+      const [fieldsData, docTypesData] = await Promise.all([
+        api.get<{ fields?: StepField[] }>(`/api/admin/steps/${stepId}/fields`),
+        api.get<{ document_types?: StepDocumentTypeRow[] }>(
+          `/api/admin/steps/${stepId}/document-types`
+        ),
       ]);
-      const fieldsData = await fieldsRes.json();
-      const docTypesData = await docTypesRes.json();
       setStepFields((prev) => ({
         ...prev,
-        [stepId]: fieldsData.fields ?? [],
+        [stepId]: fieldsData?.fields ?? [],
       }));
       setStepDocTypes((prev) => ({
         ...prev,
-        [stepId]: docTypesData.document_types ?? [],
+        [stepId]: docTypesData?.document_types ?? [],
       }));
-    } catch (err) {
-      console.error("fetchStepConfig", err);
+    } catch {
+      // keep previous config
     } finally {
       setLoadingConfig((prev) => ({ ...prev, [stepId]: false }));
     }
@@ -83,16 +83,23 @@ export function StepsTabContent() {
     if (expandedStepId) {
       fetchStepConfig(expandedStepId);
     }
-  }, [expandedStepId]);
+  }, [expandedStepId, fetchStepConfig]);
 
   useEffect(() => {
-    if (showFieldModal || addingDocTypeStepId) {
-      fetch("/api/admin/document-types")
-        .then((r) => r.json())
-        .then((d) => setDocumentTypes(d.documentTypes ?? []))
-        .catch(() => setDocumentTypes([]));
-    }
-  }, [showFieldModal, addingDocTypeStepId]);
+    if (!showFieldModal && !addingDocTypeStepId) return;
+    let cancelled = false;
+    api
+      .get<{ documentTypes?: DocumentType[] }>("/api/admin/document-types")
+      .then((d) => {
+        if (!cancelled) setDocumentTypes(d?.documentTypes ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setDocumentTypes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, showFieldModal, addingDocTypeStepId]);
 
   const handleCreateSuccess = (step: Step) => {
     setShowCreateModal(false);
@@ -113,18 +120,11 @@ export function StepsTabContent() {
       return;
     }
     try {
-      const res = await fetch(`/api/admin/steps/${step.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Impossible de supprimer la step.");
-        return;
-      }
+      await api.delete(`/api/admin/steps/${step.id}`);
       setSteps((prev) => prev.filter((s) => s.id !== step.id));
       if (expandedStepId === step.id) setExpandedStepId(null);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
     }
   };
 
@@ -144,20 +144,13 @@ export function StepsTabContent() {
     documentTypeId: string
   ) => {
     try {
-      const res = await fetch(`/api/admin/steps/${stepId}/document-types`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_type_id: documentTypeId }),
+      await api.post(`/api/admin/steps/${stepId}/document-types`, {
+        document_type_id: documentTypeId,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Échec de l'ajout");
-        return;
-      }
       await fetchStepConfig(stepId);
       setAddingDocTypeStepId(null);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
     }
   };
 
@@ -166,18 +159,12 @@ export function StepsTabContent() {
     documentTypeId: string
   ) => {
     try {
-      const res = await fetch(
-        `/api/admin/steps/${stepId}/document-types?document_type_id=${encodeURIComponent(documentTypeId)}`,
-        { method: "DELETE" }
+      await api.delete(
+        `/api/admin/steps/${stepId}/document-types?document_type_id=${encodeURIComponent(documentTypeId)}`
       );
-      if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "Échec de la suppression");
-        return;
-      }
       await fetchStepConfig(stepId);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur");
     }
   };
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StepDocument } from "./StepValidationSection";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 const SIMPLIFIED_VALIDATION = true;
 
@@ -42,6 +43,7 @@ export function DocumentValidationItem({
   dossierId,
   onRefresh,
 }: DocumentValidationItemProps) {
+  const api = useApi();
   const [showReject, setShowReject] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,14 +56,9 @@ export function DocumentValidationItem({
   const handleApprove = async () => {
     try {
       setLoading(true);
-      const res = await fetch(
-        `/api/admin/dossiers/${dossierId}/documents/${document.id}/approve`,
-        { method: "POST" }
+      await api.post(
+        `/api/admin/dossiers/${dossierId}/documents/${document.id}/approve`
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur approbation");
-      }
       toast.success("Document approuvé");
       onRefresh();
     } catch (e) {
@@ -78,18 +75,10 @@ export function DocumentValidationItem({
     }
     try {
       setLoading(true);
-      const res = await fetch(
+      await api.post(
         `/api/admin/dossiers/${dossierId}/documents/${document.id}/reject`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rejection_reason: rejectionReason }),
-        }
+        { rejection_reason: rejectionReason }
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur rejet");
-      }
       toast.success("Document rejeté");
       setShowReject(false);
       setRejectionReason("");
@@ -109,11 +98,9 @@ export function DocumentValidationItem({
     setShowPreview(true);
     setPreviewLoading(true);
     try {
-      const res = await fetch(
+      const blob = await api.getBlob(
         `/api/admin/dossiers/${dossierId}/documents/${document.id}/view`
       );
-      if (!res.ok) throw new Error("Erreur chargement");
-      const blob = await res.blob();
       setPreviewUrl(URL.createObjectURL(blob));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");

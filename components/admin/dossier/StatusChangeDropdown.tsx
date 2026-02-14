@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DossierStatus, DOSSIER_STATUS_OPTIONS } from "@/lib/dossier-status";
+import { useApi } from "@/lib/api/useApi";
 
 interface StatusChangeDropdownProps {
   dossierId: string;
@@ -15,6 +16,7 @@ export function StatusChangeDropdown({
   dossierId,
   currentStatus,
 }: StatusChangeDropdownProps) {
+  const api = useApi();
   const [status, setStatus] = useState<DossierStatus>(currentStatus);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,21 +26,13 @@ export function StatusChangeDropdown({
     setIsUpdating(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+      await api.patch(`/api/admin/dossiers/${dossierId}/status`, {
+        status: newStatus,
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || "Erreur lors du changement de statut"
-        );
-      }
       setStatus(newStatus);
       window.location.reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
       setIsUpdating(false);
     }

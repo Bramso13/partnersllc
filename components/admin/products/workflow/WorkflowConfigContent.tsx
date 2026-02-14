@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Step, DocumentType, ProductStep } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 import { WorkflowStepsList } from "./WorkflowStepsList";
 import { AddStepModal } from "./AddStepModal";
 import { WorkflowPreview } from "./WorkflowPreview";
@@ -22,6 +23,7 @@ export interface WorkflowStepConfig extends ProductStep {
 export function WorkflowConfigContent({
   productId,
 }: WorkflowConfigContentProps) {
+  const api = useApi();
   const router = useRouter();
   const [steps, setSteps] = useState<WorkflowStepConfig[]>([]);
   const [availableSteps, setAvailableSteps] = useState<Step[]>([]);
@@ -33,46 +35,39 @@ export function WorkflowConfigContent({
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false);
 
-  const fetchWorkflowConfig = async () => {
+  const fetchWorkflowConfig = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`/api/admin/products/${productId}/workflow`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch workflow configuration");
-      }
-      const data = await response.json();
-      setSteps(data.steps || []);
+      const data = await api.get<{ steps?: WorkflowStepConfig[] }>(
+        `/api/admin/products/${productId}/workflow`
+      );
+      setSteps(data?.steps ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, productId]);
 
-  const fetchAvailableSteps = async () => {
+  const fetchAvailableSteps = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/steps");
-      if (!response.ok) {
-        throw new Error("Failed to fetch available steps");
-      }
-      const data = await response.json();
-      setAvailableSteps(data.steps || []);
-    } catch (err) {
-      console.error("Error fetching available steps:", err);
+      const data = await api.get<{ steps?: Step[] }>("/api/admin/steps");
+      setAvailableSteps(data?.steps ?? []);
+    } catch {
+      // keep current availableSteps
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchWorkflowConfig();
     fetchAvailableSteps();
-  }, [productId]);
+  }, [fetchWorkflowConfig, fetchAvailableSteps]);
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
 
     try {
-      // formation_id et timer_delay_minutes sont sur la table steps, pas product_steps
       const workflowData = {
         steps: steps.map((step, index) => ({
           step_id: step.step_id,
@@ -85,20 +80,7 @@ export function WorkflowConfigContent({
         })),
       };
 
-      const response = await fetch(
-        `/api/admin/products/${productId}/workflow`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(workflowData),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to save workflow configuration");
-      }
-
-      // Redirect back to products list
+      await api.post(`/api/admin/products/${productId}/workflow`, workflowData);
       router.push("/admin/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

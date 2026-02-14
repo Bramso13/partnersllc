@@ -9,6 +9,7 @@ interface StepFiltersProps {
   sortBy: "assigned_at" | "step_type" | "client_name";
   onSortChange: (value: "assigned_at" | "step_type" | "client_name") => void;
   isRefreshing: boolean;
+  onRefresh?: () => void | Promise<void>;
 }
 
 export function StepFilters({
@@ -17,6 +18,7 @@ export function StepFilters({
   sortBy,
   onSortChange,
   isRefreshing,
+  onRefresh,
 }: StepFiltersProps) {
   const t = useTranslations("agent.steps");
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -53,18 +55,7 @@ export function StepFilters({
 
         <button
           type="button"
-          onClick={async () => {
-            try {
-              const res = await fetch("/api/agent/steps");
-              if (res.ok) {
-                const json = await res.json();
-                // Parent se chargera de mettre à jour via onSearchChange/onSortChange
-                // Ici on ne fait que forcer un re-rendu en changeant la search si besoin
-              }
-            } catch (e) {
-              console.error("Erreur lors du refresh manuel", e);
-            }
-          }}
+          onClick={() => onRefresh?.()}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#191A1D] border border-[#363636] text-sm text-brand-text-secondary hover:text-brand-text-primary hover:border-brand-accent transition-colors"
         >
           <i

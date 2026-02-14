@@ -5,49 +5,16 @@ import { toast } from "sonner";
 import { useBackoffice } from "@/lib/contexts/backoffice/BackofficeContext";
 import { useProducts } from "@/lib/contexts/products/ProductsContext";
 import type { Product } from "@/lib/contexts/products/types";
+import type {
+  DossierObservation,
+  DossierObservationStepInstance,
+  DossierStatusHistoryEntry,
+} from "@/lib/contexts/backoffice/types";
 
 type TestProcessusTabProps = {
   testEmail: string;
   testPhone: string;
   onGoToConfig: () => void;
-};
-
-type DossierEvent = {
-  id: string;
-  action: string;
-  entity_type: string;
-  entity_id: string;
-  created_at: string;
-  metadata?: Record<string, unknown> | null;
-};
-
-type NotificationDelivery = {
-  id: string;
-  channel: string;
-  status: string;
-  recipient: string;
-  sent_at: string | null;
-  failed_at: string | null;
-  provider_response?: Record<string, unknown> | null;
-  created_at: string;
-};
-
-type Notification = {
-  id: string;
-  title: string;
-  message: string;
-  template_code: string | null;
-  created_at: string;
-  dossier_id: string | null;
-  notification_deliveries: NotificationDelivery[];
-};
-
-type DossierSummary = {
-  id: string;
-  status: string;
-  created_at: string;
-  client?: { id: string; full_name: string } | null;
-  product?: { id: string; name: string } | null;
 };
 
 function formatDate(iso: string | null): string {
@@ -84,7 +51,12 @@ export function TestProcessusTab({
   testPhone,
   onGoToConfig,
 }: TestProcessusTabProps) {
-  const { createDossierWithNewClient, getDossierSummary } = useBackoffice();
+  const {
+    createDossierWithNewClient,
+    getDossierObservation,
+    setDossierTestFlag,
+    deleteTestUser,
+  } = useBackoffice();
   const { fetchActiveProducts } = useProducts();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -98,10 +70,18 @@ export function TestProcessusTab({
   const [createdClientEmail, setCreatedClientEmail] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Observation data
-  const [dossierSummary, setDossierSummary] = useState<DossierSummary | null>(null);
-  const [events, setEvents] = useState<DossierEvent[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Observation data (tout ce qui est créé pendant le test)
+  const [dossierSummary, setDossierSummary] =
+    useState<DossierObservation["dossierSummary"]>(null);
+  const [events, setEvents] = useState<DossierObservation["events"]>([]);
+  const [notifications, setNotifications] =
+    useState<DossierObservation["notifications"]>([]);
+  const [stepInstances, setStepInstances] = useState<
+    DossierObservationStepInstance[]
+  >([]);
+  const [statusHistory, setStatusHistory] = useState<
+    DossierStatusHistoryEntry[]
+  >([]);
   const [isLoadingObs, setIsLoadingObs] = useState(false);
 
   useEffect(() => {
@@ -111,24 +91,24 @@ export function TestProcessusTab({
       .finally(() => setIsLoadingProducts(false));
   }, [fetchActiveProducts]);
 
-  const loadObservation = useCallback(async (dossierId: string) => {
-    setIsLoadingObs(true);
-    try {
-      const [summaryRes, eventsRes, notifRes] = await Promise.all([
-        getDossierSummary(dossierId),
-        fetch(`/api/admin/dossiers/${dossierId}/events`).then((r) => r.json()),
-        fetch(`/api/admin/notifications?dossier_id=${dossierId}&limit=100`).then((r) => r.json()),
-      ]);
-
-      setDossierSummary(summaryRes as DossierSummary | null);
-      setEvents(Array.isArray(eventsRes) ? eventsRes : []);
-      setNotifications(notifRes?.notifications ?? []);
-    } catch {
-      toast.error("Erreur lors du chargement des données d'observation");
-    } finally {
-      setIsLoadingObs(false);
-    }
-  }, [getDossierSummary]);
+  const loadObservation = useCallback(
+    async (dossierId: string) => {
+      setIsLoadingObs(true);
+      try {
+        const obs = await getDossierObservation(dossierId);
+        setDossierSummary(obs.dossierSummary);
+        setEvents(obs.events);
+        setNotifications(obs.notifications);
+        setStepInstances(obs.stepInstances);
+        setStatusHistory(obs.statusHistory);
+      } catch {
+        toast.error("Erreur lors du chargement des données d'observation");
+      } finally {
+        setIsLoadingObs(false);
+      }
+    },
+    [getDossierObservation]
+  );
 
   const handleCreate = useCallback(async () => {
     if (!testEmail) {
@@ -151,12 +131,7 @@ export function TestProcessusTab({
         initial_status: "QUALIFICATION",
       });
 
-      // Mark dossier as test
-      await fetch(`/api/admin/dossiers/${res.dossierId}/test-flag`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_test: true }),
-      });
+      await setDossierTestFlag(res.dossierId, true);
 
       setCreatedDossierId(res.dossierId);
       setCreatedUserId(res.userId);
@@ -175,6 +150,7 @@ export function TestProcessusTab({
     testPhone,
     selectedProductId,
     createDossierWithNewClient,
+    setDossierTestFlag,
     loadObservation,
     onGoToConfig,
   ]);
@@ -195,27 +171,24 @@ export function TestProcessusTab({
 
     setIsResetting(true);
     try {
-      const res = await fetch(`/api/admin/test/users/${createdUserId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Erreur lors de la suppression");
-      }
+      await deleteTestUser(createdUserId);
       toast.success("Données de test supprimées. Vous pouvez relancer un test.");
-      // Reset all state
       setCreatedDossierId(null);
       setCreatedUserId(null);
       setCreatedClientEmail(null);
       setDossierSummary(null);
       setEvents([]);
       setNotifications([]);
+      setStepInstances([]);
+      setStatusHistory([]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+      toast.error(
+        err instanceof Error ? err.message : "Erreur lors de la suppression"
+      );
     } finally {
       setIsResetting(false);
     }
-  }, [createdUserId]);
+  }, [createdUserId, deleteTestUser]);
 
   // Derived: email deliveries + whatsapp deliveries from notifications
   const allDeliveries = notifications.flatMap((n) =>
@@ -429,6 +402,66 @@ export function TestProcessusTab({
                 )}
               </ObsCard>
 
+              {/* Step instances */}
+              <ObsCard
+                title={`Étapes (${stepInstances.length})`}
+                icon="fa-list-check"
+              >
+                {stepInstances.length === 0 ? (
+                  <p className="text-xs text-[#666]">Aucune étape</p>
+                ) : (
+                  <ul className="space-y-2 max-h-48 overflow-y-auto">
+                    {stepInstances.map((si) => (
+                      <li
+                        key={si.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-xs text-[#f9f9f9] truncate">
+                          {si.step?.label ?? si.step_id?.slice(0, 8)}
+                        </span>
+                        <StatusBadge
+                          status={
+                            si.completed_at
+                              ? "COMPLETED"
+                              : si.validation_status ?? "PENDING"
+                          }
+                        />
+                        <span className="text-xs text-[#666]">
+                          {formatDate(si.completed_at ?? si.started_at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </ObsCard>
+
+              {/* Historique statuts */}
+              <ObsCard
+                title={`Historique statuts (${statusHistory.length})`}
+                icon="fa-arrows-rotate"
+              >
+                {statusHistory.length === 0 ? (
+                  <p className="text-xs text-[#666]">Aucun changement</p>
+                ) : (
+                  <ul className="space-y-2 max-h-48 overflow-y-auto">
+                    {statusHistory.map((h) => (
+                      <li key={h.id} className="flex items-start gap-2">
+                        <i className="fa-solid fa-arrow-right-arrow-left text-[#7c6af7] text-xs mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs text-[#f9f9f9] font-medium">
+                            {h.old_status} → {h.new_status}
+                          </p>
+                          <p className="text-xs text-[#666]">
+                            {formatDate(h.created_at)}
+                            {h.reason ? ` · ${h.reason}` : ""}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </ObsCard>
+
               {/* Historique événements */}
               <ObsCard title={`Événements (${events.length})`} icon="fa-timeline">
                 {events.length === 0 ? (
@@ -440,9 +473,18 @@ export function TestProcessusTab({
                         <i className="fa-solid fa-circle-dot text-[#7c6af7] text-xs mt-0.5 shrink-0" />
                         <div className="min-w-0">
                           <p className="text-xs text-[#f9f9f9] font-medium truncate">
-                            {ev.action}
+                            {"event_type" in ev && ev.event_type
+                              ? String(ev.event_type)
+                              : "action" in ev && ev.action
+                                ? String(ev.action)
+                                : "—"}
                           </p>
-                          <p className="text-xs text-[#666]">{formatDate(ev.created_at)}</p>
+                          <p className="text-xs text-[#666]">
+                            {formatDate(ev.created_at)} ·{" "}
+                            <span className="text-[#666] font-mono text-[10px]">
+                              {ev.entity_type}
+                            </span>
+                          </p>
                         </div>
                       </li>
                     ))}

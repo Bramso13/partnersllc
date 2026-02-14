@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { useApi } from "@/lib/api/useApi";
 import type { VerificateurStepDetails } from "@/lib/agent-steps";
 
 interface CompleteStepSectionProps {
@@ -16,6 +17,7 @@ export function CompleteStepSection({
   requiredDocuments,
   isCompleted,
 }: CompleteStepSectionProps) {
+  const api = useApi();
   const router = useRouter();
   const [manualOverride, setManualOverride] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,22 +58,10 @@ export function CompleteStepSection({
 
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/agent/steps/${stepInstanceId}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ manual: manualOverride }),
-      });
-
-      if (res.ok) {
-        // Redirect with success message via URL param
-        router.push("/agent/steps?completed=true");
-      } else {
-        const error = await res.json();
-        alert(error.error || "Erreur lors de la completion");
-      }
-    } catch (err) {
-      console.error("Error completing step", err);
-      alert("Erreur lors de la completion");
+      await api.post(`/api/agent/steps/${stepInstanceId}/complete`, { manual: manualOverride });
+      router.push("/agent/steps?completed=true");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors de la completion");
     } finally {
       setIsLoading(false);
     }

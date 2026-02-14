@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils/format-currency";
+import { useApi } from "@/lib/api/useApi";
 
 interface RevenueData {
   encaisse: number;
@@ -36,6 +37,7 @@ const cards: {
 ];
 
 export function RevenueMetrics() {
+  const api = useApi();
   const [revenue, setRevenue] = useState<RevenueData>({
     encaisse: 0,
     signe: 0,
@@ -44,24 +46,22 @@ export function RevenueMetrics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRevenue = async () => {
+  const fetchRevenue = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/revenue");
-      if (!response.ok) throw new Error("Erreur chargement revenus");
-      const data = await response.json();
+      const data = await api.get<RevenueData>("/api/admin/revenue");
       setRevenue(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRevenue();
-  }, []);
+  }, [fetchRevenue]);
 
   if (error) {
     return (

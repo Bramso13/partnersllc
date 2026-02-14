@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StepInstanceWithFields } from "./StepValidationSection";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import { FieldValidationList } from "./FieldValidationList";
 import { DocumentValidationList } from "./DocumentValidationList";
 import { RejectionModal } from "./RejectionModal";
@@ -42,6 +43,7 @@ export function StepValidationCard({
   stepInstance,
   onRefresh,
 }: StepValidationCardProps) {
+  const api = useApi();
   const [isExpanded, setIsExpanded] = useState(
     stepInstance.validation_status === "SUBMITTED" ||
       stepInstance.validation_status === "UNDER_REVIEW"
@@ -89,28 +91,21 @@ export function StepValidationCard({
         for (const f of stepInstance.fields.filter(
           (f) => f.validation_status !== "APPROVED"
         )) {
-          await fetch(
-            `/api/admin/dossiers/${stepInstance.dossier_id}/fields/${f.id}/approve`,
-            { method: "POST" }
+          await api.post(
+            `/api/admin/dossiers/${stepInstance.dossier_id}/fields/${f.id}/approve`
           );
         }
         for (const d of stepInstance.documents.filter(
           (d) => d.status !== "APPROVED"
         )) {
-          await fetch(
-            `/api/admin/dossiers/${stepInstance.dossier_id}/documents/${d.id}/approve`,
-            { method: "POST" }
+          await api.post(
+            `/api/admin/dossiers/${stepInstance.dossier_id}/documents/${d.id}/approve`
           );
         }
       }
-      const res = await fetch(
-        `/api/admin/dossiers/${stepInstance.dossier_id}/steps/${stepInstance.id}/approve`,
-        { method: "POST" }
+      await api.post(
+        `/api/admin/dossiers/${stepInstance.dossier_id}/steps/${stepInstance.id}/approve`
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur approbation");
-      }
       toast.success("Étape validée");
       onRefresh();
     } catch (e) {
@@ -122,18 +117,10 @@ export function StepValidationCard({
 
   const handleRejectStep = async (reason: string) => {
     try {
-      const res = await fetch(
+      await api.post(
         `/api/admin/dossiers/${stepInstance.dossier_id}/steps/${stepInstance.id}/reject`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rejection_reason: reason }),
-        }
+        { rejection_reason: reason }
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur rejet");
-      }
       toast.success("Étape rejetée");
       setShowRejectModal(false);
       onRefresh();

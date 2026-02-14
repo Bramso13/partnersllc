@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { useApi } from "@/lib/api/useApi";
 import rehypeSanitize from "rehype-sanitize";
 import { DocumentType } from "@/types/products";
 
@@ -17,6 +18,7 @@ export function EditDocumentTypeModal({
   onClose,
   onSuccess,
 }: EditDocumentTypeModalProps) {
+  const api = useApi();
   const [formData, setFormData] = useState({
     label: documentType.label,
     description: documentType.description || "",
@@ -31,34 +33,23 @@ export function EditDocumentTypeModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
+      await api.patch(
         `/api/admin/document-types/${documentType.id}`,
         {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: formData.label.trim(),
-            description: formData.description.trim() || null,
-            max_file_size_mb: formData.max_file_size_mb,
-            allowed_extensions: formData.allowed_extensions
-              .split(",")
-              .map((ext) => ext.trim())
-              .filter(Boolean),
-          }),
+          label: formData.label.trim(),
+          description: formData.description.trim() || null,
+          max_file_size_mb: formData.max_file_size_mb,
+          allowed_extensions: formData.allowed_extensions
+            .split(",")
+            .map((ext) => ext.trim())
+            .filter(Boolean),
         }
       );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update document type");
-      }
-
       toast.success("Type de document modifié avec succès");
       onSuccess();
-    } catch (error) {
-      console.error("Error updating document type:", error);
+    } catch (e) {
       toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
+        e instanceof Error ? e.message : "Une erreur est survenue"
       );
     } finally {
       setIsSubmitting(false);

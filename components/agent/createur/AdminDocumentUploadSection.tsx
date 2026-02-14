@@ -15,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
 import { revalidateDossier } from "@/app/actions/revalidate-dossier";
+import { useApi } from "@/lib/api/useApi";
 
 interface AdminDocumentUploadSectionProps {
   stepInstanceId: string;
@@ -49,6 +50,7 @@ export function AdminDocumentUploadSection({
   agentId,
   dossierId,
 }: AdminDocumentUploadSectionProps) {
+  const api = useApi();
   const router = useRouter();
   const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatus | null>(
@@ -130,21 +132,9 @@ export function AdminDocumentUploadSection({
         );
       }, 300);
 
-      const response = await fetch("/api/agent/admin-documents/upload", {
-        method: "POST",
-        body: formData,
-      });
-
       clearInterval(progressInterval);
 
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Upload failed" }));
-        throw new Error(errorData.error || "Upload échoué");
-      }
-
-      const result = await response.json();
+      await api.post("/api/agent/admin-documents/upload", formData);
 
       setUploadStatus({
         documentTypeId,
@@ -162,7 +152,6 @@ export function AdminDocumentUploadSection({
         router.refresh();
       }, 1500);
     } catch (error) {
-      console.error("Upload error:", error);
       setUploadStatus({
         documentTypeId,
         status: "error",
@@ -187,18 +176,7 @@ export function AdminDocumentUploadSection({
       message: `Suppression du document "${documentTypeLabel}"...`,
     });
     try {
-      const response = await fetch(
-        `/api/agent/admin-documents/${documentId}/clear-version`,
-        {
-          method: "PATCH",
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Suppression échouée" }));
-        throw new Error(errorData.error || "Suppression échouée");
-      }
+      await api.patch(`/api/agent/admin-documents/${documentId}/clear-version`);
       setDeleteStatus({
         documentId,
         status: "success",
@@ -210,7 +188,6 @@ export function AdminDocumentUploadSection({
         router.refresh();
       }, 1500);
     } catch (error) {
-      console.error("Clear version error:", error);
       setDeleteStatus({
         documentId,
         status: "error",
@@ -234,20 +211,7 @@ export function AdminDocumentUploadSection({
     });
 
     try {
-      const response = await fetch(
-        `/api/agent/admin-documents/${documentId}/deliver`,
-        {
-          method: "POST",
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Delivery failed" }));
-        throw new Error(errorData.error || "Livraison échouée");
-      }
-
+      await api.post(`/api/agent/admin-documents/${documentId}/deliver`);
       setDeliveryStatus({
         documentId,
         status: "success",
@@ -262,7 +226,6 @@ export function AdminDocumentUploadSection({
         router.refresh();
       }, 1500);
     } catch (error) {
-      console.error("Delivery error:", error);
       setDeliveryStatus({
         documentId,
         status: "error",

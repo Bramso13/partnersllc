@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 
 interface CompleteStepButtonProps {
   dossierId: string;
@@ -13,6 +14,7 @@ export function CompleteStepButton({
   stepInstanceId,
   stepName,
 }: CompleteStepButtonProps) {
+  const api = useApi();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +23,9 @@ export function CompleteStepButton({
     setIsSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/admin/dossiers/${dossierId}/complete-step`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stepInstanceId }),
-        }
-      );
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Erreur lors de la complétion");
-      }
+      await api.post(`/api/admin/dossiers/${dossierId}/complete-step`, {
+        stepInstanceId,
+      });
       window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AgentStats, ActivityEvent, AgentDossier } from "@/lib/agent-metrics";
+import { useApi } from "@/lib/api/useApi";
 import { StatsCards } from "./StatsCards";
 import { ActivityFeed } from "./ActivityFeed";
 import { MyDossiersSection } from "./MyDossiersSection";
@@ -14,38 +15,36 @@ interface AgentDashboardContentProps {
 export function AgentDashboardContent({
   agentId,
 }: AgentDashboardContentProps) {
+  const api = useApi();
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [dossiers, setDossiers] = useState<AgentDossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`/api/admin/dashboard?agentId=${agentId}`);
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des données");
-      }
-      const data = await response.json();
-      setStats(data.stats);
-      setActivities(data.activities || []);
-      setDossiers(data.dossiers || []);
+      const data = await api.get<{
+        stats?: AgentStats;
+        activities?: ActivityEvent[];
+        dossiers?: AgentDossier[];
+      }>(`/api/admin/dashboard?agentId=${agentId}`);
+      setStats(data?.stats ?? null);
+      setActivities(data?.activities ?? []);
+      setDossiers(data?.dossiers ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, agentId]);
 
   useEffect(() => {
     fetchDashboardData();
-
-    // Auto-refresh every 60 seconds
     const interval = setInterval(fetchDashboardData, 60000);
-
     return () => clearInterval(interval);
-  }, [agentId]);
+  }, [fetchDashboardData]);
 
   if (loading) {
     return (

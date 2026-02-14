@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { DocumentType } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 
 interface SendDocumentsModalProps {
   dossierId: string;
@@ -50,6 +51,7 @@ export function SendDocumentsModal({
   onClose,
   onSuccess,
 }: SendDocumentsModalProps) {
+  const api = useApi();
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -74,36 +76,38 @@ export function SendDocumentsModal({
     }
     setLoadingAdminDocs(true);
     try {
-      const res = await fetch(
+      const data = await api.get<{ admin_documents?: AdminDocumentItem[] }>(
         `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/admin-documents`
       );
-      const data = await res.json();
-      if (res.ok) setAdminDocuments(data.admin_documents ?? []);
-      else setAdminDocuments([]);
+      setAdminDocuments(data?.admin_documents ?? []);
     } catch {
       setAdminDocuments([]);
     } finally {
       setLoadingAdminDocs(false);
     }
-  }, [dossierId, stepInstanceId]);
+  }, [api, dossierId, stepInstanceId]);
 
   useEffect(() => {
     fetchAdminDocuments();
-  }, []);
+  }, [fetchAdminDocuments]);
 
   useEffect(() => {
-    fetch("/api/admin/document-types")
-      .then((res) =>
-        res.json().then((data: { document_types?: DocumentType[] }) => ({
-          ok: res.ok,
-          data,
-        }))
-      )
-      .then(({ ok, data }) => {
-        setDocumentTypes(ok ? (data.document_types ?? []) : []);
+    let cancelled = false;
+    api
+      .get<{ document_types?: DocumentType[] }>("/api/admin/document-types")
+      .then((data) => {
+        if (!cancelled) setDocumentTypes(data?.document_types ?? []);
       })
-      .finally(() => setLoading(false));
-  }, [dossierId, productId, stepInstanceId]);
+      .catch(() => {
+        if (!cancelled) setDocumentTypes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -141,7 +145,7 @@ export function SendDocumentsModal({
   const handleAdminReplace = async (
     file: File,
     documentTypeId: string,
-    documentTypeLabel: string
+    _documentTypeLabel: string
   ) => {
     if (!stepInstanceId || !dossierId) return;
     setError(null);
@@ -151,15 +155,10 @@ export function SendDocumentsModal({
       formData.append("file", file);
       formData.append("document_type_id", documentTypeId);
       formData.append("step_instance_id", stepInstanceId);
-      const res = await fetch(
+      await api.post(
         `/api/admin/dossiers/${dossierId}/admin-documents/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
+        formData
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur remplacement");
       await fetchAdminDocuments();
       onSuccess();
     } catch (e) {
@@ -175,12 +174,9 @@ export function SendDocumentsModal({
     setError(null);
     setActionDocId(documentId);
     try {
-      const res = await fetch(
-        `/api/admin/dossiers/${dossierId}/documents/${documentId}/clear-version`,
-        { method: "PATCH" }
+      await api.patch(
+        `/api/admin/dossiers/${dossierId}/documents/${documentId}/clear-version`
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur suppression");
       await fetchAdminDocuments();
       onSuccess();
     } catch (e) {
@@ -207,12 +203,10 @@ export function SendDocumentsModal({
       );
       if (message.trim()) formData.append("message", message.trim());
 
-      const res = await fetch(
+      await api.post(
         `/api/admin/dossiers/${dossierId}/send-documents`,
-        { method: "POST", body: formData }
+        formData
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur envoi");
       onSuccess();
       onClose();
     } catch (e) {

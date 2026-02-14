@@ -7,6 +7,7 @@ import {
   FormationElementPayload,
 } from "@/types/formations";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 interface AddElementModalProps {
   formationId: string;
@@ -23,6 +24,7 @@ export function AddElementModal({
   onClose,
   onSaved,
 }: AddElementModalProps) {
+  const api = useApi();
   const [selectedType, setSelectedType] = useState<FormationElementType | null>(
     element?.type || null
   );
@@ -101,19 +103,12 @@ export function AddElementModal({
     formData.append("folder", "");
 
     try {
-      const response = await fetch("/api/admin/formations/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
-      return data.path;
-    } catch (error) {
-      console.error("Error uploading file:", error);
+      const data = await api.post<{ path?: string }>(
+        "/api/admin/formations/upload",
+        formData
+      );
+      return data?.path ?? null;
+    } catch {
       toast.error("Erreur lors de l'upload");
       return null;
     }
@@ -206,19 +201,13 @@ export function AddElementModal({
         return;
       }
 
-      // Submit element
-      const url = element
-        ? `/api/admin/formations/${formationId}/elements/${element.id}`
-        : `/api/admin/formations/${formationId}/elements`;
-      const method = element ? "PUT" : "POST";
-
       const titleValue =
         title !== undefined && title !== null && String(title).trim() !== ""
           ? String(title).trim()
           : "No title yet";
 
       const body = element
-        ? { title: titleValue, payload } // For update, send title + payload
+        ? { title: titleValue, payload }
         : {
             type: selectedType,
             position: nextPosition,
@@ -226,20 +215,20 @@ export function AddElementModal({
             payload,
           };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to save element");
+      if (element) {
+        await api.put(
+          `/api/admin/formations/${formationId}/elements/${element.id}`,
+          body
+        );
+      } else {
+        await api.post(
+          `/api/admin/formations/${formationId}/elements`,
+          body
+        );
       }
 
       onSaved();
     } catch (error) {
-      console.error("Error saving element:", error);
       toast.error(
         error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       );

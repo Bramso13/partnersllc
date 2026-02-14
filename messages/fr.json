@@ -1,5 +1,18 @@
 {
-  "agent": {},
+  "agent": {
+    "createur": {
+      "stepCompletion": "Complétion de l'étape",
+      "allDocsDelivered": "Tous les documents requis ont été créés et livrés au client",
+      "stepCompleted": "Étape terminée",
+      "allCreatedAndDelivered": "Tous les documents ont été créés et livrés au client. Cette étape est terminée.",
+      "missingOrNotDelivered": "Documents manquants ou non livrés :",
+      "completing": "En cours de complétion...",
+      "markComplete": "Marquer comme complété",
+      "cannotComplete": "Impossible de compléter - Documents manquants",
+      "allMustBeUploaded": "Tous les documents doivent être uploadés et livrés au client avant de pouvoir compléter l'étape.",
+      "completionError": "Erreur lors de la complétion de l'étape"
+    }
+  },
   "dashboard": {
     "dossier": {
       "backToDashboard": "Retour au tableau de bord",

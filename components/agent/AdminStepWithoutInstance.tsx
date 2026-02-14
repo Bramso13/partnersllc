@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 interface AdminStepWithoutInstanceProps {
   step: {
@@ -24,6 +25,7 @@ export function AdminStepWithoutInstance({
   agentType,
   onComplete,
 }: AdminStepWithoutInstanceProps) {
+  const api = useApi();
   const t = useTranslations("agent.adminStepWithoutInstance");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,26 +39,15 @@ export function AdminStepWithoutInstance({
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/agent/steps/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dossier_id: dossierId,
-          step_id: step.id,
-        }),
+      await api.post("/api/agent/steps/create", {
+        dossier_id: dossierId,
+        step_id: step.id,
       });
-
-      if (res.ok) {
-        toast.success(t("stepCreated"));
-        onComplete();
-      } else {
-        const error = await res.json();
-        toast.error(error.error || t("createError"));
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error("Error creating step", err);
-      toast.error(t("createError"));
+      toast.success(t("stepCreated"));
+      onComplete();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("createError"));
+    } finally {
       setIsLoading(false);
     }
   };

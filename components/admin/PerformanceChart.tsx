@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useApi } from "@/lib/api/useApi";
 
 interface PerformanceChartProps {
   agentId: string;
@@ -12,28 +13,26 @@ interface ChartDataPoint {
 }
 
 export function PerformanceChart({ agentId }: PerformanceChartProps) {
+  const api = useApi();
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        const response = await fetch(
-          `/api/admin/dashboard/chart?agentId=${agentId}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setChartData(data);
-        }
-      } catch (err) {
-        console.error("Error fetching chart data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchChartData = useCallback(async () => {
+    try {
+      const data = await api.get<ChartDataPoint[]>(
+        `/api/admin/dashboard/chart?agentId=${agentId}`
+      );
+      setChartData(Array.isArray(data) ? data : []);
+    } catch {
+      // keep empty chart
+    } finally {
+      setLoading(false);
+    }
+  }, [api, agentId]);
 
+  useEffect(() => {
     fetchChartData();
-  }, [agentId]);
+  }, [fetchChartData]);
 
   if (loading) {
     return (

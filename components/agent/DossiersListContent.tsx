@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { AgentDossierListItem } from "@/lib/agent/dossiers";
 import { formatDossierInfoForCopy } from "@/lib/agent/copy-dossier-info";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
+import { DossierAllData } from "@/lib/agent/dossiers";
 
 type FilterType = "all" | "in_progress" | "completed";
 type SortField = "date" | "name" | "status";
@@ -17,6 +19,7 @@ interface DossiersListContentProps {
 export function DossiersListContent({
   initialDossiers,
 }: DossiersListContentProps) {
+  const api = useApi();
   const router = useRouter();
   const t = useTranslations("agent.dossiers");
   const [filter, setFilter] = useState<FilterType>("all");
@@ -87,25 +90,13 @@ export function DossiersListContent({
     e.stopPropagation(); // Prevent row click
     try {
       setCopyingDossierId(dossierId);
-
-      // Fetch all dossier data
-      const response = await fetch(`/api/agent/dossiers/${dossierId}/all-data`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch dossier data");
-      }
-
-      const data = await response.json();
-
-      // Format the data
-      const formattedText = formatDossierInfoForCopy(data);
-
-      // Copy to clipboard
+      const data = await api.get<DossierAllData>(
+        `/api/agent/dossiers/${dossierId}/all-data`
+      );
+      const formattedText = formatDossierInfoForCopy(data as DossierAllData);
       await navigator.clipboard.writeText(formattedText);
-
       toast.success(t("copySuccess"));
-    } catch (error) {
-      console.error("Error copying dossier info:", error);
+    } catch {
       toast.error(t("copyError"));
     } finally {
       setCopyingDossierId(null);

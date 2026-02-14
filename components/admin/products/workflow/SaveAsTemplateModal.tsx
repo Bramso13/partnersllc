@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type { WorkflowStepConfig } from "./WorkflowConfigContent";
 
 interface SaveAsTemplateModalProps {
@@ -15,6 +16,7 @@ export function SaveAsTemplateModal({
   onClose,
   onSuccess,
 }: SaveAsTemplateModalProps) {
+  const api = useApi();
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,29 +47,12 @@ export function SaveAsTemplateModal({
         })),
       };
 
-      const response = await fetch("/api/admin/workflow-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 409) {
-          setError(data.error ?? "Un template avec ce nom existe déjà");
-        } else {
-          setError(data.error ?? "Erreur lors de la sauvegarde");
-        }
-        return;
-      }
-
+      await api.post("/api/admin/workflow-templates", payload);
       toast.success("Template sauvegardé avec succès");
       onSuccess?.();
       onClose();
     } catch (err) {
-      console.error("Error saving template:", err);
-      setError("Erreur réseau lors de la sauvegarde");
+      setError(err instanceof Error ? err.message : "Erreur réseau lors de la sauvegarde");
     } finally {
       setIsSubmitting(false);
     }

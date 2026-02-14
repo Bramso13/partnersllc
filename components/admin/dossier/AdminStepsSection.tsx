@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { SendDocumentsModal } from "./SendDocumentsModal";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 const SIMPLIFIED_VALIDATION = true;
 
@@ -61,6 +62,7 @@ export function AdminStepsSection({
   dossierId,
   productId,
 }: AdminStepsSectionProps) {
+  const api = useApi();
   const [adminSteps, setAdminSteps] = useState<AdminStepInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,39 +82,48 @@ export function AdminStepsSection({
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [validatingId, setValidatingId] = useState<string | null>(null);
 
-  const fetchSteps = async () => {
+  const fetchSteps = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/admin/dossiers/${dossierId}/admin-steps`);
-      if (!res.ok) throw new Error("Erreur chargement étapes");
-      const data = await res.json();
-      setAdminSteps(data.stepInstances ?? []);
+      const data = await api.get<{ stepInstances?: AdminStepInstance[] }>(
+        `/api/admin/dossiers/${dossierId}/admin-steps`
+      );
+      setAdminSteps(data?.stepInstances ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue");
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSteps();
   }, [dossierId]);
 
   useEffect(() => {
+    fetchSteps();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         setLoadingAgents(true);
-        const res = await fetch("/api/admin/agents");
-        if (!res.ok) throw new Error("Erreur agents");
-        const data = await res.json();
-        setAgents(data.agents ?? []);
+        const data = await api.get<{
+          agents?: {
+            id: string;
+            name: string;
+            email: string;
+            agent_type: "VERIFICATEUR" | "CREATEUR";
+          }[];
+        }>("/api/admin/agents");
+        if (!cancelled) setAgents(data?.agents ?? []);
       } catch {
         // ignore
       } finally {
-        setLoadingAgents(false);
+        if (!cancelled) setLoadingAgents(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleStatusChange = async (
@@ -121,15 +132,10 @@ export function AdminStepsSection({
   ) => {
     try {
       setUpdatingId(step.id);
-      const res = await fetch(
+      await api.patch(
         `/api/admin/dossiers/${dossierId}/steps/${step.id}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        }
+        { status: newStatus }
       );
-      if (!res.ok) throw new Error("Erreur mise à jour statut");
       await fetchSteps();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -141,15 +147,9 @@ export function AdminStepsSection({
   const handleAssign = async (step: AdminStepInstance, agentId: string) => {
     try {
       setUpdatingId(step.id);
-      const res = await fetch(`/api/admin/step-instances/${step.id}/assign`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: agentId || null }),
+      await api.patch(`/api/admin/step-instances/${step.id}/assign`, {
+        agentId: agentId || null,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur assignation");
-      }
       await fetchSteps();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -162,45 +162,42 @@ export function AdminStepsSection({
     try {
       setValidatingId(stepInstanceId);
       if (SIMPLIFIED_VALIDATION) {
-        const valRes = await fetch(
-          `/api/admin/dossiers/${dossierId}/validation`
-        );
-        if (valRes.ok) {
-          const valData = await valRes.json();
-          const si = valData.stepInstances?.find(
-            (x: { id: string }) => x.id === stepInstanceId
+        try {
+          const valData = await api.get<{
+            stepInstances?: Array<{
+              id: string;
+              fields?: Array<{ id: string; validation_status: string }>;
+              documents?: Array<{ id: string; status: string }>;
+            }>;
+          }>(`/api/admin/dossiers/${dossierId}/validation`);
+          const si = valData?.stepInstances?.find(
+            (x) => x.id === stepInstanceId
           );
           if (si?.fields?.length) {
             for (const f of si.fields.filter(
-              (f: { validation_status: string }) =>
-                f.validation_status !== "APPROVED"
+              (x) => x.validation_status !== "APPROVED"
             )) {
-              await fetch(
-                `/api/admin/dossiers/${dossierId}/fields/${f.id}/approve`,
-                { method: "POST" }
+              await api.post(
+                `/api/admin/dossiers/${dossierId}/fields/${f.id}/approve`
               );
             }
           }
           if (si?.documents?.length) {
             for (const d of si.documents.filter(
-              (d: { status: string }) => d.status !== "APPROVED"
+              (x) => x.status !== "APPROVED"
             )) {
-              await fetch(
-                `/api/admin/dossiers/${dossierId}/documents/${d.id}/approve`,
-                { method: "POST" }
+              await api.post(
+                `/api/admin/dossiers/${dossierId}/documents/${d.id}/approve`
               );
             }
           }
+        } catch {
+          // continue to step approve
         }
       }
-      const res = await fetch(
-        `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/approve`,
-        { method: "POST" }
+      await api.post(
+        `/api/admin/dossiers/${dossierId}/steps/${stepInstanceId}/approve`
       );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || err.message || "Erreur validation");
-      }
       toast.success("Étape validée");
       await fetchSteps();
     } catch (e) {

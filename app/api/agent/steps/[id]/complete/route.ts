@@ -133,10 +133,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Update step_instance.completed_at
+    // Update step_instance: set completed_at, and for CREATEUR also set APPROVED status
+    const now = new Date().toISOString();
+    const stepUpdateData: Record<string, string> = { completed_at: now };
+    if (agent.agent_type === "CREATEUR") {
+      stepUpdateData.validation_status = "APPROVED";
+      stepUpdateData.validated_by = agent.id;
+      stepUpdateData.validated_at = now;
+    }
+
     const { error: updateError } = await supabase
       .from("step_instances")
-      .update({ completed_at: new Date().toISOString() })
+      .update(stepUpdateData)
       .eq("id", stepInstanceId);
 
     if (updateError) {

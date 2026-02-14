@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useApi } from "@/lib/api/useApi";
 
 interface OrchestrationStats {
   total_active_rules: number;
@@ -23,38 +24,40 @@ interface FailedExecution {
 }
 
 export function NotificationOrchestrationWidget() {
+  const api = useApi();
   const [stats, setStats] = useState<OrchestrationStats | null>(null);
-  const [failedExecutions, setFailedExecutions] = useState<FailedExecution[]>([]);
+  const [failedExecutions, setFailedExecutions] = useState<FailedExecution[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch("/api/admin/notification-rules/stats");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch stats");
-      }
-
-      const data = await response.json();
-      setStats(data.stats);
-      setFailedExecutions(data.failed_executions || []);
+      const data = await api.get<{
+        stats?: OrchestrationStats;
+        failed_executions?: FailedExecution[];
+      }>("/api/admin/notification-rules/stats");
+      setStats(data?.stats ?? null);
+      setFailedExecutions(data?.failed_executions ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   if (loading) {
     return (
       <div className="bg-brand-bg-secondary rounded-lg p-6">
-        <div className="text-brand-text-secondary">Loading orchestration stats...</div>
+        <div className="text-brand-text-secondary">
+          Loading orchestration stats...
+        </div>
       </div>
     );
   }
@@ -93,7 +96,9 @@ export function NotificationOrchestrationWidget() {
           <div className="text-2xl font-bold text-brand-text-primary">
             {stats.total_active_rules}
           </div>
-          <div className="text-sm text-brand-text-secondary mt-1">Active Rules</div>
+          <div className="text-sm text-brand-text-secondary mt-1">
+            Active Rules
+          </div>
         </div>
 
         {/* Events (24h) */}
@@ -101,7 +106,9 @@ export function NotificationOrchestrationWidget() {
           <div className="text-2xl font-bold text-brand-text-primary">
             {stats.events_last_24h}
           </div>
-          <div className="text-sm text-brand-text-secondary mt-1">Events (24h)</div>
+          <div className="text-sm text-brand-text-secondary mt-1">
+            Events (24h)
+          </div>
         </div>
 
         {/* Executions (24h) */}
@@ -131,13 +138,15 @@ export function NotificationOrchestrationWidget() {
               stats.success_rate_last_24h >= 90
                 ? "text-green-400"
                 : stats.success_rate_last_24h >= 70
-                ? "text-yellow-400"
-                : "text-red-400"
+                  ? "text-yellow-400"
+                  : "text-red-400"
             }`}
           >
             {stats.success_rate_last_24h}%
           </div>
-          <div className="text-sm text-brand-text-secondary mt-1">Success Rate</div>
+          <div className="text-sm text-brand-text-secondary mt-1">
+            Success Rate
+          </div>
         </div>
       </div>
 
@@ -181,8 +190,8 @@ export function NotificationOrchestrationWidget() {
               stats.success_rate_last_24h >= 90
                 ? "bg-green-400"
                 : stats.success_rate_last_24h >= 70
-                ? "bg-yellow-400"
-                : "bg-red-400"
+                  ? "bg-yellow-400"
+                  : "bg-red-400"
             }`}
           />
           <span className="text-sm text-brand-text-secondary">
@@ -190,8 +199,8 @@ export function NotificationOrchestrationWidget() {
             {stats.success_rate_last_24h >= 90
               ? "Excellent"
               : stats.success_rate_last_24h >= 70
-              ? "Good"
-              : "Needs Attention"}
+                ? "Good"
+                : "Needs Attention"}
           </span>
         </div>
       </div>

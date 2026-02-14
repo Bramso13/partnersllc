@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StepFieldValue } from "./StepValidationSection";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 const SIMPLIFIED_VALIDATION = true;
 
@@ -42,6 +43,7 @@ export function FieldValidationItem({
   dossierId,
   onRefresh,
 }: FieldValidationItemProps) {
+  const api = useApi();
   const [showReject, setShowReject] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,14 +53,9 @@ export function FieldValidationItem({
   const handleApprove = async () => {
     try {
       setLoading(true);
-      const res = await fetch(
-        `/api/admin/dossiers/${dossierId}/fields/${field.id}/approve`,
-        { method: "POST" }
+      await api.post(
+        `/api/admin/dossiers/${dossierId}/fields/${field.id}/approve`
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur approbation");
-      }
       toast.success("Champ approuvé");
       onRefresh();
     } catch (e) {
@@ -75,18 +72,10 @@ export function FieldValidationItem({
     }
     try {
       setLoading(true);
-      const res = await fetch(
+      await api.post(
         `/api/admin/dossiers/${dossierId}/fields/${field.id}/reject`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rejection_reason: rejectionReason }),
-        }
+        { rejection_reason: rejectionReason }
       );
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Erreur rejet");
-      }
       toast.success("Champ rejeté");
       setShowReject(false);
       setRejectionReason("");

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageSquare, Plus, X, Loader2 } from "lucide-react";
+import { useApi } from "@/lib/api/useApi";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { VerificateurStepDetails } from "@/lib/agent-steps";
@@ -17,6 +18,7 @@ export function StepNotesSection({
   initialNotes,
   agentId: _agentId,
 }: StepNotesSectionProps) {
+  const api = useApi();
   const [notes, setNotes] = useState(initialNotes);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
@@ -27,25 +29,17 @@ export function StepNotesSection({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/agent/dossiers/${dossierId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newNoteContent.trim() }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        // Add new note at the beginning
+      const data = await api.post<{ note: (typeof initialNotes)[number] }>(
+        `/api/agent/dossiers/${dossierId}/notes`,
+        { content: newNoteContent.trim() }
+      );
+      if (data?.note) {
         setNotes((prev) => [data.note, ...prev]);
-        setNewNoteContent("");
-        setIsModalOpen(false);
-      } else {
-        const error = await res.json();
-        alert(error.error || "Erreur lors de l'ajout de la note");
       }
-    } catch (err) {
-      console.error("Error adding note", err);
-      alert("Erreur lors de l'ajout de la note");
+      setNewNoteContent("");
+      setIsModalOpen(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors de l'ajout de la note");
     } finally {
       setIsSubmitting(false);
     }

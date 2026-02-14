@@ -9,6 +9,7 @@ import type {
   CreateDossierWithNewClientData,
   EntityType,
   EntitiesResponse,
+  DossierObservation,
 } from "./types";
 
 type BackofficeContextValue = {
@@ -30,6 +31,9 @@ type BackofficeContextValue = {
     status: string,
     reason: string
   ) => Promise<void>;
+  getDossierObservation: (dossierId: string) => Promise<DossierObservation>;
+  setDossierTestFlag: (dossierId: string, isTest: boolean) => Promise<void>;
+  deleteTestUser: (userId: string) => Promise<void>;
 };
 
 const BackofficeContext = createContext<BackofficeContextValue | null>(null);
@@ -45,7 +49,9 @@ export function BackofficeProvider({
     async (query: string): Promise<DossierSearchResult[]> => {
       const data = await api.get<
         DossierSearchResult[] | { dossiers: DossierSearchResult[] }
-      >(`/api/admin/backoffice/entities?type=dossiers&search=${encodeURIComponent(query)}&per_page=20`);
+      >(
+        `/api/admin/backoffice/entities?type=dossiers&search=${encodeURIComponent(query)}&per_page=20`
+      );
       if (Array.isArray(data)) return data;
       return (data as { dossiers?: DossierSearchResult[] }).dossiers ?? [];
     },
@@ -131,6 +137,49 @@ export function BackofficeProvider({
     []
   );
 
+  const getDossierObservation = useCallback(
+    async (dossierId: string): Promise<DossierObservation> => {
+      const [summaryRes, eventsRes, notifRes, stepsRes, historyRes] =
+        await Promise.all([
+          getDossierSummary(dossierId),
+          api.get<DossierObservation["events"]>(
+            `/api/admin/dossiers/${dossierId}/events`
+          ),
+          api.get<{
+            notifications: DossierObservation["notifications"];
+          }>(`/api/admin/notifications?dossier_id=${dossierId}&limit=200`),
+          api.get<{ stepInstances: DossierObservation["stepInstances"] }>(
+            `/api/admin/dossiers/${dossierId}/step-instances`
+          ),
+          api.get<{ statusHistory: DossierObservation["statusHistory"] }>(
+            `/api/admin/dossiers/${dossierId}/status-history`
+          ),
+        ]);
+
+      return {
+        dossierSummary: summaryRes,
+        events: Array.isArray(eventsRes) ? eventsRes : [],
+        notifications: notifRes?.notifications ?? [],
+        stepInstances: stepsRes?.stepInstances ?? [],
+        statusHistory: historyRes?.statusHistory ?? [],
+      };
+    },
+    []
+  );
+
+  const setDossierTestFlag = useCallback(
+    async (dossierId: string, isTest: boolean): Promise<void> => {
+      await api.patch(`/api/admin/dossiers/${dossierId}/test-flag`, {
+        is_test: isTest,
+      });
+    },
+    []
+  );
+
+  const deleteTestUser = useCallback(async (userId: string): Promise<void> => {
+    await api.delete(`/api/admin/test/users/${userId}`);
+  }, []);
+
   const value = useMemo(
     () => ({
       searchDossiers,
@@ -140,6 +189,9 @@ export function BackofficeProvider({
       createDossierWithNewClient,
       fetchEntities,
       updateDossierStatus,
+      getDossierObservation,
+      setDossierTestFlag,
+      deleteTestUser,
     }),
     [
       searchDossiers,
@@ -149,6 +201,9 @@ export function BackofficeProvider({
       createDossierWithNewClient,
       fetchEntities,
       updateDossierStatus,
+      getDossierObservation,
+      setDossierTestFlag,
+      deleteTestUser,
     ]
   );
 

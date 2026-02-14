@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type { DossierWithDetailsAndClient } from "@/types/dossiers";
 
 interface AdminDossierCardProps {
@@ -14,6 +15,7 @@ export function AdminDossierCard({
   dossier,
   onTestFlagChange,
 }: AdminDossierCardProps) {
+  const api = useApi();
   const statusConfig = getStatusConfig(dossier.status);
   const [isTest, setIsTest] = useState(!!dossier.is_test);
   const [isToggling, setIsToggling] = useState(false);
@@ -23,34 +25,28 @@ export function AdminDossierCard({
       : isTest;
 
   const handleTestToggle = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (isToggling) return;
       const next = !displayedTest;
       setIsToggling(true);
-      fetch(`/api/admin/dossiers/${dossier.id}/test-flag`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_test: next }),
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Échec de la mise à jour");
-          return res.json();
-        })
-        .then(() => {
-          setIsTest(next);
-          onTestFlagChange?.(dossier.id, next);
-          toast.success(
-            next ? "Dossier marqué comme test" : "Dossier retiré du mode test"
-          );
-        })
-        .catch(() => {
-          toast.error("Impossible de modifier le flag test");
-        })
-        .finally(() => setIsToggling(false));
+      try {
+        await api.patch(`/api/admin/dossiers/${dossier.id}/test-flag`, {
+          is_test: next,
+        });
+        setIsTest(next);
+        onTestFlagChange?.(dossier.id, next);
+        toast.success(
+          next ? "Dossier marqué comme test" : "Dossier retiré du mode test"
+        );
+      } catch {
+        toast.error("Impossible de modifier le flag test");
+      } finally {
+        setIsToggling(false);
+      }
     },
-    [dossier.id, displayedTest, isToggling, onTestFlagChange]
+    [api, dossier.id, displayedTest, isToggling, onTestFlagChange]
   );
 
   return (

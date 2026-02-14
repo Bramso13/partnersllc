@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { StepField, FieldType } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 
 interface CustomFieldModalProps {
   stepId: string;
@@ -29,6 +30,7 @@ export function CustomFieldModal({
   onSave,
   onClose,
 }: CustomFieldModalProps) {
+  const api = useApi();
   const [formData, setFormData] = useState<
     Omit<StepField, "id" | "created_at" | "updated_at">
   >({
@@ -129,24 +131,13 @@ export function CustomFieldModal({
           }
         : formDataWithoutPosition;
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save field");
-      }
-
-      const data = await response.json();
+      const data = await (method === "PUT"
+        ? api.put<{ field: StepField }>(url, body)
+        : api.post<{ field: StepField }>(url, body));
       onSave(data.field);
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
       setLoading(false);
     }

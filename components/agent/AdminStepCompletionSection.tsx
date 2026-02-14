@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CheckCircle, Loader2 } from "lucide-react";
+import { useApi } from "@/lib/api/useApi";
 
 interface AdminStepCompletionSectionProps {
   stepInstanceId: string;
@@ -14,6 +15,7 @@ export function AdminStepCompletionSection({
   stepInstanceId,
   isCompleted,
 }: AdminStepCompletionSectionProps) {
+  const api = useApi();
   const router = useRouter();
   const t = useTranslations("agent.adminStepCompletion");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,23 +25,11 @@ export function AdminStepCompletionSection({
 
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/agent/steps/${stepInstanceId}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ manual: false }),
-      });
-
-      if (res.ok) {
-        // Refresh the page to show updated status
-        router.refresh();
-      } else {
-        const error = await res.json();
-        alert(error.error || t("completionError"));
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error("Error completing step", err);
-      alert(t("completionError"));
+      await api.post(`/api/agent/steps/${stepInstanceId}/complete`, { manual: false });
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("completionError"));
+    } finally {
       setIsLoading(false);
     }
   };

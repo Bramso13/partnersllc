@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
         .update({
           completed_at: now,
           assigned_to: agent.id,
+          validation_status: "APPROVED",
+          validated_by: agent.id,
+          validated_at: now,
         })
         .eq("id", existingInstance.id);
 
@@ -125,7 +128,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new step_instance with completed_at set
+    // Create new step_instance with completed_at set and APPROVED status (CREATEUR)
     const now = new Date().toISOString();
     const { data: newInstance, error: createError } = await supabase
       .from("step_instances")
@@ -135,6 +138,9 @@ export async function POST(request: NextRequest) {
         assigned_to: agent.id,
         started_at: now,
         completed_at: now,
+        validation_status: "APPROVED",
+        validated_by: agent.id,
+        validated_at: now,
       })
       .select("id")
       .single();

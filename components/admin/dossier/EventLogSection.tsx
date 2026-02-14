@@ -1,40 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { EventTimeline } from "@/components/EventTimeline";
 import { BaseEvent } from "@/lib/events";
+import { useApi } from "@/lib/api/useApi";
 
 interface EventLogSectionProps {
   dossierId: string;
 }
 
 export function EventLogSection({ dossierId }: EventLogSectionProps) {
+  const api = useApi();
   const [events, setEvents] = useState<BaseEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isExpanded) {
-      fetchEvents();
-    }
-  }, [dossierId, isExpanded]);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/events`);
-      if (!response.ok) throw new Error("Erreur lors du chargement des événements");
-
-      const data = await response.json();
-      setEvents(data);
-    } catch (err) {
-      console.error("Error fetching events:", err);
+      const data = await api.get<BaseEvent[]>(
+        `/api/admin/dossiers/${dossierId}/events`
+      );
+      setEvents(Array.isArray(data) ? data : []);
+    } catch {
       setError("Erreur lors du chargement des événements");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [api, dossierId]);
+
+  useEffect(() => {
+    if (isExpanded) {
+      fetchEvents();
+    }
+  }, [dossierId, isExpanded, fetchEvents]);
 
   return (
     <div className="bg-brand-surface-light border border-brand-stroke rounded-lg p-6">

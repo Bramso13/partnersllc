@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useApi } from "@/lib/api/useApi";
 import { fr } from "date-fns/locale";
 
 interface AdminDeliveredDocument {
@@ -31,34 +32,31 @@ interface AdminDeliveryHistorySectionProps {
 export function AdminDeliveryHistorySection({
   dossierId,
 }: AdminDeliveryHistorySectionProps) {
+  const api = useApi();
   const [documents, setDocuments] = useState<AdminDeliveredDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!expanded) return;
-    let cancelled = false;
+  const fetchDelivery = useCallback(async () => {
     setLoading(true);
     setError(null);
-    fetch(`/api/admin/dossiers/${dossierId}/delivery-history`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Erreur chargement livraisons");
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled) setDocuments(data.documents ?? []);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Erreur");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dossierId, expanded]);
+    try {
+      const data = await api.get<{ documents?: AdminDeliveredDocument[] }>(
+        `/api/admin/dossiers/${dossierId}/delivery-history`
+      );
+      setDocuments(data?.documents ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, dossierId]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    fetchDelivery();
+  }, [dossierId, expanded, fetchDelivery]);
 
   return (
     <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">

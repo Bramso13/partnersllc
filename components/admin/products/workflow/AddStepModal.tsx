@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Step } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 
 interface AddStepModalProps {
   availableSteps: Step[];
@@ -48,6 +49,7 @@ export function AddStepModal({
   onClose,
   onRefreshSteps,
 }: AddStepModalProps) {
+  const api = useApi();
   const [activeTab, setActiveTab] = useState<TabType>("select");
   const [selectedStep, setSelectedStep] = useState<string>("");
 
@@ -101,13 +103,14 @@ export function AddStepModal({
     // Check uniqueness
     setIsValidating(true);
     try {
-      const response = await fetch(`/api/admin/steps/check-code?code=${encodeURIComponent(code)}`);
-      const data = await response.json();
-      if (data.exists) {
+      const data = await api.get<{ exists?: boolean }>(
+        `/api/admin/steps/check-code?code=${encodeURIComponent(code)}`
+      );
+      if (data?.exists) {
         return "This code already exists. Please choose a unique code.";
       }
-    } catch (err) {
-      console.error("Error validating code:", err);
+    } catch {
+      // keep no error on network failure for validation
     } finally {
       setIsValidating(false);
     }
@@ -210,24 +213,14 @@ export function AddStepModal({
         payload.position = parseInt(formData.position);
       }
 
-      const response = await fetch("/api/admin/steps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const data = await api.post<{ step: { id: string } }>(
+        "/api/admin/steps",
+        payload
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create step");
-      }
-
-      // Refresh available steps if callback provided
       if (onRefreshSteps) {
         await onRefreshSteps();
       }
-
-      // Add the newly created step to the workflow
       onAdd(data.step.id);
 
       // Close modal

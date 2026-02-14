@@ -7,6 +7,7 @@ import type {
   StepFormationCustom,
 } from "@/types/formations";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 
 interface EditStepModalProps {
   step: Step;
@@ -34,6 +35,7 @@ export function EditStepModal({
   onClose,
   onSuccess,
 }: EditStepModalProps) {
+  const api = useApi();
   const [formData, setFormData] = useState<FormData>({
     label: step.label,
     description: step.description ?? "",
@@ -86,26 +88,24 @@ export function EditStepModal({
       setFormationsLoading(true);
       setCustomFormationsLoading(true);
       try {
-        const [allRes, stepRes, customRes] = await Promise.all([
-          fetch("/api/admin/formations"),
-          fetch(`/api/admin/steps/${step.id}/formations`),
-          fetch(`/api/admin/steps/${step.id}/formations-custom`),
+        const [allData, stepData, customData] = await Promise.all([
+          api.get<{ formations?: FormationSummary[] }>("/api/admin/formations"),
+          api.get<{ formations?: FormationSummary[] }>(
+            `/api/admin/steps/${step.id}/formations`
+          ),
+          api.get<{ formations?: StepFormationCustom[] }>(
+            `/api/admin/steps/${step.id}/formations-custom`
+          ),
         ]);
         if (cancelled) return;
-        if (allRes.ok) {
-          const allData = await allRes.json();
-          setAllFormations(allData.formations ?? []);
-        }
-        if (stepRes.ok) {
-          const stepData = await stepRes.json();
-          const ids = (stepData.formations ?? []).map(
-            (f: FormationSummary) => f.id
-          );
-          setSelectedFormationIds(ids);
-        }
-        if (customRes.ok) {
-          const customData = await customRes.json();
-          setCustomFormations(customData.formations ?? []);
+        setAllFormations(allData?.formations ?? []);
+        const ids = (stepData?.formations ?? []).map((f) => f.id);
+        setSelectedFormationIds(ids);
+        setCustomFormations(customData?.formations ?? []);
+      } catch {
+        if (!cancelled) {
+          setAllFormations([]);
+          setCustomFormations([]);
         }
       } finally {
         if (!cancelled) {
@@ -118,7 +118,7 @@ export function EditStepModal({
     return () => {
       cancelled = true;
     };
-  }, [step.id]);
+  }, [api, step.id]);
 
   const toggleFormation = (id: string) => {
     setSelectedFormationIds((prev) =>
@@ -134,23 +134,14 @@ export function EditStepModal({
     }
     setCustomAddSubmitting(true);
     try {
-      const res = await fetch(
+      const data = await api.post<StepFormationCustom>(
         `/api/admin/steps/${step.id}/formations-custom`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: customAddTitle.trim(),
-            html_content: customAddHtml,
-            position: customFormations.length,
-          }),
+          title: customAddTitle.trim(),
+          html_content: customAddHtml,
+          position: customFormations.length,
         }
       );
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Échec de l'ajout de la formation custom");
-        return;
-      }
       setCustomFormations((prev) => [...prev, data]);
       setCustomAddTitle("");
       setCustomAddHtml("");
@@ -176,22 +167,13 @@ export function EditStepModal({
     if (!editingCustomId || !editCustomTitle.trim()) return;
     setEditCustomSubmitting(true);
     try {
-      const res = await fetch(
+      const data = await api.put<StepFormationCustom>(
         `/api/admin/steps/${step.id}/formations-custom/${editingCustomId}`,
         {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: editCustomTitle.trim(),
-            html_content: editCustomHtml,
-          }),
+          title: editCustomTitle.trim(),
+          html_content: editCustomHtml,
         }
       );
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Échec de la mise à jour");
-        return;
-      }
       setCustomFormations((prev) =>
         prev.map((f) => (f.id === editingCustomId ? data : f))
       );
@@ -205,20 +187,14 @@ export function EditStepModal({
   const handleDeleteCustom = async (id: string) => {
     if (!confirm("Supprimer cette formation custom ?")) return;
     try {
-      const res = await fetch(
-        `/api/admin/steps/${step.id}/formations-custom/${id}`,
-        { method: "DELETE" }
+      await api.delete(
+        `/api/admin/steps/${step.id}/formations-custom/${id}`
       );
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "Échec de la suppression");
-        return;
-      }
       setCustomFormations((prev) => prev.filter((f) => f.id !== id));
       if (editingCustomId === id) cancelEditCustom();
       toast.success("Formation custom supprimée");
-    } catch {
-      toast.error("Erreur lors de la suppression");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la suppression");
     }
   };
 
@@ -252,43 +228,31 @@ export function EditStepModal({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/admin/steps/${step.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label: formData.label,
-          description: formData.description || null,
-          position: formData.position,
-          step_type: formData.step_type,
-          formation_id:
-            formData.step_type === "FORMATION" && formData.formation_id
-              ? formData.formation_id
-              : null,
-          timer_delay_minutes:
-            formData.step_type === "TIMER" && formData.timer_delay_minutes
-              ? parseInt(formData.timer_delay_minutes, 10)
-              : null,
-        }),
+      await api.patch(`/api/admin/steps/${step.id}`, {
+        label: formData.label,
+        description: formData.description || null,
+        position: formData.position,
+        step_type: formData.step_type,
+        formation_id:
+          formData.step_type === "FORMATION" && formData.formation_id
+            ? formData.formation_id
+            : null,
+        timer_delay_minutes:
+          formData.step_type === "TIMER" && formData.timer_delay_minutes
+            ? parseInt(formData.timer_delay_minutes, 10)
+            : null,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Échec de la mise à jour");
       setSavedOnce(true);
 
-      const putFormationsRes = await fetch(
-        `/api/admin/steps/${step.id}/formations`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ formation_ids: selectedFormationIds }),
-        }
-      );
-      const putFormationsData = await putFormationsRes.json();
-      if (!putFormationsRes.ok) {
-        toast.error(
-          putFormationsData.error || "Échec de la mise à jour des formations"
-        );
-      } else {
+      try {
+        await api.put(`/api/admin/steps/${step.id}/formations`, {
+          formation_ids: selectedFormationIds,
+        });
         toast.success("Step et formations enregistrés");
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Échec de la mise à jour des formations"
+        );
       }
       onSuccess();
     } catch (err) {
@@ -302,16 +266,10 @@ export function EditStepModal({
     setPropagateMessage(null);
     setPropagateLoading(true);
     try {
-      const res = await fetch(
-        `/api/admin/steps/${step.id}/propagate-to-product-steps`,
-        { method: "POST" }
+      const data = await api.post<{ updatedCount?: number }>(
+        `/api/admin/steps/${step.id}/propagate-to-product-steps`
       );
-      const data = await res.json();
-      if (!res.ok) {
-        setPropagateMessage(data.error || "Erreur lors de la répercussion.");
-        return;
-      }
-      const count = data.updatedCount ?? 0;
+      const count = data?.updatedCount ?? 0;
       if (count === 0) {
         setPropagateMessage("Aucun workflow produit n'utilise cette step.");
       } else {

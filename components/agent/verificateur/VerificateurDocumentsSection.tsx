@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Eye, Check, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useApi } from "@/lib/api/useApi";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { VerificateurStepDetails } from "@/lib/agent-steps";
@@ -28,6 +29,7 @@ export function VerificateurDocumentsSection({
   requiredDocuments: initialDocuments,
   agentId: _agentId,
 }: VerificateurDocumentsSectionProps) {
+  const api = useApi();
   const [documents, setDocuments] = useState(initialDocuments);
   const [previewDoc, setPreviewDoc] = useState<{
     url: string;
@@ -40,35 +42,23 @@ export function VerificateurDocumentsSection({
   const handleApprove = async (documentId: string) => {
     setLoadingAction(`approve-${documentId}`);
     try {
-      const res = await fetch(`/api/agent/documents/${documentId}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "APPROVED" }),
-      });
-
-      if (res.ok) {
-        // Optimistic update
-        setDocuments((prev) =>
-          prev.map((doc) => {
-            if (doc.document?.id === documentId) {
-              return {
-                ...doc,
-                document: {
-                  ...doc.document,
-                  status: "APPROVED" as const,
-                },
-              };
-            }
-            return doc;
-          })
-        );
-      } else {
-        const error = await res.json();
-        alert(error.error || "Erreur lors de l'approbation");
-      }
-    } catch (err) {
-      console.error("Error approving document", err);
-      alert("Erreur lors de l'approbation");
+      await api.post(`/api/agent/documents/${documentId}/review`, { status: "APPROVED" });
+      setDocuments((prev) =>
+        prev.map((doc) => {
+          if (doc.document?.id === documentId) {
+            return {
+              ...doc,
+              document: {
+                ...doc.document,
+                status: "APPROVED" as const,
+              },
+            };
+          }
+          return doc;
+        })
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors de l'approbation");
     } finally {
       setLoadingAction(null);
     }
@@ -77,36 +67,24 @@ export function VerificateurDocumentsSection({
   const handleReject = async (documentId: string, reason: string) => {
     setLoadingAction(`reject-${documentId}`);
     try {
-      const res = await fetch(`/api/agent/documents/${documentId}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REJECTED", reason }),
-      });
-
-      if (res.ok) {
-        // Optimistic update
-        setDocuments((prev) =>
-          prev.map((doc) => {
-            if (doc.document?.id === documentId) {
-              return {
-                ...doc,
-                document: {
-                  ...doc.document,
-                  status: "REJECTED" as const,
-                },
-              };
-            }
-            return doc;
-          })
-        );
-        setRejectingDocId(null);
-      } else {
-        const error = await res.json();
-        alert(error.error || "Erreur lors du rejet");
-      }
-    } catch (err) {
-      console.error("Error rejecting document", err);
-      alert("Erreur lors du rejet");
+      await api.post(`/api/agent/documents/${documentId}/review`, { status: "REJECTED", reason });
+      setDocuments((prev) =>
+        prev.map((doc) => {
+          if (doc.document?.id === documentId) {
+            return {
+              ...doc,
+              document: {
+                ...doc.document,
+                status: "REJECTED" as const,
+              },
+            };
+          }
+          return doc;
+        })
+      );
+      setRejectingDocId(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Erreur lors du rejet");
     } finally {
       setLoadingAction(null);
     }

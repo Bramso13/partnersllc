@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { useApi } from "@/lib/api/useApi";
 import rehypeSanitize from "rehype-sanitize";
 
 interface CreateDocumentTypeModalProps {
@@ -14,6 +15,7 @@ export function CreateDocumentTypeModal({
   onClose,
   onSuccess,
 }: CreateDocumentTypeModalProps) {
+  const api = useApi();
   const [formData, setFormData] = useState({
     code: "",
     label: "",
@@ -29,32 +31,21 @@ export function CreateDocumentTypeModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/admin/document-types", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: formData.code.trim(),
-          label: formData.label.trim(),
-          description: formData.description.trim() || null,
-          max_file_size_mb: formData.max_file_size_mb,
-          allowed_extensions: formData.allowed_extensions
-            .split(",")
-            .map((ext) => ext.trim())
-            .filter(Boolean),
-        }),
+      await api.post("/api/admin/document-types", {
+        code: formData.code.trim(),
+        label: formData.label.trim(),
+        description: formData.description.trim() || null,
+        max_file_size_mb: formData.max_file_size_mb,
+        allowed_extensions: formData.allowed_extensions
+          .split(",")
+          .map((ext) => ext.trim())
+          .filter(Boolean),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create document type");
-      }
-
       toast.success("Type de document créé avec succès");
       onSuccess();
-    } catch (error) {
-      console.error("Error creating document type:", error);
+    } catch (e) {
       toast.error(
-        error instanceof Error ? error.message : "Une erreur est survenue"
+        e instanceof Error ? e.message : "Une erreur est survenue"
       );
     } finally {
       setIsSubmitting(false);

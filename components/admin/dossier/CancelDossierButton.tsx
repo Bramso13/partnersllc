@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DossierStatus } from "@/lib/dossier-status";
+import { useApi } from "@/lib/api/useApi";
 
 interface CancelDossierButtonProps {
   dossierId: string;
@@ -15,6 +16,7 @@ export function CancelDossierButton({
   dossierId,
   currentStatus,
 }: CancelDossierButtonProps) {
+  const api = useApi();
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,15 +33,9 @@ export function CancelDossierButton({
     setIsSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/dossiers/${dossierId}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancellationReason: reason.trim() }),
+      await api.post(`/api/admin/dossiers/${dossierId}/cancel`, {
+        cancellationReason: reason.trim(),
       });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Erreur lors de l'annulation");
-      }
       window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");

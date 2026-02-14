@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle, AlertCircle } from "lucide-react";
+import { useApi } from "@/lib/api/useApi";
 import type { CreateurStepDetails } from "@/lib/agent-steps";
 
 interface CreateurCompleteStepSectionProps {
@@ -16,6 +17,7 @@ export function CreateurCompleteStepSection({
   adminDocuments,
   isCompleted,
 }: CreateurCompleteStepSectionProps) {
+  const api = useApi();
   const t = useTranslations("agent.createur");
   const [completing, setCompleting] = useState(false);
 
@@ -30,28 +32,12 @@ export function CreateurCompleteStepSection({
     setCompleting(true);
 
     try {
-      const response = await fetch(
-        `/api/agent/steps/${stepInstanceId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            agent_type: "CREATEUR",
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Completion failed");
-      }
-
-      // Redirect to steps list
+      await api.post(`/api/agent/steps/${stepInstanceId}/complete`, {
+        agent_type: "CREATEUR",
+      });
       window.location.href = "/agent/steps";
-    } catch (error) {
-      console.error("Completion error:", error);
-      alert(t("completionError"));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("completionError"));
     } finally {
       setCompleting(false);
     }

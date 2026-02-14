@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DocumentType } from "@/types/products";
+import { useApi } from "@/lib/api/useApi";
 import { CreateDocumentTypeModal } from "./CreateDocumentTypeModal";
 
 interface DocumentTypesSelectorProps {
@@ -13,29 +14,29 @@ export function DocumentTypesSelector({
   selectedDocumentTypes,
   onUpdate,
 }: DocumentTypesSelectorProps) {
+  const api = useApi();
   const [availableDocTypes, setAvailableDocTypes] = useState<DocumentType[]>(
     []
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchDocumentTypes = async () => {
+  const fetchDocumentTypes = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/document-types");
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableDocTypes(data.documentTypes || []);
-      }
-    } catch (err) {
-      console.error("Error fetching document types:", err);
+      const data = await api.get<{ documentTypes?: DocumentType[] }>(
+        "/api/admin/document-types"
+      );
+      setAvailableDocTypes(data?.documentTypes ?? []);
+    } catch {
+      // keep current list
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDocumentTypes();
-  }, []);
+  }, [fetchDocumentTypes]);
 
   const handleToggleDocType = (docType: DocumentType) => {
     const isSelected = selectedDocumentTypes.some((dt) => dt.id === docType.id);

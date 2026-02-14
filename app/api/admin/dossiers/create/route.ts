@@ -117,6 +117,25 @@ export async function POST(request: NextRequest) {
       .update({ dossier_id: dossier.id })
       .eq("id", order.id);
 
+    // Auto-assign first CREATEUR agent to dossier
+    const { data: createurAgent } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("agent_type", "CREATEUR")
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (createurAgent) {
+      await supabase
+        .from("dossier_agent_assignments")
+        .insert({
+          dossier_id: dossier.id,
+          agent_id: createurAgent.id,
+          assignment_type: "CREATEUR",
+        });
+    }
+
     // Create step instances
     const { data: productSteps, error: productStepsError } = await supabase
       .from("product_steps")

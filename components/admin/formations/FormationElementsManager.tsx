@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { FormationElement, FormationElementType } from "@/types/formations";
 import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import { AddElementModal } from "./AddElementModal";
 
 interface FormationElementsManagerProps {
@@ -12,6 +13,7 @@ interface FormationElementsManagerProps {
 export function FormationElementsManager({
   formationId,
 }: FormationElementsManagerProps) {
+  const api = useApi();
   const [elements, setElements] = useState<FormationElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,29 +22,25 @@ export function FormationElementsManager({
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchElements();
-  }, [formationId]);
-
-  const fetchElements = async () => {
+  const fetchElements = useCallback(async () => {
     try {
-      const response = await fetch(
+      const data = await api.get<{ elements?: FormationElement[] }>(
         `/api/admin/formations/${formationId}/elements`
       );
-      if (response.ok) {
-        const data = await response.json();
-        const sortedElements = (data.elements || []).sort(
-          (a: FormationElement, b: FormationElement) => a.position - b.position
-        );
-        setElements(sortedElements);
-      }
-    } catch (error) {
-      console.error("Error fetching elements:", error);
+      const sortedElements = (data?.elements ?? []).sort(
+        (a, b) => a.position - b.position
+      );
+      setElements(sortedElements);
+    } catch {
       toast.error("Erreur lors du chargement des éléments");
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, formationId]);
+
+  useEffect(() => {
+    fetchElements();
+  }, [fetchElements]);
 
   const handleElementSaved = () => {
     setShowAddModal(false);
@@ -62,19 +60,12 @@ export function FormationElementsManager({
 
     setDeletingId(element.id);
     try {
-      const response = await fetch(
-        `/api/admin/formations/${formationId}/elements/${element.id}`,
-        { method: "DELETE" }
+      await api.delete(
+        `/api/admin/formations/${formationId}/elements/${element.id}`
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete element");
-      }
-
       toast.success("Élément supprimé");
       fetchElements();
-    } catch (error) {
-      console.error("Error deleting element:", error);
+    } catch {
       toast.error("Erreur lors de la suppression");
     } finally {
       setDeletingId(null);
@@ -93,27 +84,18 @@ export function FormationElementsManager({
 
       // Swap positions
       await Promise.all([
-        fetch(
+        api.put(
           `/api/admin/formations/${formationId}/elements/${element.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: element.position - 1 }),
-          }
+          { position: element.position - 1 }
         ),
-        fetch(
+        api.put(
           `/api/admin/formations/${formationId}/elements/${elementAbove.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: elementAbove.position + 1 }),
-          }
+          { position: elementAbove.position + 1 }
         ),
       ]);
 
       fetchElements();
-    } catch (error) {
-      console.error("Error moving element:", error);
+    } catch {
       toast.error("Erreur lors du déplacement");
     }
   };
@@ -130,27 +112,18 @@ export function FormationElementsManager({
 
       // Swap positions
       await Promise.all([
-        fetch(
+        api.put(
           `/api/admin/formations/${formationId}/elements/${element.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: element.position + 1 }),
-          }
+          { position: element.position + 1 }
         ),
-        fetch(
+        api.put(
           `/api/admin/formations/${formationId}/elements/${elementBelow.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ position: elementBelow.position - 1 }),
-          }
+          { position: elementBelow.position - 1 }
         ),
       ]);
 
       fetchElements();
-    } catch (error) {
-      console.error("Error moving element:", error);
+    } catch {
       toast.error("Erreur lors du déplacement");
     }
   };

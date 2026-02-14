@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useApi } from "@/lib/api/useApi";
 import { fr } from "date-fns/locale";
 
 interface AuditEntry {
@@ -18,35 +19,31 @@ interface AuditTrailSectionProps {
 }
 
 export function AuditTrailSection({ dossierId }: AuditTrailSectionProps) {
+  const api = useApi();
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isExpanded) {
-      fetchAuditTrail();
-    }
-  }, [dossierId, isExpanded]);
-
-  const fetchAuditTrail = async () => {
+  const fetchAuditTrail = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
+      const data = await api.get<AuditEntry[]>(
         `/api/admin/dossiers/${dossierId}/audit-trail`
       );
-      if (!response.ok)
-        throw new Error("Erreur lors du chargement de l'audit trail");
-
-      const data = await response.json();
-      setAuditEntries(data);
-    } catch (err) {
-      console.error("Error fetching audit trail:", err);
+      setAuditEntries(Array.isArray(data) ? data : []);
+    } catch {
       setError("Erreur lors du chargement de l'audit trail");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [api, dossierId]);
+
+  useEffect(() => {
+    if (isExpanded) {
+      fetchAuditTrail();
+    }
+  }, [dossierId, isExpanded, fetchAuditTrail]);
 
   const getTypeColor = (type: AuditEntry["type"]) => {
     switch (type) {
