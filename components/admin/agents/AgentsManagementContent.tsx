@@ -2,11 +2,19 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-import type { AgentDashboardData } from "@/types/agents";
+import type { AgentDashboardData, Agent, AgentType } from "@/types/agents";
 import { useAgents } from "@/lib/contexts/agents/AgentsContext";
 import { AgentDashboardPanel } from "./AgentDashboardPanel";
+import { useApi } from "@/lib/api/useApi";
+
+const AGENT_TYPE_LABELS: Record<AgentType, string> = {
+  VERIFICATEUR: "Vérif.",
+  CREATEUR: "Créat.",
+  VERIFICATEUR_ET_CREATEUR: "Vérif. et Créat.",
+};
 
 export function AgentsManagementContent() {
+  const api = useApi();
   const {
     agents,
     isLoading: isLoadingAgents,
@@ -21,6 +29,7 @@ export function AgentsManagementContent() {
   );
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [updatingAgentTypeId, setUpdatingAgentTypeId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAgents();
@@ -64,6 +73,24 @@ export function AgentsManagementContent() {
       setAssignError(
         err instanceof Error ? err.message : "Erreur lors de l'assignation"
       );
+    }
+  };
+
+  const handleAgentTypeChange = async (agentId: string, newType: AgentType) => {
+    setUpdatingAgentTypeId(agentId);
+    setAssignError(null);
+    try {
+      await api.patch(`/api/admin/agents/${agentId}`, { agent_type: newType });
+      await fetchAgents();
+      if (activeAgentId === agentId) {
+        await fetchDashboard();
+      }
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : "Erreur lors de la mise à jour du type"
+      );
+    } finally {
+      setUpdatingAgentTypeId(null);
     }
   };
 
@@ -169,18 +196,40 @@ export function AgentsManagementContent() {
                   {getInitials(agent.name)}
                 </span>
                 <span className="hidden sm:inline">{agent.name}</span>
-                <span
-                  className={`
-                  text-xs px-2 py-0.5 rounded-full
-                  ${
-                    agent.agent_type === "VERIFICATEUR"
-                      ? "bg-blue-500/20 text-blue-400"
-                      : "bg-purple-500/20 text-purple-400"
+                <select
+                  value={agent.agent_type}
+                  onChange={(e) =>
+                    handleAgentTypeChange(agent.id, e.target.value as AgentType)
                   }
-                `}
+                  disabled={updatingAgentTypeId === agent.id}
+                  className={`
+                    text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer bg-transparent font-medium
+                    ${
+                      agent.agent_type === "VERIFICATEUR"
+                        ? "bg-blue-500/20 text-blue-400"
+                        : agent.agent_type === "CREATEUR"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : "bg-amber-500/20 text-amber-400"
+                    }
+                  `}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {agent.agent_type === "VERIFICATEUR" ? "Vérif." : "Créat."}
-                </span>
+                  <option value="VERIFICATEUR">{AGENT_TYPE_LABELS.VERIFICATEUR}</option>
+                  <option value="CREATEUR">{AGENT_TYPE_LABELS.CREATEUR}</option>
+                  <option value="VERIFICATEUR_ET_CREATEUR">
+                    {AGENT_TYPE_LABELS.VERIFICATEUR_ET_CREATEUR}
+                  </option>
+                </select>
+                {agent.progression && (
+                  <span
+                    className="text-xs text-brand-text-secondary"
+                    title={`${agent.progression.steps_completed_by_agent}/${agent.progression.steps_total} étapes · ${agent.progression.documents_processed_by_agent}/${agent.progression.documents_total} documents traités`}
+                  >
+                    {agent.progression.steps_total > 0 || agent.progression.documents_total > 0
+                      ? `${agent.progression.steps_completed_by_agent}/${agent.progression.steps_total} steps · ${agent.progression.documents_processed_by_agent}/${agent.progression.documents_total} docs`
+                      : "—"}
+                  </span>
+                )}
               </button>
             );
           })}

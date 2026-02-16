@@ -18,13 +18,13 @@ export function Step2PageClient() {
 
   const redirectToStep1 = useCallback(() => {
     router.replace("/hub/signup/step1");
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    if (!signupSessionId || signupSessionId.trim() === "") {
-      redirectToStep1();
-      return;
-    }
+    // if (!signupSessionId || signupSessionId.trim() === "") {
+    //   redirectToStep1();
+    //   return;
+    // }
   }, [signupSessionId]);
 
   if (!signupSessionId || signupSessionId.trim() === "") {

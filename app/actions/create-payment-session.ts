@@ -10,6 +10,8 @@ interface CreatePaymentSessionParams {
 interface CreatePaymentSessionResult {
   error?: string;
   redirectUrl?: string;
+  /** Stripe Checkout Session ID (for pending_registration_session cookie) */
+  sessionId?: string;
 }
 
 export async function createPaymentSession(
@@ -88,12 +90,12 @@ export async function createPaymentSession(
       // Non-critical error, continue
     }
 
-    // Step 4: Return redirect URL
+    // Step 4: Return redirect URL and session ID (for cookie)
     if (!session.url) {
       return { error: "FAILED_TO_CREATE_CHECKOUT_SESSION" };
     }
 
-    return { redirectUrl: session.url };
+    return { redirectUrl: session.url, sessionId: session.id };
   } catch (error) {
     console.error("Create payment session error:", error);
     return {

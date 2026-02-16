@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export {
@@ -132,6 +133,87 @@ export async function getUserDossiers(): Promise<DossierWithDetails[]> {
   );
 
   return dossiersWithDetails;
+}
+
+/** Payload pour créer un dossier en base */
+export type CreateDossierInput = {
+  user_id: string;
+  product_id: string;
+  type: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+};
+
+/**
+ * Assigne le premier agent CREATEUR (ou VERIFICATEUR_ET_CREATEUR) au dossier.
+ * À appeler après chaque création de dossier pour l’auto-assignment.
+ */
+export async function assignFirstCreateurToDossier(
+  supabase: SupabaseClient,
+  dossierId: string
+): Promise<void> {
+  const { data: createurAgent } = await supabase
+    .from("agents")
+    .select("id, agent_type")
+    .in("agent_type", ["CREATEUR", "VERIFICATEUR_ET_CREATEUR"])
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!createurAgent) return;
+
+  if (createurAgent.agent_type === "CREATEUR") {
+    await supabase.from("dossier_agent_assignments").insert({
+      dossier_id: dossierId,
+      agent_id: createurAgent.id,
+      assignment_type: "CREATEUR",
+    });
+  } else if (createurAgent.agent_type === "VERIFICATEUR_ET_CREATEUR") {
+    await supabase.from("dossier_agent_assignments").insert({
+      dossier_id: dossierId,
+      agent_id: createurAgent.id,
+      assignment_type: "VERIFICATEUR",
+    });
+    await supabase.from("dossier_agent_assignments").insert({
+      dossier_id: dossierId,
+      agent_id: createurAgent.id,
+      assignment_type: "CREATEUR",
+    });
+  }
+}
+
+/**
+ * Crée un dossier en base et assigne automatiquement le premier agent CREATEUR.
+ * À utiliser partout où un dossier est créé pour centraliser la logique.
+ */
+export async function createDossier(
+  supabase: SupabaseClient,
+  input: CreateDossierInput
+): Promise<{ data: Dossier | null; error: Error | null }> {
+  console.log("🔍 [createDossier] input:", input);
+  const { data: dossier, error: dossierError } = await supabase
+    .from("dossiers")
+    .insert({
+      user_id: input.user_id,
+      product_id: input.product_id,
+      type: input.type,
+      status: input.status ?? "QUALIFICATION",
+      metadata: input.metadata ?? null,
+    })
+    .select()
+    .single();
+
+  console.log("🔍 [createDossier] dossier:", dossier);
+  console.log("🔍 [createDossier] dossierError:", dossierError);
+  if (dossierError || !dossier) {
+    return {
+      data: null,
+      error: dossierError ?? new Error("Dossier creation failed"),
+    };
+  }
+
+  await assignFirstCreateurToDossier(supabase, dossier.id);
+  return { data: dossier as Dossier, error: null };
 }
 
 /**

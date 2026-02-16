@@ -31,14 +31,22 @@ export function DossierAgentAssignmentSection({
   const [isSaving, setIsSaving] = useState(false);
 
   const verificateurAgents = agents
-    .filter((a) => a.agent_type === "VERIFICATEUR")
+    .filter(
+      (a) =>
+        a.agent_type === "VERIFICATEUR" ||
+        a.agent_type === "VERIFICATEUR_ET_CREATEUR"
+    )
     .map((a) => ({
       id: a.id,
       full_name: a.name || a.email,
       email: a.email,
     }));
   const createurAgents = agents
-    .filter((a) => a.agent_type === "CREATEUR")
+    .filter(
+      (a) =>
+        a.agent_type === "CREATEUR" ||
+        a.agent_type === "VERIFICATEUR_ET_CREATEUR"
+    )
     .map((a) => ({
       id: a.id,
       full_name: a.name || a.email,

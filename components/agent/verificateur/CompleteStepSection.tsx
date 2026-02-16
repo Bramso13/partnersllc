@@ -10,12 +10,15 @@ interface CompleteStepSectionProps {
   stepInstanceId: string;
   requiredDocuments: VerificateurStepDetails["required_documents"];
   isCompleted: boolean;
+  /** Si fourni, appelé après complétion au lieu de naviguer vers /agent/steps (ex: vue détail dossier) */
+  onCompleted?: () => void;
 }
 
 export function CompleteStepSection({
   stepInstanceId,
   requiredDocuments,
   isCompleted,
+  onCompleted,
 }: CompleteStepSectionProps) {
   const api = useApi();
   const router = useRouter();
@@ -59,7 +62,11 @@ export function CompleteStepSection({
     setIsLoading(true);
     try {
       await api.post(`/api/agent/steps/${stepInstanceId}/complete`, { manual: manualOverride });
-      router.push("/agent/steps?completed=true");
+      if (onCompleted) {
+        onCompleted();
+      } else {
+        router.push("/agent/steps?completed=true");
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Erreur lors de la completion");
     } finally {

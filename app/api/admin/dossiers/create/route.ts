@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
+import { createDossier } from "@/lib/dossiers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
@@ -93,10 +94,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create dossier
-    const { data: dossier, error: dossierError } = await supabase
-      .from("dossiers")
-      .insert({
+    // Create dossier (with auto-assign CREATEUR)
+    const { data: dossier, error: dossierError } = await createDossier(
+      supabase,
+      {
         user_id: client_id,
         product_id,
         type: product.dossier_type,
@@ -106,9 +107,8 @@ export async function POST(request: NextRequest) {
           created_via: "manual_admin_creation",
           created_by_admin: adminUser.id,
         },
-      })
-      .select()
-      .single();
+      }
+    );
 
     if (dossierError || !dossier) {
       console.error("[create-dossier] Error creating dossier:", dossierError);
@@ -123,23 +123,6 @@ export async function POST(request: NextRequest) {
       .from("orders")
       .update({ dossier_id: dossier.id })
       .eq("id", order.id);
-
-    // Auto-assign first CREATEUR agent to dossier
-    const { data: createurAgent } = await supabase
-      .from("agents")
-      .select("id")
-      .eq("agent_type", "CREATEUR")
-      .order("id", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (createurAgent) {
-      await supabase.from("dossier_agent_assignments").insert({
-        dossier_id: dossier.id,
-        agent_id: createurAgent.id,
-        assignment_type: "CREATEUR",
-      });
-    }
 
     // Create step instances
     const { data: productSteps, error: productStepsError } = await supabase

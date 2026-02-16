@@ -1,4 +1,5 @@
 import { stripe } from "@/lib/stripe";
+import { createDossier } from "@/lib/dossiers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -232,10 +233,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     throw new Error(`Failed to fetch product: ${productError?.message || "Product not found"}`);
   }
 
-  // Create dossier
-  const { data: dossier, error: dossierError } = await adminSupabase
-    .from("dossiers")
-    .insert({
+  const { data: dossier, error: dossierError } = await createDossier(
+    adminSupabase,
+    {
       user_id: userId,
       product_id: productId,
       type: product.dossier_type,
@@ -244,9 +244,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         order_id: orderId,
         created_via: "traditional_registration",
       },
-    })
-    .select()
-    .single();
+    }
+  );
 
   if (dossierError || !dossier) {
     throw new Error(`Failed to create dossier: ${dossierError?.message || "Unknown error"}`);

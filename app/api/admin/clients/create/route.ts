@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
+import { createDossier } from "@/lib/dossiers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
@@ -42,7 +43,9 @@ export async function POST(request: NextRequest) {
     // 3. Check if product exists and is active
     const { data: product, error: productError } = await supabase
       .from("products")
-      .select("id, name, price_amount, currency, dossier_type, initial_status, active")
+      .select(
+        "id, name, price_amount, currency, dossier_type, initial_status, active"
+      )
       .eq("id", product_id)
       .single();
 
@@ -61,7 +64,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Check if email already exists in auth.users
-    const { data: existingUsers, error: checkUserError } = await adminSupabase.auth.admin.listUsers();
+    const { data: existingUsers, error: checkUserError } =
+      await adminSupabase.auth.admin.listUsers();
 
     if (checkUserError) {
       console.error("Error checking existing users:", checkUserError);
@@ -83,13 +87,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Create user in auth.users
-    const { data: authData, error: createUserError } = await adminSupabase.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        full_name,
-      },
-    });
+    const { data: authData, error: createUserError } =
+      await adminSupabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+        },
+      });
 
     if (createUserError || !authData.user) {
       console.error("Error creating user:", createUserError);
@@ -141,10 +146,10 @@ export async function POST(request: NextRequest) {
         throw new Error("Erreur lors de la création de la commande");
       }
 
-      // 8. Create dossier
-      const { data: dossier, error: dossierError } = await adminSupabase
-        .from("dossiers")
-        .insert({
+      // 8. Create dossier (with auto-assign CREATEUR)
+      const { data: dossier, error: dossierError } = await createDossier(
+        adminSupabase,
+        {
           user_id: newUserId,
           product_id: product_id,
           type: product.dossier_type,
@@ -153,40 +158,21 @@ export async function POST(request: NextRequest) {
             order_id: order.id,
             created_via: "manual_admin_creation",
           },
-        })
-        .select()
-        .single();
+        }
+      );
 
       if (dossierError || !dossier) {
         console.error("Error creating dossier:", dossierError);
         throw new Error("Erreur lors de la création du dossier");
       }
 
-      // 8b. Auto-assign first CREATEUR agent to dossier
-      const { data: createurAgent } = await adminSupabase
-        .from("agents")
-        .select("id")
-        .eq("agent_type", "CREATEUR")
-        .order("id", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (createurAgent) {
-        await adminSupabase
-          .from("dossier_agent_assignments")
-          .insert({
-            dossier_id: dossier.id,
-            agent_id: createurAgent.id,
-            assignment_type: "CREATEUR",
-          });
-      }
-
       // 9. Get product steps and create step instances
-      const { data: productSteps, error: productStepsError } = await adminSupabase
-        .from("product_steps")
-        .select("step_id, position")
-        .eq("product_id", product_id)
-        .order("position", { ascending: true });
+      const { data: productSteps, error: productStepsError } =
+        await adminSupabase
+          .from("product_steps")
+          .select("step_id, position")
+          .eq("product_id", product_id)
+          .order("position", { ascending: true });
 
       if (productStepsError) {
         console.error("Error fetching product steps:", productStepsError);
@@ -201,10 +187,11 @@ export async function POST(request: NextRequest) {
           started_at: index === 0 ? startedAt : null,
         }));
 
-        const { data: createdInstances, error: instancesError } = await adminSupabase
-          .from("step_instances")
-          .insert(stepInstancesData)
-          .select("id, started_at");
+        const { data: createdInstances, error: instancesError } =
+          await adminSupabase
+            .from("step_instances")
+            .insert(stepInstancesData)
+            .select("id, started_at");
 
         if (instancesError) {
           console.error("Error creating step instances:", instancesError);
@@ -254,32 +241,38 @@ export async function POST(request: NextRequest) {
       }
 
       // MANUAL_CLIENT_CREATED event
-      const { error: manualClientCreatedError } = await adminSupabase.from("events").insert({
-        entity_type: "profile",
-        entity_id: newUserId,
-        event_type: "MANUAL_CLIENT_CREATED",
-        actor_type: "ADMIN",
-        actor_id: adminUserId,
-        payload: {
-          user_id: newUserId,
-          email: email,
-          product_id: product_id,
-          product_name: product.name,
-          set_password_url: setPasswordUrl,
-        },
-      }); 
+      const { error: manualClientCreatedError } = await adminSupabase
+        .from("events")
+        .insert({
+          entity_type: "profile",
+          entity_id: newUserId,
+          event_type: "MANUAL_CLIENT_CREATED",
+          actor_type: "ADMIN",
+          actor_id: adminUserId,
+          payload: {
+            user_id: newUserId,
+            email: email,
+            product_id: product_id,
+            product_name: product.name,
+            set_password_url: setPasswordUrl,
+          },
+        });
 
       if (manualClientCreatedError) {
-        console.error("Error creating manual client created event:", manualClientCreatedError);
-        throw new Error("Erreur lors de la création de l'événement client manuel créé");
+        console.error(
+          "Error creating manual client created event:",
+          manualClientCreatedError
+        );
+        throw new Error(
+          "Erreur lors de la création de l'événement client manuel créé"
+        );
       }
 
       // Envoi email Nodemailer : inviter le client à créer son mot de passe (lien Supabase)
       if (setPasswordUrl) {
         try {
-          const { sendManualClientCreatedEmail } = await import(
-            "@/lib/notifications/event-emails"
-          );
+          const { sendManualClientCreatedEmail } =
+            await import("@/lib/notifications/event-emails");
           await sendManualClientCreatedEmail({
             to: email,
             userName: full_name,
@@ -287,30 +280,40 @@ export async function POST(request: NextRequest) {
             productName: product.name,
           });
         } catch (emailErr) {
-          console.error("Error sending manual client created email (Nodemailer):", emailErr);
+          console.error(
+            "Error sending manual client created email (Nodemailer):",
+            emailErr
+          );
           // Ne pas faire échouer la création du client
         }
       }
 
       // DOSSIER_CREATED event
-      const { error: dossierCreatedError } = await adminSupabase.from("events").insert({
-        entity_type: "dossier",
-        entity_id: dossier.id,
-        event_type: "DOSSIER_CREATED",
-        actor_type: "ADMIN",
-        actor_id: adminUserId,
-        payload: {
-          dossier_id: dossier.id,
-          user_id: newUserId,
-          product_id: product_id,
-          order_id: order.id,
-          created_via: "manual_admin_creation",
-        },
-      });
+      const { error: dossierCreatedError } = await adminSupabase
+        .from("events")
+        .insert({
+          entity_type: "dossier",
+          entity_id: dossier.id,
+          event_type: "DOSSIER_CREATED",
+          actor_type: "ADMIN",
+          actor_id: adminUserId,
+          payload: {
+            dossier_id: dossier.id,
+            user_id: newUserId,
+            product_id: product_id,
+            order_id: order.id,
+            created_via: "manual_admin_creation",
+          },
+        });
 
       if (dossierCreatedError) {
-        console.error("Error creating dossier created event:", dossierCreatedError);
-        throw new Error("Erreur lors de la création de l'événement dossier créé");
+        console.error(
+          "Error creating dossier created event:",
+          dossierCreatedError
+        );
+        throw new Error(
+          "Erreur lors de la création de l'événement dossier créé"
+        );
       }
 
       // 13. Send invitation email
@@ -338,7 +341,10 @@ export async function POST(request: NextRequest) {
       );
     } catch (error) {
       // Rollback: Delete the created user if anything fails
-      console.error("Error in client creation flow, attempting rollback:", error);
+      console.error(
+        "Error in client creation flow, attempting rollback:",
+        error
+      );
 
       try {
         await adminSupabase.auth.admin.deleteUser(newUserId);
@@ -348,7 +354,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : "Une erreur est survenue",
+          error:
+            error instanceof Error ? error.message : "Une erreur est survenue",
         },
         { status: 500 }
       );
@@ -357,7 +364,8 @@ export async function POST(request: NextRequest) {
     console.error("Error in POST /api/admin/clients/create:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Une erreur est survenue",
+        error:
+          error instanceof Error ? error.message : "Une erreur est survenue",
       },
       { status: 500 }
     );

@@ -27,6 +27,8 @@
       "companyName": "Company name",
       "dossierStatus": "Dossier status",
       "currentStep": "Current step",
+      "progression": "Progression",
+      "progressionTooltip": "Steps and documents you have processed on this dossier",
       "createdDate": "Created date",
       "actions": "Actions",
       "noDossiers": "No dossiers found",

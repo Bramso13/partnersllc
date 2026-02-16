@@ -1,32 +1,50 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { useApi } from "@/lib/api/useApi";
 import type { DossierAllData } from "@/lib/agent/dossiers";
 import { DossierStepFieldsSection } from "./DossierStepFieldsSection";
 import { DossierDocumentsSection } from "./DossierDocumentsSection";
 import { AdminStepCompletionSection } from "./AdminStepCompletionSection";
 import { AdminStepWithoutInstance } from "./AdminStepWithoutInstance";
 import { AdminDocumentUploadSection } from "./createur/AdminDocumentUploadSection";
+import { VerificateurDocumentsSection } from "./verificateur/VerificateurDocumentsSection";
+import { CompleteStepSection } from "./verificateur/CompleteStepSection";
+
+type AssignmentType = "VERIFICATEUR" | "CREATEUR";
 
 interface DossierDetailContentProps {
   dossierData: DossierAllData;
   agentId: string;
-  agentType: "VERIFICATEUR" | "CREATEUR" | null;
+  /** Rôles de l'agent sur ce dossier (double rôle = les deux présents) */
+  agentRolesOnDossier: AssignmentType[];
 }
 
 export function DossierDetailContent({
   dossierData,
   agentId,
-  agentType,
+  agentRolesOnDossier,
 }: DossierDetailContentProps) {
   const router = useRouter();
+  const api = useApi();
   const t = useTranslations("agent.dossiers");
   const dossierIdShort = dossierData.dossier.id.slice(0, 8) + "...";
+  const [isValidatingAll, setIsValidatingAll] = useState(false);
 
-  // Group steps by type
+  console.log("agentRolesOnDossier", agentRolesOnDossier);
+
+  const canActAsVerificateur = agentRolesOnDossier.includes("VERIFICATEUR");
+  const canActAsCreateur = agentRolesOnDossier.includes("CREATEUR");
+
+  console.log("canActAsVerificateur", canActAsVerificateur);
+  console.log("canActAsCreateur", canActAsCreateur);
+
+  // Group steps by type (used for rendering and for validate-all button)
   const clientSteps = dossierData.step_instances.filter(
     (si) => si.step.step_type === "CLIENT"
   );
@@ -34,15 +52,53 @@ export function DossierDetailContent({
     (si) => si.step.step_type === "ADMIN"
   );
 
+  const clientStepsToValidate = clientSteps;
+  const showValidateAllClientButton =
+    canActAsVerificateur && clientStepsToValidate.length > 0;
+
+  const handleValidateAllClientSteps = async () => {
+    if (!showValidateAllClientButton || isValidatingAll) return;
+    setIsValidatingAll(true);
+    try {
+      const res = await api.post<{
+        success: boolean;
+        message?: string;
+        completed_count?: number;
+        total?: number;
+        errors?: string[];
+      }>(
+        `/api/agent/dossiers/${dossierData.dossier.id}/validate-all-client-steps`,
+        {
+          completeDespiteMissing: false,
+        }
+      );
+      if (res?.success !== false) {
+        toast.success(res?.message ?? "Étapes clients validées");
+        router.refresh();
+      } else {
+        toast.error(res?.errors?.join(" ") ?? "Erreur lors de la validation");
+      }
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Erreur lors de la validation"
+      );
+    } finally {
+      setIsValidatingAll(false);
+    }
+  };
+
   // Render a step instance
   const renderStepInstance = (
     stepInstance: DossierAllData["step_instances"][number]
   ) => {
     const isAdminStep = stepInstance.step.step_type === "ADMIN";
+    const isClientStep = stepInstance.step.step_type === "CLIENT";
     const isAssigned = stepInstance.assigned_to === agentId;
-    const isCreateur = agentType === "CREATEUR";
-    const canManageAdminDocs = isAdminStep && isAssigned && isCreateur;
+    const canManageAdminDocs = isAdminStep && isAssigned && canActAsCreateur;
     const canCompleteAdmin = canManageAdminDocs;
+    const canVerifyClientStep =
+      isClientStep && isAssigned && canActAsVerificateur;
+    const requiredDocsVerif = stepInstance.required_documents_verificateur;
 
     return (
       <div
@@ -105,7 +161,7 @@ export function DossierDetailContent({
           </div>
         )}
 
-        {/* Documents Section - Differentiate between CLIENT and ADMIN steps */}
+        {/* Documents Section - CLIENT: vérification (approuver/rejeter) ou liste ; ADMIN: upload */}
         {isAdminStep &&
         canManageAdminDocs &&
         stepInstance.admin_documents &&
@@ -119,8 +175,23 @@ export function DossierDetailContent({
               dossierId={dossierData.dossier.id}
             />
           </div>
+        ) : canVerifyClientStep &&
+          requiredDocsVerif &&
+          requiredDocsVerif.length > 0 ? (
+          // CLIENT Step - Agent vérificateur: section vérification (approuver/rejeter)
+          <div className="px-5 py-4 border-t border-[#363636]">
+            <VerificateurDocumentsSection
+              stepInstanceId={stepInstance.id}
+              requiredDocuments={
+                requiredDocsVerif as Parameters<
+                  typeof VerificateurDocumentsSection
+                >[0]["requiredDocuments"]
+              }
+              agentId={agentId}
+            />
+          </div>
         ) : (
-          // CLIENT Step or read-only - Show documents list
+          // CLIENT Step read-only or no required docs - Show documents list
           stepInstance.documents &&
           stepInstance.documents.length > 0 && (
             <div className="px-5 py-4 border-t border-[#363636]">
@@ -128,6 +199,24 @@ export function DossierDetailContent({
             </div>
           )
         )}
+
+        {/* CLIENT Step - Complete step (vérificateur) */}
+        {canVerifyClientStep &&
+          requiredDocsVerif &&
+          requiredDocsVerif.length > 0 && (
+            <div className="px-5 py-4 border-t border-[#363636]">
+              <CompleteStepSection
+                stepInstanceId={stepInstance.id}
+                requiredDocuments={
+                  requiredDocsVerif as Parameters<
+                    typeof CompleteStepSection
+                  >[0]["requiredDocuments"]
+                }
+                isCompleted={!!stepInstance.completed_at}
+                onCompleted={() => router.refresh()}
+              />
+            </div>
+          )}
 
         {/* Admin Step Completion Section */}
         {canCompleteAdmin && (
@@ -164,6 +253,26 @@ export function DossierDetailContent({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {showValidateAllClientButton && (
+              <button
+                type="button"
+                onClick={handleValidateAllClientSteps}
+                disabled={isValidatingAll}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isValidatingAll ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin" />
+                    Validation...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-check-double" />
+                    Valider toutes les étapes clients
+                  </>
+                )}
+              </button>
+            )}
             <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
               {dossierData.dossier.status}
             </span>
@@ -238,7 +347,7 @@ export function DossierDetailContent({
                 key={adminStep.step.id}
                 step={adminStep.step}
                 dossierId={dossierData.dossier.id}
-                agentType={agentType}
+                agentCanCreate={canActAsCreateur}
                 onComplete={() => router.refresh()}
               />
             ))}

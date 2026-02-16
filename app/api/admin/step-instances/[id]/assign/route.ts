@@ -50,7 +50,7 @@ export async function PATCH(
     }
 
     if (agentId) {
-      // Vérifier que l'agent existe et a le bon type
+      // Vérifier que l'agent existe et a le bon type (ou double rôle VERIFICATEUR_ET_CREATEUR)
       const expectedAgentType =
         step.step_type === "CLIENT" ? "VERIFICATEUR" : "CREATEUR";
 
@@ -59,10 +59,19 @@ export async function PATCH(
         .select("id, agent_type, active")
         .eq("id", agentId)
         .eq("active", true)
-        .eq("agent_type", expectedAgentType)
         .single();
 
       if (agentError || !agent) {
+        return NextResponse.json(
+          { error: "Agent introuvable ou inactif" },
+          { status: 400 }
+        );
+      }
+
+      const typeMatches =
+        agent.agent_type === expectedAgentType ||
+        agent.agent_type === "VERIFICATEUR_ET_CREATEUR";
+      if (!typeMatches) {
         return NextResponse.json(
           { error: "Agent invalide pour ce type de step" },
           { status: 400 }

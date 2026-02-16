@@ -10,7 +10,7 @@ import { useApi } from "@/lib/api/useApi";
 import { DossierAllData } from "@/lib/agent/dossiers";
 
 type FilterType = "all" | "in_progress" | "completed";
-type SortField = "date" | "name" | "status";
+type SortField = "date" | "name" | "status" | "progression";
 
 interface DossiersListContentProps {
   initialDossiers: AgentDossierListItem[];
@@ -31,13 +31,22 @@ export function DossiersListContent({
   const filteredDossiers = useMemo(() => {
     let result = [...initialDossiers];
 
+    console.log("initialDossiers", initialDossiers);
+    console.log("filter", filter);
+
     if (filter === "in_progress") {
       result = result.filter(
-        (d) => d.status !== "COMPLETED" && d.status !== "CLOSED"
+        (d) =>
+          d.status !== "APPROVED" &&
+          d.status !== "REJECTED" &&
+          d.status !== "CLOSED"
       );
     } else if (filter === "completed") {
       result = result.filter(
-        (d) => d.status === "COMPLETED" || d.status === "CLOSED"
+        (d) =>
+          d.status === "APPROVED" ||
+          d.status === "REJECTED" ||
+          d.status === "CLOSED"
       );
     }
 
@@ -47,6 +56,8 @@ export function DossiersListContent({
   // Sort dossiers
   const sortedDossiers = useMemo(() => {
     const result = [...filteredDossiers];
+
+    console.log("sortedDossiers", result);
 
     result.sort((a, b) => {
       let comparison = 0;
@@ -64,6 +75,18 @@ export function DossiersListContent({
         case "status":
           comparison = a.status.localeCompare(b.status);
           break;
+        case "progression": {
+          const progA =
+            (a.steps_total ?? 0)
+              ? (a.steps_completed_by_agent ?? 0) / (a.steps_total ?? 0)
+              : 0;
+          const progB =
+            (b.steps_total ?? 0)
+              ? (b.steps_completed_by_agent ?? 0) / (b.steps_total ?? 0)
+              : 0;
+          comparison = progA - progB;
+          break;
+        }
       }
 
       return sortAscending ? comparison : -comparison;
@@ -199,6 +222,20 @@ export function DossiersListContent({
                 </th>
                 <th
                   className="text-left p-4 text-brand-text-secondary font-medium cursor-pointer hover:text-brand-text-primary transition-colors"
+                  onClick={() => handleSort("progression")}
+                  title={t("progressionTooltip")}
+                >
+                  <div className="flex items-center gap-2">
+                    {t("progression")}
+                    {sortField === "progression" && (
+                      <i
+                        className={`fa-solid fa-chevron-${sortAscending ? "up" : "down"} text-xs`}
+                      />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className="text-left p-4 text-brand-text-secondary font-medium cursor-pointer hover:text-brand-text-primary transition-colors"
                   onClick={() => handleSort("date")}
                 >
                   <div className="flex items-center gap-2">
@@ -219,7 +256,7 @@ export function DossiersListContent({
               {sortedDossiers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="p-8 text-center text-brand-text-secondary"
                   >
                     {t("noDossiers")}
@@ -250,6 +287,22 @@ export function DossiersListContent({
                       </td>
                       <td className="p-4 text-brand-text-primary">
                         {dossier.current_step_label || "N/A"}
+                      </td>
+                      <td
+                        className="p-4 text-brand-text-secondary text-sm"
+                        title={`${dossier.steps_completed_by_agent ?? 0}/${dossier.steps_total ?? 0} étapes · ${dossier.documents_processed_by_agent ?? 0}/${dossier.documents_total ?? 0} documents`}
+                      >
+                        {(dossier.steps_total ?? 0) > 0 ||
+                        (dossier.documents_total ?? 0) > 0 ? (
+                          <span>
+                            {dossier.steps_completed_by_agent ?? 0}/
+                            {dossier.steps_total ?? 0} steps ·{" "}
+                            {dossier.documents_processed_by_agent ?? 0}/
+                            {dossier.documents_total ?? 0} docs
+                          </span>
+                        ) : (
+                          <span className="text-brand-text-secondary">—</span>
+                        )}
                       </td>
                       <td className="p-4 text-brand-text-secondary text-sm">
                         {new Date(dossier.created_at).toLocaleDateString(

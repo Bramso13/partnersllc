@@ -1,4 +1,5 @@
 import { stripe } from "@/lib/stripe";
+import { createDossier } from "@/lib/dossiers";
 import { createAdminClient } from "@/lib/supabase/server";
 
 interface SyncResult {
@@ -177,10 +178,9 @@ async function processSuccessfulPayment(
     );
   }
 
-  // Create dossier
-  const { data: dossier, error: dossierError } = await adminSupabase
-    .from("dossiers")
-    .insert({
+  const { data: dossier, error: dossierError } = await createDossier(
+    adminSupabase,
+    {
       user_id: userId,
       product_id: order.product_id,
       type: product.dossier_type,
@@ -189,9 +189,8 @@ async function processSuccessfulPayment(
         order_id: order.id,
         created_via: "payment_sync",
       },
-    })
-    .select()
-    .single();
+    }
+  );
 
   if (dossierError || !dossier) {
     throw new Error(

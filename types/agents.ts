@@ -2,7 +2,14 @@
  * Agent types - Safe to import from Client Components
  */
 
-export type AgentType = "VERIFICATEUR" | "CREATEUR";
+export type AgentType = "VERIFICATEUR" | "CREATEUR" | "VERIFICATEUR_ET_CREATEUR";
+
+export interface AgentProgression {
+  steps_completed_by_agent: number;
+  steps_total: number;
+  documents_processed_by_agent: number;
+  documents_total: number;
+}
 
 export interface Agent {
   id: string;
@@ -10,6 +17,8 @@ export interface Agent {
   email: string;
   agent_type: AgentType;
   active?: boolean;
+  /** Résumé de progression sur tous les dossiers (Story 8.5) */
+  progression?: AgentProgression;
 }
 
 export interface StepInstanceDossierInfo {

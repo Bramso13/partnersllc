@@ -15,14 +15,15 @@ interface AdminStepWithoutInstanceProps {
     step_type: "ADMIN";
   };
   dossierId: string;
-  agentType: "VERIFICATEUR" | "CREATEUR" | null;
+  /** L'agent a le rôle créateur sur ce dossier (peut créer des steps ADMIN) */
+  agentCanCreate: boolean;
   onComplete: () => void;
 }
 
 export function AdminStepWithoutInstance({
   step,
   dossierId,
-  agentType,
+  agentCanCreate,
   onComplete,
 }: AdminStepWithoutInstanceProps) {
   const api = useApi();
@@ -30,7 +31,7 @@ export function AdminStepWithoutInstance({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreate = async () => {
-    if (agentType !== "CREATEUR") {
+    if (!agentCanCreate) {
       toast.error(t("onlyCreateur"));
       return;
     }
@@ -52,7 +53,7 @@ export function AdminStepWithoutInstance({
     }
   };
 
-  const canComplete = agentType === "CREATEUR";
+  const canComplete = agentCanCreate;
 
   return (
     <div className="border border-[#363636] rounded-2xl bg-[#191A1D] overflow-hidden opacity-75">

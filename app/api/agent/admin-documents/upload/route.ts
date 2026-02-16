@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth, getAgentId } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { agentCanActAsCreateurOnDossier } from "@/lib/agent/roles";
 
 
 export async function POST(request: NextRequest) {
@@ -61,6 +62,15 @@ export async function POST(request: NextRequest) {
     if (stepInstance.assigned_to !== agentId) {
       return NextResponse.json(
         { error: 'Not authorized for this step' },
+        { status: 403 }
+      );
+    }
+
+    // Verify agent has CREATEUR role on this dossier (double rôle support)
+    const canCreate = await agentCanActAsCreateurOnDossier(agentId, stepInstance.dossier_id);
+    if (!canCreate) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas le rôle créateur sur ce dossier' },
         { status: 403 }
       );
     }

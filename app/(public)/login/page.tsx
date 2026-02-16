@@ -1,4 +1,5 @@
 import LoginForm from "@/components/auth/LoginForm";
+import { ResolvePendingRegistration } from "@/components/register/ResolvePendingRegistration";
 import { Metadata } from "next";
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
@@ -18,11 +19,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { message } = await searchParams;
 
   return (
-    <div
-      className="login-page relative min-h-screen w-full overflow-hidden bg-[#0f1114]"
-      style={{ ["--color-accent" as string]: LOGIN_ACCENT }}
-    >
-      <style>{`
+    <>
+      <ResolvePendingRegistration page="login" />
+      <div
+        className="login-page relative min-h-screen w-full overflow-hidden bg-[#0f1114]"
+        style={{ ["--color-accent" as string]: LOGIN_ACCENT }}
+      >
+        <style>{`
         @keyframes loginPageFade {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -40,7 +43,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         .login-page .login-orb { animation: loginOrb 12s ease-in-out infinite; }
       `}</style>
 
-      {/* Fond : gradient + grain */}
+        {/* Fond : gradient + grain */}
       <div
         className="absolute inset-0"
         style={{
@@ -138,5 +141,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

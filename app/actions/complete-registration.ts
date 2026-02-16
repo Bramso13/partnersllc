@@ -1,5 +1,6 @@
 "use server";
 
+import { createDossier } from "@/lib/dossiers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 
@@ -127,9 +128,10 @@ export async function completeRegistration(
         const session = await stripe.checkout.sessions.retrieve(
           paymentLink.stripe_checkout_session_id
         );
-        stripeCustomerId = typeof session.customer === "string"
-          ? session.customer
-          : session.customer?.id;
+        stripeCustomerId =
+          typeof session.customer === "string"
+            ? session.customer
+            : session.customer?.id;
       } catch (error) {
         console.error("Error retrieving Stripe customer:", error);
       }
@@ -201,9 +203,9 @@ export async function completeRegistration(
         .single();
 
       if (!productError && productDetails) {
-        const { data: dossier, error: dossierError } = await adminSupabase
-          .from("dossiers")
-          .insert({
+        const { data: dossier, error: dossierError } = await createDossier(
+          adminSupabase,
+          {
             user_id: authData.user.id,
             product_id: paymentLink.product_id,
             type: productDetails.dossier_type,
@@ -212,17 +214,17 @@ export async function completeRegistration(
               order_id: orderId,
               created_via: "payment_link_completion",
             },
-          })
-          .select()
-          .single();
+          }
+        );
 
         if (!dossierError && dossier) {
           // Get product steps
-          const { data: productSteps, error: productStepsError } = await adminSupabase
-            .from("product_steps")
-            .select("step_id, position")
-            .eq("product_id", paymentLink.product_id)
-            .order("position", { ascending: true });
+          const { data: productSteps, error: productStepsError } =
+            await adminSupabase
+              .from("product_steps")
+              .select("step_id, position")
+              .eq("product_id", paymentLink.product_id)
+              .order("position", { ascending: true });
 
           if (!productStepsError && productSteps && productSteps.length > 0) {
             const startedAt = new Date().toISOString();
@@ -232,10 +234,11 @@ export async function completeRegistration(
               started_at: index === 0 ? startedAt : null,
             }));
 
-            const { data: createdInstances, error: instancesError } = await adminSupabase
-              .from("step_instances")
-              .insert(stepInstancesData)
-              .select("id, started_at");
+            const { data: createdInstances, error: instancesError } =
+              await adminSupabase
+                .from("step_instances")
+                .insert(stepInstancesData)
+                .select("id, started_at");
 
             if (!instancesError && createdInstances) {
               // Set current_step_instance_id to first step
@@ -311,11 +314,10 @@ export async function completeRegistration(
       },
     });
 
-    // Step 9: Return redirect URL
+    // Step 9: Return redirect URL (via clear-pending-cookie so cookie is removed)
     return {
-      redirectUrl: `/dashboard?welcome=true`
+      redirectUrl: `/api/register/clear-pending-cookie?then=${encodeURIComponent("/dashboard?welcome=true")}`,
     };
-
   } catch (error) {
     console.error("Registration completion error:", error);
     return {

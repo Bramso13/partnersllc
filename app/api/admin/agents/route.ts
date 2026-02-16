@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAgentProgressSummary } from "@/lib/agent/dossiers";
 
 export async function GET() {
   await requireAdminAuth();
@@ -22,13 +23,25 @@ export async function GET() {
       );
     }
 
+    console.log("data", data);
+
+    const agentsWithProgress = await Promise.all(
+      (data || []).map(async (a) => {
+        const progression = await getAgentProgressSummary(a.id);
+        return {
+          id: a.id,
+          name: a.name,
+          email: a.email,
+          agent_type: a.agent_type,
+          progression,
+        };
+      })
+    );
+
+    console.log("agentsWithProgress", agentsWithProgress);
+
     return NextResponse.json({
-      agents: (data || []).map((a) => ({
-        id: a.id,
-        name: a.name,
-        email: a.email,
-        agent_type: a.agent_type,
-      })),
+      agents: agentsWithProgress,
     });
   } catch (error) {
     console.error("[GET /api/admin/agents] error", error);

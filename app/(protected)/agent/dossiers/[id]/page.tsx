@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAgentId, requireAgentAuth } from "@/lib/auth";
 import { getDossierAllData } from "@/lib/agent/dossiers";
-import { getAgentByEmail } from "@/lib/agent-steps";
+import { getAgentAssignmentTypesOnDossier } from "@/lib/agent/roles";
 import { DossierDetailContent } from "@/components/agent/DossierDetailContent";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -36,16 +36,18 @@ export default async function AgentDossierDetailPage({ params }: PageProps) {
       notFound();
     }
 
-    // Get agent type
-    const agent = await getAgentByEmail(user.email || "");
-    const agentType = agent?.agent_type || null;
+    // Rôles de l'agent sur ce dossier (VERIFICATEUR et/ou CREATEUR pour double rôle)
+    const agentRolesOnDossier = await getAgentAssignmentTypesOnDossier(
+      agentId,
+      dossierId
+    );
 
     return (
       <div className="min-h-screen bg-brand-dark-bg">
         <DossierDetailContent
           dossierData={dossierData}
           agentId={agentId}
-          agentType={agentType}
+          agentRolesOnDossier={agentRolesOnDossier}
         />
       </div>
     );

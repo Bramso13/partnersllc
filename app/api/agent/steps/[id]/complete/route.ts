@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAgentAssignmentTypesOnDossier } from "@/lib/agent/roles";
 // Note: sendStepCompletedNotifications removed - notifications now handled
 // by event-to-notification orchestration system (Story 3.9)
 
@@ -30,10 +31,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (agentError || !agent) {
-      return NextResponse.json(
-        { error: "Agent non trouve" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Agent non trouve" }, { status: 403 });
     }
 
     // Get step instance with step info
@@ -58,10 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (stepError || !stepInstance) {
-      return NextResponse.json(
-        { error: "Step non trouvee" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Step non trouvee" }, { status: 404 });
     }
 
     // Verify assignment (or admin)
@@ -72,23 +67,34 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verify step type compatibility with agent role
+    // Verify step type compatibility with agent role on this dossier (double rôle = both assignments)
     const step = Array.isArray(stepInstance.step)
       ? stepInstance.step[0]
       : stepInstance.step;
 
-    // VERIFICATEUR can only handle CLIENT steps
-    if (agent.agent_type === "VERIFICATEUR" && step?.step_type !== "CLIENT") {
+    const rolesOnDossier = await getAgentAssignmentTypesOnDossier(
+      agent.id,
+      stepInstance.dossier_id
+    );
+
+    const isClientStep = step?.step_type === "CLIENT";
+    const isAdminStep = step?.step_type === "ADMIN";
+
+    if (isClientStep && !rolesOnDossier.includes("VERIFICATEUR")) {
       return NextResponse.json(
-        { error: "Type de step incompatible avec votre role VERIFICATEUR" },
+        {
+          error:
+            "Vous n'avez pas le rôle vérificateur sur ce dossier pour cette étape",
+        },
         { status: 403 }
       );
     }
-
-    // CREATEUR can only handle ADMIN steps
-    if (agent.agent_type === "CREATEUR" && step?.step_type !== "ADMIN") {
+    if (isAdminStep && !rolesOnDossier.includes("CREATEUR")) {
       return NextResponse.json(
-        { error: "Type de step incompatible avec votre role CREATEUR" },
+        {
+          error:
+            "Vous n'avez pas le rôle créateur sur ce dossier pour cette étape",
+        },
         { status: 403 }
       );
     }
@@ -101,15 +107,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // For CREATEUR agents, verify all required admin documents are delivered
-    if (agent.agent_type === "CREATEUR") {
+    // For CREATEUR role (ADMIN steps), verify all required admin documents are delivered
+    if (isAdminStep) {
       // Get all required document types for this step (directly via step_id)
       const { data: requiredDocTypes } = await supabase
         .from("step_document_types")
-        .select(`
+        .select(
+          `
           document_type_id,
           document_type:document_types(id)
-        `)
+        `
+        )
         .eq("step_id", stepInstance.step_id);
 
       if (requiredDocTypes && requiredDocTypes.length > 0) {
@@ -125,7 +133,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
           if (!document || document.status !== "DELIVERED") {
             return NextResponse.json(
-              { error: "Tous les documents requis doivent être uploadés et livrés avant de compléter l'étape" },
+              {
+                error:
+                  "Tous les documents requis doivent être uploadés et livrés avant de compléter l'étape",
+              },
               { status: 400 }
             );
           }
@@ -136,7 +147,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Update step_instance: set completed_at, and for CREATEUR also set APPROVED status
     const now = new Date().toISOString();
     const stepUpdateData: Record<string, string> = { completed_at: now };
-    if (agent.agent_type === "CREATEUR") {
+    if (isAdminStep) {
       stepUpdateData.validation_status = "APPROVED";
       stepUpdateData.validated_by = agent.id;
       stepUpdateData.validated_at = now;
@@ -148,7 +159,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq("id", stepInstanceId);
 
     if (updateError) {
-      console.error("[POST /api/agent/steps/complete] Update error", updateError);
+      console.error(
+        "[POST /api/agent/steps/complete] Update error",
+        updateError
+      );
       return NextResponse.json(
         { error: "Erreur lors de la mise a jour" },
         { status: 500 }
@@ -252,7 +266,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (currentProductStep) {
         const { data: nextProductStep } = await supabase
           .from("product_steps")
-          .select("step_id, step:steps(label)")
+          .select("step_id, step:steps(label), dossier_status_on_approval")
           .eq("product_id", dossier.product_id)
           .gt("position", currentProductStep.position)
           .order("position", { ascending: true })
@@ -264,6 +278,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             ? nextProductStep.step[0]
             : nextProductStep.step;
           nextStepName = nextStep?.label || null;
+          const { error: updateError } = await supabase
+            .from("dossiers")
+            .update({
+              status: nextProductStep.dossier_status_on_approval || null,
+            })
+            .eq("id", dossier.id);
+          if (updateError) {
+            console.error(
+              "[POST /api/agent/steps/complete] Update error",
+              updateError
+            );
+          }
         }
       }
 
@@ -298,9 +324,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error("[POST /api/agent/steps/complete] Error", error);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

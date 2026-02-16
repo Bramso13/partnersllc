@@ -1,7 +1,8 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createDossier } from "@/lib/dossiers";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Create a dossier from a selected product
@@ -36,17 +37,16 @@ export async function createDossierFromProduct(productId: string) {
     return;
   }
 
-  // Create new dossier
-  const { data: dossier, error: dossierError } = await supabase
-    .from("dossiers")
-    .insert({
+  // Create new dossier (with auto-assign CREATEUR; admin client needed for assignment)
+  const { data: dossier, error: dossierError } = await createDossier(
+    createAdminClient(),
+    {
       user_id: user.id,
       product_id: productId,
       type: product.dossier_type,
       status: "QUALIFICATION",
-    })
-    .select()
-    .single();
+    }
+  );
 
   if (dossierError || !dossier) {
     console.error("Error creating dossier:", dossierError);

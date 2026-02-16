@@ -196,8 +196,11 @@ export async function PUT(
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // 7. Verify agent type matches assignment type
-    if (agent.agent_type !== assignmentType) {
+    // 7. Verify agent type matches assignment type (or agent has both roles)
+    const agentTypeMatches =
+      agent.agent_type === assignmentType ||
+      agent.agent_type === "VERIFICATEUR_ET_CREATEUR";
+    if (!agentTypeMatches) {
       return NextResponse.json(
         {
           error: "Agent type mismatch",
@@ -215,33 +218,45 @@ export async function PUT(
       );
     }
 
-    // 9. Upsert assignment (insert or update if exists)
-    const { data: existingAssignment } = await supabase
+    // 9. Replace assignment for this (dossier, type): delete existing then insert (one agent per type per dossier)
+    const { data: existingRows } = await supabase
       .from("dossier_agent_assignments")
       .select("id, agent_id")
       .eq("dossier_id", dossierId)
-      .eq("assignment_type", assignmentType)
-      .maybeSingle();
+      .eq("assignment_type", assignmentType);
 
-    const oldAgentId = existingAssignment?.agent_id || null;
+    const oldAgentId =
+      existingRows && existingRows.length > 0 ? existingRows[0].agent_id : null;
 
-    const { error: upsertError } = await supabase
+    const { error: deleteError } = await supabase
       .from("dossier_agent_assignments")
-      .upsert(
-        {
-          dossier_id: dossierId,
-          agent_id: agentId,
-          assignment_type: assignmentType,
-        },
-        {
-          onConflict: "dossier_id,assignment_type",
-        }
-      );
+      .delete()
+      .eq("dossier_id", dossierId)
+      .eq("assignment_type", assignmentType);
 
-    if (upsertError) {
+    if (deleteError) {
       console.error(
-        "[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Upsert error:",
-        upsertError
+        "[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Delete error:",
+        deleteError
+      );
+      return NextResponse.json(
+        { error: "Failed to update assignment" },
+        { status: 500 }
+      );
+    }
+
+    const { error: insertError } = await supabase
+      .from("dossier_agent_assignments")
+      .insert({
+        dossier_id: dossierId,
+        agent_id: agentId,
+        assignment_type: assignmentType,
+      });
+
+    if (insertError) {
+      console.error(
+        "[PUT /api/admin/dossiers/[id]/dossier-agent-assignments] Insert error:",
+        insertError
       );
       return NextResponse.json(
         { error: "Failed to assign agent" },
@@ -252,9 +267,10 @@ export async function PUT(
     // 10. Log event
     await supabase.from("events").insert({
       dossier_id: dossierId,
-      event_type: existingAssignment
-        ? "DOSSIER_AGENT_REASSIGNED"
-        : "DOSSIER_AGENT_ASSIGNED",
+      event_type:
+        existingRows && existingRows.length > 0
+          ? "DOSSIER_AGENT_REASSIGNED"
+          : "DOSSIER_AGENT_ASSIGNED",
       event_data: {
         assignment_type: assignmentType,
         old_agent_id: oldAgentId,
@@ -265,9 +281,10 @@ export async function PUT(
     });
 
     return NextResponse.json({
-      message: existingAssignment
-        ? "Agent reassigned successfully"
-        : "Agent assigned successfully",
+      message:
+        existingRows && existingRows.length > 0
+          ? "Agent reassigned successfully"
+          : "Agent assigned successfully",
       assignment: {
         dossier_id: dossierId,
         agent_id: agentId,

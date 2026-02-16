@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth";
+import { createDossier } from "@/lib/dossiers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 /**
@@ -88,10 +89,9 @@ export async function bypassPayment(userId: string): Promise<{
           .single();
 
         if (product) {
-          // Create dossier
-          const { data: dossier, error: dossierError } = await adminSupabase
-            .from("dossiers")
-            .insert({
+          const { data: dossier, error: dossierError } = await createDossier(
+            adminSupabase,
+            {
               user_id: userId,
               product_id: order.product_id,
               type: product.dossier_type || "LLC",
@@ -101,9 +101,8 @@ export async function bypassPayment(userId: string): Promise<{
                 created_via: "bypass_payment",
                 bypassed_by: user.id,
               },
-            })
-            .select()
-            .single();
+            }
+          );
 
           if (dossierError) {
             console.error("Error creating dossier:", dossierError);

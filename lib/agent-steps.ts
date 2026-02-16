@@ -120,7 +120,7 @@ export async function getAgentStepQueue(
     .eq("email", agentEmail)
     .single();
 
-  let agent: { id: string; agent_type: "VERIFICATEUR" | "CREATEUR" };
+  let agent: { id: string; agent_type: "VERIFICATEUR" | "CREATEUR" | "VERIFICATEUR_ET_CREATEUR" };
 
   if (existingError || !existingAgent) {
     // Si aucun agent: le créer avec le type par défaut (VERIFICATEUR)
@@ -144,8 +144,13 @@ export async function getAgentStepQueue(
     agent = existingAgent as typeof agent;
   }
 
-  const stepTypeForUnassigned =
-    agent.agent_type === "VERIFICATEUR" ? "CLIENT" : "ADMIN";
+  // Double rôle : l'agent peut prendre des steps CLIENT et ADMIN
+  const stepTypeForUnassigned: "CLIENT" | "ADMIN" | null =
+    agent.agent_type === "VERIFICATEUR"
+      ? "CLIENT"
+      : agent.agent_type === "CREATEUR"
+        ? "ADMIN"
+        : null; // VERIFICATEUR_ET_CREATEUR => les deux
 
   const { data, error } = await supabase
     .from("step_instances")
@@ -196,7 +201,9 @@ export async function getAgentStepQueue(
 
     if (row.assigned_to === null) {
       const stepRow = Array.isArray(row.step) ? row.step[0] : row.step;
-      return stepRow?.step_type === stepTypeForUnassigned;
+      if (!stepRow?.step_type) return false;
+      if (stepTypeForUnassigned === null) return true; // double rôle: CLIENT et ADMIN
+      return stepRow.step_type === stepTypeForUnassigned;
     }
 
     return false;

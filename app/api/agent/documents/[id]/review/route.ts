@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentAuth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { agentCanActAsVerificateurOnDossier } from "@/lib/agent/roles";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -55,15 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verify agent is VERIFICATEUR type (or admin)
-    if (agent.agent_type !== "VERIFICATEUR" && user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Seuls les agents VERIFICATEUR peuvent reviewer les documents" },
-        { status: 403 }
-      );
-    }
-
-    // Get document with step_instance to verify assignment
+    // Get document with step_instance to get dossier_id and verify assignment
     const { data: document, error: docError } = await supabase
       .from("documents")
       .select(
@@ -99,6 +92,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { error: "Vous n'êtes pas autorisé à reviewer ce document" },
         { status: 403 }
       );
+    }
+
+    // Verify agent has VERIFICATEUR role on this dossier (or admin)
+    if (user.role !== "ADMIN") {
+      const canReview = await agentCanActAsVerificateurOnDossier(
+        agent.id,
+        document.dossier_id
+      );
+      if (!canReview) {
+        return NextResponse.json(
+          { error: "Vous n'avez pas le rôle vérificateur sur ce dossier" },
+          { status: 403 }
+        );
+      }
     }
 
     // Document must have a current version
