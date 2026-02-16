@@ -46,6 +46,7 @@ export function CreateDossierTab() {
   }, [fetchActiveProducts]);
 
   const filteredClients = clients.filter((c) => {
+    console.log("c", c);
     if (!clientSearch.trim()) return true;
     const q = clientSearch.toLowerCase();
     return (
@@ -63,7 +64,11 @@ export function CreateDossierTab() {
     setIsSubmitting(true);
     try {
       if (isNewClient) {
-        if (!newClientName.trim() || !newClientEmail.trim() || !newClientPhone.trim()) {
+        if (
+          !newClientName.trim() ||
+          !newClientEmail.trim() ||
+          !newClientPhone.trim()
+        ) {
           toast.error("Tous les champs du nouveau client sont obligatoires");
           return;
         }
@@ -81,6 +86,7 @@ export function CreateDossierTab() {
           toast.error("Veuillez sélectionner un client");
           return;
         }
+        console.log("selectedClientId", selectedClientId);
         const res = await createDossierForExistingClient({
           client_id: selectedClientId,
           product_id: selectedProductId,

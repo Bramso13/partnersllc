@@ -61,7 +61,7 @@ export function WorkflowConfigContent({
   useEffect(() => {
     fetchWorkflowConfig();
     fetchAvailableSteps();
-  }, [fetchWorkflowConfig, fetchAvailableSteps]);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);

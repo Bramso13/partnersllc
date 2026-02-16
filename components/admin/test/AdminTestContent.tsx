@@ -4,15 +4,18 @@ import { useState } from "react";
 import { BackofficeProvider } from "@/lib/contexts/backoffice/BackofficeContext";
 import { ProductsProvider } from "@/lib/contexts/products/ProductsContext";
 import { ConfigTab } from "./ConfigTab";
+import { TestEmailTab } from "./TestEmailTab";
 import { TestProcessusTab } from "./TestProcessusTab";
 import { TestUsersTab } from "./TestUsersTab";
 
-type TabId = "config" | "processus" | "users";
+type TabId = "config" | "processus" | "users" | "email" | "email-smtp";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "config", label: "Config coordonnées", icon: "fa-sliders" },
   { id: "processus", label: "Test processus dossier", icon: "fa-diagram-project" },
   { id: "users", label: "Users de test", icon: "fa-users" },
+  { id: "email", label: "Test email (Resend)", icon: "fa-envelope" },
+  { id: "email-smtp", label: "Test email (Nodemailer)", icon: "fa-paper-plane" },
 ];
 
 const SESSION_KEY_EMAIL = "test_email";
@@ -88,6 +91,12 @@ export function AdminTestContent() {
               />
             )}
             {activeTab === "users" && <TestUsersTab />}
+            {activeTab === "email" && (
+              <TestEmailTab defaultTo={testEmail} transport="resend" />
+            )}
+            {activeTab === "email-smtp" && (
+              <TestEmailTab defaultTo={testEmail} transport="smtp" />
+            )}
           </div>
         </div>
       </ProductsProvider>

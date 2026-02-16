@@ -130,18 +130,22 @@ export async function POST(request: NextRequest) {
     // validation_status = admin approval status (SUBMITTED/APPROVED/REJECTED)
     // Use admin client to bypass RLS
     const adminClient = createAdminClient();
-    const { data: updatedInstance, error: instanceUpdateError } = await adminClient
-      .from("step_instances")
-      .update({
-        validation_status: "SUBMITTED",
-        completed_at: new Date().toISOString(), // Mark as completed when user submits
-      })
-      .eq("id", stepInstanceId)
-      .select("id, validation_status, completed_at")
-      .single();
+    const { data: updatedInstance, error: instanceUpdateError } =
+      await adminClient
+        .from("step_instances")
+        .update({
+          validation_status: "SUBMITTED",
+          completed_at: new Date().toISOString(), // Mark as completed when user submits
+        })
+        .eq("id", stepInstanceId)
+        .select("id, validation_status, completed_at")
+        .single();
 
     if (instanceUpdateError) {
-      console.error("[SUBMIT STEP] Error updating step instance:", instanceUpdateError);
+      console.error(
+        "[SUBMIT STEP] Error updating step instance:",
+        instanceUpdateError
+      );
       throw new Error("Erreur lors de la mise à jour de l'instance");
     }
 
@@ -161,14 +165,62 @@ export async function POST(request: NextRequest) {
       .eq("id", dossier_id);
 
     if (dossierUpdateError) {
-      console.error("[SUBMIT STEP] Error updating dossier:", dossierUpdateError);
+      console.error(
+        "[SUBMIT STEP] Error updating dossier:",
+        dossierUpdateError
+      );
       throw new Error("Erreur lors de la mise à jour du dossier");
     }
 
+    // Vérifier si toutes les step instances de type CLIENT du dossier sont soumises
+    const { data: clientStepInstances } = await adminClient
+      .from("step_instances")
+      .select("id, validation_status, step:steps(step_type)")
+      .eq("dossier_id", dossier_id);
+
+    const steps = (clientStepInstances || []) as Array<{
+      id: string;
+      validation_status: string;
+      step: { step_type: string } | { step_type: string }[] | null;
+    }>;
+    const clientSteps = steps.filter((si) => {
+      const step = Array.isArray(si.step) ? si.step[0] : si.step;
+      return step?.step_type === "CLIENT";
+    });
+    const allClientStepsSubmitted =
+      clientSteps.length > 0 &&
+      clientSteps.every((si) => si.validation_status === "SUBMITTED");
+
+    if (allClientStepsSubmitted) {
+      const zapierWebhookUrl =
+        process.env.ZAPIER_WEBHOOK_ALL_CLIENT_STEPS_SUBMITTED ||
+        "https://hooks.zapier.com/hooks/catch/22567436/ueprhez/";
+      try {
+        const res = await fetch(zapierWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "all_client_steps_submitted",
+            dossier_id: dossier_id,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        if (!res.ok) {
+          console.warn(
+            "[SUBMIT STEP] Zapier webhook failed:",
+            res.status,
+            await res.text()
+          );
+        }
+      } catch (webhookErr) {
+        console.warn("[SUBMIT STEP] Zapier webhook error:", webhookErr);
+      }
+    }
+
     return NextResponse.json(
-      { 
+      {
         message: "Étape soumise. En attente de validation par notre équipe.",
-        step_instance_id: stepInstanceId 
+        step_instance_id: stepInstanceId,
       },
       { status: 200 }
     );

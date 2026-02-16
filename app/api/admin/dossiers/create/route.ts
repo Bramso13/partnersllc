@@ -33,33 +33,40 @@ export async function POST(request: NextRequest) {
     const { client_id, product_id, initial_status } = validation.data;
     const supabase = createAdminClient();
 
+    console.log("client_id", client_id);
+
     // Verify client exists
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, full_name, email")
+      .select("id, full_name")
       .eq("id", client_id)
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: "Client introuvable" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Client introuvable" },
+        { status: 404 }
+      );
     }
 
     // Verify product is active
     const { data: product, error: productError } = await supabase
       .from("products")
-      .select("id, name, price_amount, currency, dossier_type, initial_status, active")
+      .select(
+        "id, name, price_amount, currency, dossier_type, initial_status, active"
+      )
       .eq("id", product_id)
       .single();
 
     if (productError || !product) {
-      return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Produit introuvable" },
+        { status: 404 }
+      );
     }
 
     if (!product.active) {
-      return NextResponse.json(
-        { error: "Produit inactif" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Produit inactif" }, { status: 400 });
     }
 
     // Create order (fictive, status PAID)
@@ -127,13 +134,11 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (createurAgent) {
-      await supabase
-        .from("dossier_agent_assignments")
-        .insert({
-          dossier_id: dossier.id,
-          agent_id: createurAgent.id,
-          assignment_type: "CREATEUR",
-        });
+      await supabase.from("dossier_agent_assignments").insert({
+        dossier_id: dossier.id,
+        agent_id: createurAgent.id,
+        assignment_type: "CREATEUR",
+      });
     }
 
     // Create step instances
@@ -144,7 +149,10 @@ export async function POST(request: NextRequest) {
       .order("position", { ascending: true });
 
     if (productStepsError) {
-      console.error("[create-dossier] Error fetching product steps:", productStepsError);
+      console.error(
+        "[create-dossier] Error fetching product steps:",
+        productStepsError
+      );
       return NextResponse.json(
         { error: "Erreur lors de la récupération des étapes" },
         { status: 500 }
@@ -165,7 +173,10 @@ export async function POST(request: NextRequest) {
         .select("id, started_at");
 
       if (instancesError) {
-        console.error("[create-dossier] Error creating step instances:", instancesError);
+        console.error(
+          "[create-dossier] Error creating step instances:",
+          instancesError
+        );
         return NextResponse.json(
           { error: "Erreur lors de la création des étapes" },
           { status: 500 }

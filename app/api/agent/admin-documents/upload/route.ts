@@ -178,6 +178,35 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Email Nodemailer au client : un document vous attend sur la plateforme
+    const dossierId = stepInstance.dossier_id;
+    try {
+      const { data: dossier } = await supabase
+        .from('dossiers')
+        .select('client_id')
+        .eq('id', dossierId)
+        .single();
+      if (dossier?.client_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', dossier.client_id)
+          .single();
+        if (profile?.email) {
+          const { sendDocumentWaitingForClientEmail } = await import(
+            '@/lib/notifications/event-emails'
+          );
+          await sendDocumentWaitingForClientEmail({
+            to: profile.email,
+            userName: profile.full_name || 'Client',
+            dossierId,
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error('Error sending document waiting email (Nodemailer):', emailErr);
+    }
+
     return NextResponse.json({
       success: true,
       document: {

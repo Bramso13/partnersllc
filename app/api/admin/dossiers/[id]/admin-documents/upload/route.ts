@@ -56,7 +56,10 @@ export async function POST(
 
     if (!file || !documentTypeId || !stepInstanceId) {
       return NextResponse.json(
-        { error: "Champs requis manquants (file, document_type_id, step_instance_id)" },
+        {
+          error:
+            "Champs requis manquants (file, document_type_id, step_instance_id)",
+        },
         { status: 400 }
       );
     }
@@ -174,15 +177,43 @@ export async function POST(
       },
     });
 
+    // Email Nodemailer au client : un document vous attend sur la plateforme
+    const dossierId2 = stepInstance.dossier_id;
+    try {
+      const { data: dossier } = await supabase
+        .from("dossiers")
+        .select("client_id")
+        .eq("id", dossierId2)
+        .single();
+      if (dossier?.client_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", dossier.client_id)
+          .single();
+        if (profile?.email) {
+          const { sendDocumentWaitingForClientEmail } =
+            await import("@/lib/notifications/event-emails");
+          await sendDocumentWaitingForClientEmail({
+            to: profile.email,
+            userName: profile.full_name || "Client",
+            dossierId: dossierId2,
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error(
+        "Error sending document waiting email (Nodemailer):",
+        emailErr
+      );
+    }
+
     return NextResponse.json({
       success: true,
       document: { id: document.id, status: "PENDING" },
     });
   } catch (error) {
     console.error("Admin admin-documents upload error:", error);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }

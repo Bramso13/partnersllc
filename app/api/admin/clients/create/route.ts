@@ -274,6 +274,23 @@ export async function POST(request: NextRequest) {
         throw new Error("Erreur lors de la création de l'événement client manuel créé");
       }
 
+      // Envoi email Nodemailer : inviter le client à créer son mot de passe (lien Supabase)
+      if (setPasswordUrl) {
+        try {
+          const { sendManualClientCreatedEmail } = await import(
+            "@/lib/notifications/event-emails"
+          );
+          await sendManualClientCreatedEmail({
+            to: email,
+            userName: full_name,
+            setPasswordUrl,
+            productName: product.name,
+          });
+        } catch (emailErr) {
+          console.error("Error sending manual client created email (Nodemailer):", emailErr);
+          // Ne pas faire échouer la création du client
+        }
+      }
 
       // DOSSIER_CREATED event
       const { error: dossierCreatedError } = await adminSupabase.from("events").insert({

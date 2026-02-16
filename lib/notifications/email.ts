@@ -1,9 +1,12 @@
 import nodemailer, { Transporter } from "nodemailer";
 import type { SentMessageInfo } from "nodemailer";
+import { sendEmailWithResend } from "./resend";
 
 // =========================================================
 // TYPES
 // =========================================================
+
+export type EmailTransport = "smtp" | "resend";
 
 export interface EmailOptions {
   to: string;
@@ -12,6 +15,8 @@ export interface EmailOptions {
   text: string;
   from?: string;
   replyTo?: string;
+  /** Force le transport (pour les tests admin). Sinon : Resend si RESEND_API_KEY, sinon SMTP */
+  transport?: EmailTransport;
 }
 
 export interface EmailResult {
@@ -139,7 +144,9 @@ function sleep(ms: number): Promise<void> {
 // =========================================================
 
 /**
- * Send email with retry logic (up to 3 retries with exponential backoff)
+ * Send email with retry logic (up to 3 retries with exponential backoff).
+ * Utilise Resend si RESEND_API_KEY est défini (ou si options.transport === 'resend'),
+ * sinon SMTP (nodemailer). options.transport force le transport pour les tests.
  */
 export async function sendEmail(
   options: EmailOptions,
@@ -157,6 +164,35 @@ export async function sendEmail(
     throw new Error("Missing required email fields: subject, html, or text");
   }
 
+  const useResend =
+    options.transport === "resend" ||
+    (options.transport !== "smtp" && !!process.env.RESEND_API_KEY);
+
+  // Resend (si forcé ou si la clé API est configurée)
+  if (useResend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set — cannot use Resend transport");
+    }
+    try {
+      return await sendEmailWithResend({
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        from: options.from,
+        replyTo: options.replyTo,
+      });
+    } catch (error: any) {
+      if (retryCount < maxRetries && error?.message?.toLowerCase().includes("rate")) {
+        const delay = getRetryDelay(retryCount);
+        await sleep(delay);
+        return sendEmail(options, retryCount + 1);
+      }
+      throw error;
+    }
+  }
+
+  // SMTP (Nodemailer)
   const transport = createTransporter();
   try {
     const from = options.from || getDefaultFrom();

@@ -48,6 +48,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
       const data = await api.get<
         ClientWithDossierCount[] | { clients?: ClientWithDossierCount[] }
       >("/api/admin/clients");
+
       const list = Array.isArray(data) ? data : (data?.clients ?? []);
       setClients(list);
     } catch (err) {

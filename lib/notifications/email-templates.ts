@@ -18,6 +18,11 @@ interface DocumentUploadConfirmationData extends BaseTemplateData {
   dossierUrl: string;
 }
 
+/** Email quand un document a été déposé par l'admin/agent pour le client */
+interface DocumentWaitingForClientData extends BaseTemplateData {
+  dossierUrl: string;
+}
+
 interface DocumentApprovedData extends BaseTemplateData {
   documentType: string;
   dossierId: string;
@@ -220,6 +225,34 @@ export function generateWelcomeEmail(data: WelcomeEmailData): { html: string; te
       unsubscribeUrl
     ),
     text: generatePlainText(title, content.replace(/<[^>]*>/g, "")),
+  };
+}
+
+/**
+ * Document waiting for client — envoyé quand admin/agent a déposé un document pour le client
+ */
+export function generateDocumentWaitingForClientEmail(
+  data: DocumentWaitingForClientData
+): { html: string; text: string } {
+  const title = "Un document vous attend sur la plateforme";
+  const content = `
+    <p>Bonjour ${data.userName},</p>
+    <p>Votre conseiller a déposé un document sur votre dossier.</p>
+    <p>Connectez-vous à votre espace client pour le consulter.</p>
+  `;
+  return {
+    html: generateEmailHTML(
+      title,
+      content,
+      data.dossierUrl,
+      "Voir mon dossier"
+    ),
+    text: generatePlainText(
+      title,
+      content.replace(/<[^>]*>/g, ""),
+      data.dossierUrl,
+      "Voir mon dossier"
+    ),
   };
 }
 
