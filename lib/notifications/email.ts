@@ -171,6 +171,7 @@ export async function sendEmail(
   if (!process.env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not set — cannot use Resend transport");
   }
+  console.log("Sending email with Resend");
   try {
     return await sendEmailWithResend({
       to: options.to,
