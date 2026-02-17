@@ -24,7 +24,7 @@ export interface ResendEmailResult {
 function getResendFrom(): string {
   // Resend attend "Nom <email@domaine.com>" (domaine vérifié dans le dashboard Resend)
   const name = process.env.NEXT_PUBLIC_APP_NAME || "Partners LLC";
-  return process.env.RESEND_FROM || `${name} <noreply@partnersllc.com>`;
+  return process.env.RESEND_FROM || `${name} <contact@partnersllc.fr>`;
 }
 
 /**

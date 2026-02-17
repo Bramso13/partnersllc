@@ -114,12 +114,8 @@ export function TestEmailTab({ defaultTo = "", transport }: TestEmailTabProps) {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-[#f9f9f9] mb-1">
-          {title}
-        </h2>
-        <p className="text-sm text-[#b7b7b7]">
-          {description}
-        </p>
+        <h2 className="text-lg font-semibold text-[#f9f9f9] mb-1">{title}</h2>
+        <p className="text-sm text-[#b7b7b7]">{description}</p>
       </div>
 
       <div className="space-y-4 rounded-xl border border-[#363636] bg-[#252628] p-5">
@@ -164,7 +160,10 @@ export function TestEmailTab({ defaultTo = "", transport }: TestEmailTabProps) {
 
         <div className="grid gap-1.5">
           <label className="text-sm font-medium text-[#b7b7b7]">
-            Texte brut <span className="text-xs text-[#666]">(optionnel, sinon dérivé du HTML)</span>
+            Texte brut{" "}
+            <span className="text-xs text-[#666]">
+              (optionnel, sinon dérivé du HTML)
+            </span>
           </label>
           <textarea
             value={text}
@@ -177,17 +176,21 @@ export function TestEmailTab({ defaultTo = "", transport }: TestEmailTabProps) {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <label className="text-sm font-medium text-[#b7b7b7]">From (optionnel)</label>
+            <label className="text-sm font-medium text-[#b7b7b7]">
+              From (optionnel)
+            </label>
             <input
               type="email"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              placeholder="noreply@partnersllc.com"
+              placeholder="contact@partnersllc.fr"
               className="w-full rounded-lg border border-[#363636] bg-[#2d3033] px-3 py-2 text-sm text-[#f9f9f9] placeholder-[#666] focus:border-[#7c6af7] focus:outline-none"
             />
           </div>
           <div className="grid gap-1.5">
-            <label className="text-sm font-medium text-[#b7b7b7]">Reply-To (optionnel)</label>
+            <label className="text-sm font-medium text-[#b7b7b7]">
+              Reply-To (optionnel)
+            </label>
             <input
               type="email"
               value={replyTo}

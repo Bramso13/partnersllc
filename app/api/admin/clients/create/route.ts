@@ -269,52 +269,52 @@ export async function POST(request: NextRequest) {
       }
 
       // Envoi email Nodemailer : inviter le client à créer son mot de passe (lien Supabase)
-      if (setPasswordUrl) {
-        try {
-          const { sendManualClientCreatedEmail } =
-            await import("@/lib/notifications/event-emails");
-          await sendManualClientCreatedEmail({
-            to: email,
-            userName: full_name,
-            setPasswordUrl,
-            productName: product.name,
-          });
-        } catch (emailErr) {
-          console.error(
-            "Error sending manual client created email (Nodemailer):",
-            emailErr
-          );
-          // Ne pas faire échouer la création du client
-        }
-      }
+      // if (setPasswordUrl) {
+      //   try {
+      //     const { sendManualClientCreatedEmail } =
+      //       await import("@/lib/notifications/event-emails");
+      //     await sendManualClientCreatedEmail({
+      //       to: email,
+      //       userName: full_name,
+      //       setPasswordUrl,
+      //       productName: product.name,
+      //     });
+      //   } catch (emailErr) {
+      //     console.error(
+      //       "Error sending manual client created email (Nodemailer):",
+      //       emailErr
+      //     );
+      //     // Ne pas faire échouer la création du client
+      //   }
+      // }
 
       // DOSSIER_CREATED event
-      const { error: dossierCreatedError } = await adminSupabase
-        .from("events")
-        .insert({
-          entity_type: "dossier",
-          entity_id: dossier.id,
-          event_type: "DOSSIER_CREATED",
-          actor_type: "ADMIN",
-          actor_id: adminUserId,
-          payload: {
-            dossier_id: dossier.id,
-            user_id: newUserId,
-            product_id: product_id,
-            order_id: order.id,
-            created_via: "manual_admin_creation",
-          },
-        });
+      // const { error: dossierCreatedError } = await adminSupabase
+      //   .from("events")
+      //   .insert({
+      //     entity_type: "dossier",
+      //     entity_id: dossier.id,
+      //     event_type: "DOSSIER_CREATED",
+      //     actor_type: "ADMIN",
+      //     actor_id: adminUserId,
+      //     payload: {
+      //       dossier_id: dossier.id,
+      //       user_id: newUserId,
+      //       product_id: product_id,
+      //       order_id: order.id,
+      //       created_via: "manual_admin_creation",
+      //     },
+      //   });
 
-      if (dossierCreatedError) {
-        console.error(
-          "Error creating dossier created event:",
-          dossierCreatedError
-        );
-        throw new Error(
-          "Erreur lors de la création de l'événement dossier créé"
-        );
-      }
+      // if (dossierCreatedError) {
+      //   console.error(
+      //     "Error creating dossier created event:",
+      //     dossierCreatedError
+      //   );
+      //   throw new Error(
+      //     "Erreur lors de la création de l'événement dossier créé"
+      //   );
+      // }
 
       // 13. Send invitation email
       // const { error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(

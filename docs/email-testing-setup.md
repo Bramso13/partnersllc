@@ -51,7 +51,7 @@ SMTP_PORT=587
 SMTP_SECURE=false  # true pour port 465 (SSL), false pour port 587 (TLS)
 SMTP_USER=your-smtp-username
 SMTP_PASS=your-smtp-password
-SMTP_FROM=noreply@partnersllc.com
+SMTP_FROM=contact@partnersllc.fr
 ```
 
 ### 4. Vérifier la connexion
@@ -70,6 +70,7 @@ console.log("Email connection:", isConnected ? "OK" : "FAILED");
 ### Mode Test (Développement)
 
 Quand `EMAIL_TEST_MODE=true` et `NODE_ENV=development` :
+
 - Tous les emails sont envoyés via Ethereal
 - Les emails sont capturés dans le dashboard Ethereal
 - Aucun email n'est envoyé à de vrais destinataires
@@ -78,6 +79,7 @@ Quand `EMAIL_TEST_MODE=true` et `NODE_ENV=development` :
 ### Mode Production
 
 Quand `EMAIL_TEST_MODE` n'est pas défini ou `NODE_ENV=production` :
+
 - Les emails sont envoyés via la configuration SMTP de production
 - Les emails sont réellement délivrés aux destinataires
 
@@ -113,14 +115,17 @@ Si vous préférez utiliser MailHog localement :
 ## Dépannage
 
 ### Erreur : "Invalid login"
+
 - Vérifiez que vos identifiants Ethereal sont corrects
 - Régénérez un nouveau compte Ethereal si nécessaire
 
 ### Erreur : "Connection timeout"
+
 - Vérifiez votre connexion internet
 - Vérifiez que le port SMTP n'est pas bloqué par un firewall
 
 ### Emails non reçus en mode test
+
 - Vérifiez que `EMAIL_TEST_MODE=true` est défini
 - Vérifiez que `NODE_ENV=development`
 - Consultez les logs de l'application pour les erreurs

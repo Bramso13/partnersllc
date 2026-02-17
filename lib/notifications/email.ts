@@ -71,7 +71,7 @@ function getSmtpConfig() {
  */
 function getDefaultFrom(): string {
   return (
-    process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@partnersllc.com"
+    process.env.SMTP_FROM || process.env.SMTP_USER || "contact@partnersllc.fr"
   );
 }
 
