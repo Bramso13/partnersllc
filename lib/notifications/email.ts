@@ -168,28 +168,28 @@ export async function sendEmail(
     options.transport === "resend" ||
     (options.transport !== "smtp" && !!process.env.RESEND_API_KEY);
 
-  // Resend (si forcé ou si la clé API est configurée)
-  if (useResend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not set — cannot use Resend transport");
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not set — cannot use Resend transport");
+  }
+  try {
+    return await sendEmailWithResend({
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+      from: options.from,
+      replyTo: options.replyTo,
+    });
+  } catch (error: any) {
+    if (
+      retryCount < maxRetries &&
+      error?.message?.toLowerCase().includes("rate")
+    ) {
+      const delay = getRetryDelay(retryCount);
+      await sleep(delay);
+      return sendEmail(options, retryCount + 1);
     }
-    try {
-      return await sendEmailWithResend({
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-        from: options.from,
-        replyTo: options.replyTo,
-      });
-    } catch (error: any) {
-      if (retryCount < maxRetries && error?.message?.toLowerCase().includes("rate")) {
-        const delay = getRetryDelay(retryCount);
-        await sleep(delay);
-        return sendEmail(options, retryCount + 1);
-      }
-      throw error;
-    }
+    throw error;
   }
 
   // SMTP (Nodemailer)
