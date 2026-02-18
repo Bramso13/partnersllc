@@ -48,7 +48,8 @@ interface UserEmail {
  */
 async function getUserEmail(userId: string): Promise<string | null> {
   const supabase = createAdminClient();
-  const { data: authUser, error } = await supabase.auth.admin.getUserById(userId);
+  const { data: authUser, error } =
+    await supabase.auth.admin.getUserById(userId);
 
   if (error || !authUser?.user?.email) {
     console.error(`Error fetching email for user ${userId}:`, error);
@@ -307,14 +308,23 @@ export async function processEmailNotification(
 
     if (existingDelivery) {
       // Already sent or in progress — skip to avoid double-send
-      if (existingDelivery.status === "SENT" || existingDelivery.status === "PENDING") {
-        console.log(`Email delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`);
+      if (
+        existingDelivery.status === "SENT" ||
+        existingDelivery.status === "PENDING"
+      ) {
+        console.log(
+          `Email delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`
+        );
         return { success: true };
       }
 
       // Get retry count from provider_response
-      if (existingDelivery.provider_response && typeof existingDelivery.provider_response === 'object') {
-        retryCount = (existingDelivery.provider_response as any).retry_count || 0;
+      if (
+        existingDelivery.provider_response &&
+        typeof existingDelivery.provider_response === "object"
+      ) {
+        retryCount =
+          (existingDelivery.provider_response as any).retry_count || 0;
       }
 
       // Update existing delivery to PENDING if it failed (for retry)
@@ -326,7 +336,7 @@ export async function processEmailNotification(
             status: "PENDING",
             failed_at: null,
             provider_response: {
-              ...(existingDelivery.provider_response as object || {}),
+              ...((existingDelivery.provider_response as object) || {}),
               retry_count: retryCount,
             },
           })
@@ -349,7 +359,7 @@ export async function processEmailNotification(
           channel: "EMAIL",
           recipient: userEmail.email,
           status: "PENDING",
-          provider: "nodemailer",
+          provider: "resend",
           provider_response: {
             retry_count: 0,
           },
@@ -383,6 +393,7 @@ export async function processEmailNotification(
         subject: notif.title,
         html: emailContent.html,
         text: emailContent.text,
+        transport: "resend",
       });
 
       // Update delivery record on success
@@ -447,7 +458,10 @@ export async function processEmailNotification(
         .eq("id", deliveryId);
 
       if (updateError) {
-        console.error("Failed to update delivery record on failure:", updateError);
+        console.error(
+          "Failed to update delivery record on failure:",
+          updateError
+        );
       }
 
       return {
@@ -554,7 +568,8 @@ export async function processWhatsAppNotification(
 
     // Get user profile for name
     const userProfile = await getUserProfile(notif.user_id);
-    const userName = userProfile?.full_name || userProfile?.email?.split("@")[0] || "Client";
+    const userName =
+      userProfile?.full_name || userProfile?.email?.split("@")[0] || "Client";
 
     // Check if delivery already exists
     const { data: existingDelivery } = await supabase
@@ -569,14 +584,23 @@ export async function processWhatsAppNotification(
 
     if (existingDelivery) {
       // Already sent or in progress — skip to avoid double-send
-      if (existingDelivery.status === "SENT" || existingDelivery.status === "PENDING") {
-        console.log(`WhatsApp delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`);
+      if (
+        existingDelivery.status === "SENT" ||
+        existingDelivery.status === "PENDING"
+      ) {
+        console.log(
+          `WhatsApp delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`
+        );
         return { success: true };
       }
 
       // Get retry count from provider_response
-      if (existingDelivery.provider_response && typeof existingDelivery.provider_response === "object") {
-        retryCount = (existingDelivery.provider_response as any).retry_count || 0;
+      if (
+        existingDelivery.provider_response &&
+        typeof existingDelivery.provider_response === "object"
+      ) {
+        retryCount =
+          (existingDelivery.provider_response as any).retry_count || 0;
       }
 
       // Update existing delivery to PENDING if it failed (for retry)
@@ -678,7 +702,10 @@ export async function processWhatsAppNotification(
         .eq("id", deliveryId);
 
       if (updateError) {
-        console.error("Failed to update WhatsApp delivery record:", updateError);
+        console.error(
+          "Failed to update WhatsApp delivery record:",
+          updateError
+        );
         // Message was sent but DB update failed - log but don't fail
       }
 
@@ -713,7 +740,10 @@ export async function processWhatsAppNotification(
         .eq("id", deliveryId);
 
       if (updateError) {
-        console.error("Failed to update WhatsApp delivery record on failure:", updateError);
+        console.error(
+          "Failed to update WhatsApp delivery record on failure:",
+          updateError
+        );
       }
 
       return {
