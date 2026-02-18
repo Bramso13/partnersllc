@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import type { DocumentWithDetails } from "@/lib/documents-types";
+import { useApi } from "@/lib/api/useApi";
 import { StatusBadge } from "./StatusBadge";
 import { formatFileSize } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { toast } from "sonner";
 
 type SortOption = "date_desc" | "date_asc" | "name_asc" | "name_desc" | "status_asc" | "status_desc";
+
+const downloadUrl = (dossierId: string, documentId: string) =>
+  `/api/dossiers/${dossierId}/documents/${documentId}/download`;
 
 interface DocumentsTableProps {
   documents: DocumentWithDetails[];
@@ -20,31 +24,29 @@ export function DocumentsTable({
   sort,
   onSortChange,
 }: DocumentsTableProps) {
+  const api = useApi();
   const [previewDocument, setPreviewDocument] =
     useState<DocumentWithDetails | null>(null);
-  const supabase = createClient();
 
-  const handleDownload = async (
-    filePath: string,
-    fileName: string | null
-  ) => {
+  const handleDownload = async (doc: DocumentWithDetails) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("documents")
-        .createSignedUrl(filePath, 60); // 60 seconds expiration
-
-      if (error) throw error;
-
-      // Trigger browser download
-      const link = document.createElement("a");
-      link.href = data.signedUrl;
-      link.download = fileName || "document";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = await api.getBlob(downloadUrl(doc.dossier_id, doc.id));
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download =
+        doc.current_version?.file_name || `document-${doc.id}.pdf`;
+      a.style.display = "none";
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Téléchargement démarré");
     } catch (error) {
       console.error("Error downloading document:", error);
-      alert("Erreur lors du téléchargement du document");
+      toast.error(
+        error instanceof Error ? error.message : "Erreur lors du téléchargement"
+      );
     }
   };
 
@@ -199,10 +201,7 @@ export function DocumentsTable({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDownload(
-                            document.current_version?.file_url || "",
-                            document.current_version?.file_name || null
-                          );
+                          handleDownload(document);
                         }}
                         disabled={!document.current_version?.file_url}
                         className="w-9 h-9 flex items-center justify-center bg-brand-dark-surface hover:bg-brand-dark-border rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

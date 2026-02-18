@@ -2,6 +2,10 @@ import { requireAuth } from "@/lib/auth";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/["\\\r\n]/g, "_");
+}
+
 /**
  * GET /api/dossiers/[id]/documents/[document_id]/download
  * Secure document download route for clients
@@ -83,21 +87,25 @@ export async function GET(
       );
     }
 
-    // Extract file path from file_url
+    // Extract bucket and file path from file_url
     // file_url can be:
     // 1. Full public URL: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file
     // 2. Signed URL: https://xxx.supabase.co/storage/v1/object/sign/...
-    // 3. Relative path: path/to/file
+    // 3. Relative path: "documents/dossierId/code/1.pdf" (bucket "documents") or "admin/xxx.pdf" (bucket "dossier-documents")
+    const knownBuckets = ["dossier-documents", "documents"];
+    let bucket = "dossier-documents";
     let filePath: string;
 
     try {
       if (version.file_url.includes("/storage/v1/object/public/")) {
-        // Format: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file
         const urlParts = version.file_url.split("/storage/v1/object/public/");
         if (urlParts.length > 1) {
           const pathAfterBucket = urlParts[1];
           const pathParts = pathAfterBucket.split("/");
-          if (pathParts[0] === "dossier-documents") {
+          if (pathParts.length > 1 && knownBuckets.includes(pathParts[0])) {
+            bucket = pathParts[0];
+            filePath = pathParts.slice(1).join("/");
+          } else if (pathParts[0] === "dossier-documents") {
             filePath = pathParts.slice(1).join("/");
           } else {
             filePath = pathAfterBucket;
@@ -106,20 +114,30 @@ export async function GET(
           throw new Error("Format d'URL invalide");
         }
       } else if (version.file_url.includes("/storage/v1/object/sign/")) {
-        // If it's a signed URL, extract the path
         const url = new URL(version.file_url);
-        const pathMatch = url.pathname.match(/\/storage\/v1\/object\/sign\/[^/]+\/(.+)/);
+        const pathMatch = url.pathname.match(
+          /\/storage\/v1\/object\/sign\/[^/]+\/(.+)/
+        );
         if (pathMatch) {
-          filePath = decodeURIComponent(pathMatch[1]);
+          const fullPath = decodeURIComponent(pathMatch[1]);
+          const pathParts = fullPath.split("/");
+          if (pathParts.length > 1 && knownBuckets.includes(pathParts[0])) {
+            bucket = pathParts[0];
+            filePath = pathParts.slice(1).join("/");
+          } else {
+            filePath = fullPath;
+          }
         } else {
           throw new Error("Impossible d'extraire le chemin depuis l'URL signée");
         }
       } else {
-        // Assume it's already a relative path
+        // Relative path: client uploads use "documents/dossierId/code/1.ext" in bucket "documents"
         filePath = version.file_url;
+        if (filePath.startsWith("documents/")) {
+          bucket = "documents";
+        }
+        // else: "admin/..." or other => bucket stays "dossier-documents"
       }
-
-      console.log("[DOWNLOAD DOC] Extracted file path:", filePath);
     } catch (error) {
       console.error("[DOWNLOAD DOC] Error extracting file path:", error);
       return NextResponse.json(
@@ -128,22 +146,48 @@ export async function GET(
       );
     }
 
-    // Create a signed URL that expires in 1 hour
+    // Download file from storage and stream it back (no redirect)
     const adminClient = createAdminClient();
-    const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
-      .from("dossier-documents")
-      .createSignedUrl(filePath, 3600); // 1 hour expiration
+    let blob: Blob | null = null;
+    let downloadError: { message: string } | null = null;
 
-    if (signedUrlError || !signedUrlData) {
-      console.error("[DOWNLOAD DOC] Error creating signed URL:", signedUrlError);
+    const result = await adminClient.storage.from(bucket).download(filePath);
+    blob = result.data;
+    downloadError = result.error;
+
+    // If not found in first bucket, try the other (legacy data may differ)
+    if (downloadError?.message?.includes("Object not found") && knownBuckets.includes(bucket)) {
+      const otherBucket = bucket === "dossier-documents" ? "documents" : "dossier-documents";
+      const fallback = await adminClient.storage.from(otherBucket).download(filePath);
+      if (!fallback.error && fallback.data) {
+        blob = fallback.data;
+        downloadError = null;
+      }
+    }
+
+    if (downloadError || !blob) {
+      console.error("[DOWNLOAD DOC] Error downloading file:", {
+        bucket,
+        filePath,
+        error: downloadError,
+      });
       return NextResponse.json(
-        { error: "Erreur lors de la génération du lien de téléchargement" },
+        { error: "Erreur lors du téléchargement du document" },
         { status: 500 }
       );
     }
 
-    // Redirect to the signed URL
-    return NextResponse.redirect(signedUrlData.signedUrl);
+    const fileName =
+      version.file_name || filePath.split("/").pop() || "document";
+    const mimeType = version.mime_type || "application/octet-stream";
+
+    return new NextResponse(blob, {
+      status: 200,
+      headers: {
+        "Content-Type": mimeType,
+        "Content-Disposition": `inline; filename="${sanitizeFilename(fileName)}"`,
+      },
+    });
   } catch (error) {
     console.error("Error in download document endpoint:", error);
     return NextResponse.json(
