@@ -18,7 +18,7 @@ import { BaseEvent } from "@/lib/events";
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  console.log("[CRON] process-event-notifications: Starting execution");
+  console.warn("[CRON] process-event-notifications: Starting execution");
 
   try {
     // Verify cron secret for security
@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
       // Body might be empty or invalid, continue with empty object
     }
 
-    console.log("[CRON] Body:", body);
+    console.warn("[CRON] Body:", body);
 
     const authFromBody = body.Authorization || body.authorization;
     const cronSecret = process.env.CRON_SECRET;
 
-    console.log("[CRON] Auth check:", {
+    console.warn("[CRON] Auth check:", {
       hasAuthInBody: !!authFromBody,
       hasCronSecret: !!cronSecret,
       authPrefix: authFromBody?.substring(0, 20) + "...",
@@ -49,13 +49,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("[CRON] Authentication successful, initializing Supabase client");
+    console.warn("[CRON] Authentication successful, initializing Supabase client");
     const supabase = createAdminClient();
 
     // Get events that haven't been processed yet
     // We'll track processing via notification_rule_executions table
     const timeWindow = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    console.log("[CRON] Fetching events created after:", timeWindow);
+    console.warn("[CRON] Fetching events created after:", timeWindow);
 
     const { data: recentEvents, error: eventsError } = await supabase
       .from("events")
@@ -78,14 +78,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[CRON] Fetched events:", {
+    console.warn("[CRON] Fetched events:", {
       count: recentEvents?.length || 0,
       eventIds: recentEvents?.map((e) => e.id) || [],
       eventTypes: recentEvents?.map((e) => e.event_type) || [],
     });
 
     if (!recentEvents || recentEvents.length === 0) {
-      console.log("[CRON] No events to process in the last 5 minutes");
+      console.warn("[CRON] No events to process in the last 5 minutes");
       return NextResponse.json({
         success: true,
         message: "No events to process",
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const eventsToProcess: BaseEvent[] = [];
     const alreadyProcessed: string[] = [];
 
-    console.log("[CRON] Checking which events have already been processed...");
+    console.warn("[CRON] Checking which events have already been processed...");
 
     for (const event of recentEvents as BaseEvent[]) {
       // Check if event has already been processed.
@@ -124,18 +124,18 @@ export async function POST(request: NextRequest) {
       // Only process if no execution record exists
       if (!alreadyProcessedEvent) {
         eventsToProcess.push(event);
-        console.log(
+        console.warn(
           `[CRON] Event ${event.id} (${event.event_type}) will be processed`
         );
       } else {
         alreadyProcessed.push(event.id);
-        console.log(
+        console.warn(
           `[CRON] Event ${event.id} (${event.event_type}) already processed (${existingExecutions?.length ?? "?"} execution(s)), skipping`
         );
       }
     }
 
-    console.log("[CRON] Filtering complete:", {
+    console.warn("[CRON] Filtering complete:", {
       totalEvents: recentEvents.length,
       toProcess: eventsToProcess.length,
       alreadyProcessed: alreadyProcessed.length,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (eventsToProcess.length === 0) {
-      console.log("[CRON] All recent events already processed");
+      console.warn("[CRON] All recent events already processed");
       return NextResponse.json({
         success: true,
         message: "All recent events already processed",
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(
+    console.warn(
       `[CRON] Processing ${eventsToProcess.length} events...`,
       eventsToProcess.map((e) => ({
         id: e.id,
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     for (const event of eventsToProcess) {
       const eventStartTime = Date.now();
-      console.log(
+      console.warn(
         `[CRON] Processing event ${event.id}:`,
         {
           event_type: event.event_type,
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
         totalSucceeded += result.succeeded;
         totalFailed += result.failed;
 
-        console.log(
+        console.warn(
           `[CRON] Event ${event.id} (${event.event_type}) processed:`,
           {
             duration: `${eventDuration}ms`,
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
       duration: `${totalDuration}ms`,
     };
 
-    console.log("[CRON] process-event-notifications: Execution complete", stats);
+    console.warn("[CRON] process-event-notifications: Execution complete", stats);
 
     return NextResponse.json({
       success: true,

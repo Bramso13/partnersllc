@@ -307,13 +307,10 @@ export async function processEmailNotification(
     let retryCount = 0;
 
     if (existingDelivery) {
-      // Already sent or in progress — skip to avoid double-send
-      if (
-        existingDelivery.status === "SENT" ||
-        existingDelivery.status === "PENDING"
-      ) {
-        console.log(
-          `Email delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`
+      // Already sent — skip to avoid double-send. PENDING = created by trigger, not yet sent.
+      if (existingDelivery.status === "SENT") {
+        console.warn(
+          `Email delivery ${existingDelivery.id} already SENT, skipping`
         );
         return { success: true };
       }
@@ -588,7 +585,7 @@ export async function processWhatsAppNotification(
         existingDelivery.status === "SENT" ||
         existingDelivery.status === "PENDING"
       ) {
-        console.log(
+        console.warn(
           `WhatsApp delivery ${existingDelivery.id} already ${existingDelivery.status}, skipping`
         );
         return { success: true };

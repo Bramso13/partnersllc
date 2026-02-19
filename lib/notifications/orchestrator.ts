@@ -25,11 +25,11 @@ export async function processEventForNotifications(
     const rules = await getMatchingRules(event.event_type);
 
     if (rules.length === 0) {
-      console.log(`No active rules found for event type: ${event.event_type}`);
+      console.warn(`No active rules found for event type: ${event.event_type}`);
       return { processed: 0, succeeded: 0, failed: 0 };
     }
 
-    console.log(
+    console.warn(
       `Found ${rules.length} active rule(s) for event type: ${event.event_type}`
     );
 
@@ -40,7 +40,7 @@ export async function processEventForNotifications(
       try {
         // Evaluate conditions if present
         if (rule.conditions && !evaluateRuleConditions(rule, event)) {
-          console.log(`Rule ${rule.id} conditions not met, skipping`);
+          console.warn(`Rule ${rule.id} conditions not met, skipping`);
           // Log as skipped (not failed)
           await logRuleExecution(rule, event, null, true, "Conditions not met");
           continue;
@@ -50,7 +50,7 @@ export async function processEventForNotifications(
         const recipients = await determineRecipients(event);
 
         if (recipients.length === 0) {
-          console.log(`No recipients found for event ${event.id}, skipping rule ${rule.id}`);
+          console.warn(`No recipients found for event ${event.id}, skipping rule ${rule.id}`);
           await logRuleExecution(rule, event, null, true, "No recipients found");
           continue;
         }
@@ -483,7 +483,7 @@ async function triggerNotificationDelivery(
         break;
 
       case "SMS":
-        console.log(`SMS channel not yet implemented for notification ${notificationId}`);
+        console.warn(`SMS channel not yet implemented for notification ${notificationId}`);
         break;
 
       default:

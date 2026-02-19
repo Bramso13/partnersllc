@@ -20,7 +20,7 @@ export async function sendStepCompletedNotifications(
   dossierId: string,
   userId: string
 ): Promise<StepNotificationResult> {
-  console.log(
+  console.warn(
     `[sendStepCompletedNotifications] Sending notifications for notification ${notificationId}, dossier ${dossierId}, user ${userId}`
   );
 
@@ -42,7 +42,7 @@ export async function sendStepCompletedNotifications(
     emailSent = emailResult.value.success;
     emailError = emailResult.value.error;
     if (emailSent) {
-      console.log(`[sendStepCompletedNotifications] Email sent successfully for notification ${notificationId}`);
+      console.warn(`[sendStepCompletedNotifications] Email sent successfully for notification ${notificationId}`);
     } else {
       console.warn(`[sendStepCompletedNotifications] Email failed for notification ${notificationId}: ${emailError}`);
     }
@@ -59,7 +59,7 @@ export async function sendStepCompletedNotifications(
     whatsappSent = whatsappResult.value.success;
     whatsappError = whatsappResult.value.error;
     if (whatsappSent) {
-      console.log(`[sendStepCompletedNotifications] WhatsApp sent successfully for notification ${notificationId}`);
+      console.warn(`[sendStepCompletedNotifications] WhatsApp sent successfully for notification ${notificationId}`);
     } else {
       console.warn(`[sendStepCompletedNotifications] WhatsApp failed for notification ${notificationId}: ${whatsappError}`);
     }
@@ -69,7 +69,7 @@ export async function sendStepCompletedNotifications(
   }
 
   // Log summary
-  console.log(
+  console.warn(
     `[sendStepCompletedNotifications] Summary for notification ${notificationId}: Email=${emailSent ? "SENT" : "FAILED"}, WhatsApp=${whatsappSent ? "SENT" : "FAILED"}`
   );
 

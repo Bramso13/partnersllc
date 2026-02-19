@@ -16,7 +16,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   if (Notification.permission === "default") {
     try {
       const permission = await Notification.requestPermission();
-      console.log("Notification permission:", permission);
+      console.warn("Notification permission:", permission);
       return permission;
     } catch (error) {
       console.error("Error requesting notification permission:", error);
