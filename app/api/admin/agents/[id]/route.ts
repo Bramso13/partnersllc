@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/server";
+import { updateAgent } from "@/lib/modules/agents/admin";
 import { z } from "zod";
 
 const AgentTypeSchema = z.enum([
@@ -31,8 +31,6 @@ export async function PATCH(
     const body = await request.json();
     const data = PatchAgentSchema.parse(body);
 
-    const supabase = createAdminClient();
-
     const updatePayload: Record<string, unknown> = {};
     if (data.agent_type !== undefined) updatePayload.agent_type = data.agent_type;
     if (data.name !== undefined) updatePayload.name = data.name;
@@ -45,20 +43,7 @@ export async function PATCH(
       );
     }
 
-    const { data: agent, error } = await supabase
-      .from("agents")
-      .update(updatePayload)
-      .eq("id", agentId)
-      .select("id, name, email, agent_type, active")
-      .single();
-
-    if (error) {
-      console.error("[PATCH /api/admin/agents/[id]]", error);
-      return NextResponse.json(
-        { error: "Erreur lors de la mise à jour de l'agent" },
-        { status: 500 }
-      );
-    }
+    const agent = await updateAgent(agentId, updatePayload);
 
     if (!agent) {
       return NextResponse.json({ error: "Agent non trouvé" }, { status: 404 });

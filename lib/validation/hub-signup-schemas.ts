@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidIsoCountryCode } from "@/lib/data/iso-countries";
 
 const accountTypeEnum = z.enum(["new", "existing_llc"]);
 
@@ -19,7 +20,10 @@ export const hubSignupStep1BodySchema = z
       }
       return true;
     },
-    { message: "L'email est requis pour le type de compte Client Partners LLC", path: ["email"] }
+    {
+      message: "L'email est requis pour le type de compte Client Partners LLC",
+      path: ["email"],
+    }
   );
 
 export type HubSignupStep1Body = z.infer<typeof hubSignupStep1BodySchema>;
@@ -65,3 +69,42 @@ export const step2NewMemberSchema = step2NewUserSchema;
 export type Step2NewUserInput = z.infer<typeof step2NewUserSchema>;
 export type Step2NewMemberInput = z.infer<typeof step2NewMemberSchema>;
 export type Step2LlcClientInput = z.infer<typeof step2LlcClientSchema>;
+
+const BIO_MAX_LENGTH = 300;
+const PROFESSION_MIN_LENGTH = 2;
+
+/** Schéma body étape 3 : pays, métier, bio (profil Hub). */
+export const hubSignupStep3BodySchema = z
+  .object({
+    signup_session_id: z.string().uuid("signup_session_id doit être un UUID"),
+    country: z
+      .string()
+      .length(2, "Le pays doit être un code ISO 3166-1 alpha-2 (2 caractères)")
+      .refine((val) => isValidIsoCountryCode(val))
+      .transform((val) => val.toUpperCase()),
+    profession: z
+      .string()
+      .min(1, "La profession est requise")
+      .min(
+        PROFESSION_MIN_LENGTH,
+        `La profession doit contenir au moins ${PROFESSION_MIN_LENGTH} caractères`
+      )
+      .trim(),
+    bio: z
+      .string()
+      .max(
+        BIO_MAX_LENGTH,
+        `La bio ne doit pas dépasser ${BIO_MAX_LENGTH} caractères`
+      )
+      .trim()
+      .optional()
+      .default(""),
+  })
+  .strict();
+
+export type HubSignupStep3Body = z.infer<typeof hubSignupStep3BodySchema>;
+
+export const HUB_SIGNUP_STEP3 = {
+  BIO_MAX_LENGTH,
+  PROFESSION_MIN_LENGTH,
+} as const;

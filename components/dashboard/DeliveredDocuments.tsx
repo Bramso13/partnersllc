@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useApi } from "@/lib/api/useApi";
-import { DocumentWithDetails } from "@/lib/documents";
+import type { DocumentWithDetails } from "@/lib/documents-types";
 import { toast } from "sonner";
 import { DocumentInfoPanel } from "@/components/ui/DocumentInfoPanel";
 import { DocumentInfoButton } from "@/components/ui/DocumentInfoButton";

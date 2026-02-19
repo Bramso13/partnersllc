@@ -1,57 +1,40 @@
-import { createClient } from "@/lib/supabase/server";
-import { OrderWithProduct } from "@/types/orders";
+import * as client from "@/lib/modules/orders/client";
+import * as admin from "@/lib/modules/orders/admin";
 
-export async function getUserOrders(): Promise<OrderWithProduct[]> {
-  const supabase = await createClient();
-
-  const { data: orders, error } = await supabase
-    .from("orders")
-    .select(
-      `
-      *,
-      product:products(
-        id,
-        name,
-        description,
-        code,
-        price_amount,
-        currency
-      )
-    `
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching user orders:", error);
-    return [];
-  }
-
-  // Transform the data to match our type
-  return (orders || []).map((order) => {
-    const product = Array.isArray(order.product)
-      ? order.product[0]
-      : order.product;
-
-    return {
-      ...order,
-      product: product || {
-        id: order.product_id,
-        name: "Produit inconnu",
-        description: null,
-        code: "UNKNOWN",
-        price_amount: order.amount,
-        currency: order.currency,
-      },
-    } as OrderWithProduct;
-  });
+export async function getUserOrders() {
+  return client.getAll();
 }
 
-export async function getPendingOrders(): Promise<OrderWithProduct[]> {
-  const orders = await getUserOrders();
-  return orders.filter((order) => order.status === "PENDING" || order.status === "FAILED");
+export async function getPendingOrders() {
+  return client.getPending();
 }
 
-export async function getPaidOrders(): Promise<OrderWithProduct[]> {
-  const orders = await getUserOrders();
-  return orders.filter((order) => order.status === "PAID");
+export async function getPaidOrders() {
+  return client.getPaid();
+}
+
+export async function getPaymentsByOrderId(orderId: string) {
+  return admin.getPaymentsByOrderId(orderId);
+}
+
+export async function getPaymentsSumForOrderId(orderId: string) {
+  return admin.getPaymentsSumForOrderId(orderId);
+}
+
+export async function getPaymentsSumByOrderIds(orderIds: string[]) {
+  return admin.getPaymentsSumByOrderIds(orderIds);
+}
+
+export async function addOrderPayment(
+  orderId: string,
+  amount: number,
+  paidAt: string,
+  paymentMethod: Parameters<typeof admin.addPayment>[3],
+  createdBy: Parameters<typeof admin.addPayment>[4]
+) {
+  return admin.addPayment(orderId, amount, paidAt, paymentMethod, createdBy);
+}
+
+export async function syncPaymentStatus(userId: string) {
+  return admin.syncPaymentStatus(userId);
 }

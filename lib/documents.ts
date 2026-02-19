@@ -1,155 +1,21 @@
-import { createClient } from "@/lib/supabase/server";
-import type {
-  DocumentStatus,
-  DocumentType,
-  DocumentVersion,
-  Document,
-  DocumentWithDetails,
-} from "./documents-types";
+import * as client from "@/lib/modules/documents/client";
 
-// Re-export types for convenience
 export type {
-  DocumentStatus,
   DocumentType,
-  DocumentVersion,
-  Document,
-  DocumentWithDetails,
-};
+} from "@/types/dossiers";
 
-/**
- * Get all documents for the current authenticated user
- * RLS is enforced by Supabase
- */
-export async function getUserDocuments(): Promise<DocumentWithDetails[]> {
-  const supabase = await createClient();
-
-  // Fetch documents with related data
-  const { data: documents, error: documentsError } = await supabase
-    .from("documents")
-    .select(
-      `
-      *,
-      document_type:document_types(*),
-      current_version:document_versions!fk_current_version(*),
-      dossier:dossiers(
-        id,
-        product:products(name)
-      )
-    `
-    )
-    .order("created_at", { ascending: false });
-
-  if (documentsError) {
-    console.error("Error fetching documents:", documentsError);
-    throw documentsError;
-  }
-
-  if (!documents || documents.length === 0) {
-    return [];
-  }
-
-  return documents as DocumentWithDetails[];
+export async function getUserDocuments() {
+  return client.getAll();
 }
 
-/**
- * Get a single document by ID (with RLS enforcement)
- */
-export async function getDocumentById(
-  documentId: string
-): Promise<DocumentWithDetails | null> {
-  const supabase = await createClient();
-
-  const { data: document, error } = await supabase
-    .from("documents")
-    .select(
-      `
-      *,
-      document_type:document_types(*),
-      current_version:document_versions!fk_current_version(*),
-      dossier:dossiers(
-        id,
-        product:products(name)
-      )
-    `
-    )
-    .eq("id", documentId)
-    .single();
-
-  if (error) {
-    console.error("Error fetching document:", error);
-    if (error.code === "PGRST116") {
-      return null;
-    }
-    throw error;
-  }
-
-  return document as DocumentWithDetails | null;
+export async function getDocumentById(documentId: string) {
+  return client.getById(documentId);
 }
 
-/**
- * Get all document versions for a document
- */
-export async function getDocumentVersions(
-  documentId: string
-): Promise<DocumentVersion[]> {
-  const supabase = await createClient();
-
-  const { data: versions, error } = await supabase
-    .from("document_versions")
-    .select("*")
-    .eq("document_id", documentId)
-    .order("version_number", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching document versions:", error);
-    throw error;
-  }
-
-  return (versions || []) as DocumentVersion[];
+export async function getDocumentVersions(documentId: string) {
+  return client.getVersions(documentId);
 }
 
-/**
- * Get documents delivered to user (uploaded by agents with DELIVERED status)
- * These are documents ready for the user to download
- */
-export async function getDeliveredDocuments(): Promise<DocumentWithDetails[]> {
-  const supabase = await createClient();
-
-  // Fetch documents uploaded by agents that are marked as delivered
-  const { data: documents, error: documentsError } = await supabase
-    .from("documents")
-    .select(
-      `
-      *,
-      document_type:document_types(*),
-      current_version:document_versions!fk_current_version(*),
-      dossier:dossiers(
-        id,
-        product:products(name)
-      ),
-      step_instance:step_instances(
-        id,
-        step:steps(label, step_type)
-      )
-    `
-    )
-    .eq("status", "DELIVERED")
-    .order("created_at", { ascending: false });
-
-  if (documentsError) {
-    console.error("Error fetching delivered documents:", documentsError);
-    throw documentsError;
-  }
-
-  if (!documents || documents.length === 0) {
-    return [];
-  }
-
-  // Filter to only include documents uploaded by agents
-  const deliveredDocs = documents.filter((doc: any) => {
-    return doc.current_version?.uploaded_by_type === "AGENT";
-  });
-
-  return deliveredDocs as DocumentWithDetails[];
+export async function getDeliveredDocuments() {
+  return client.getDelivered();
 }
-

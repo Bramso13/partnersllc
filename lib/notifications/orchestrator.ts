@@ -194,7 +194,7 @@ export async function determineRecipients(
 
   // Try to get user_id from payload
   if (event.payload.user_id) {
-    recipients.push(event.payload.user_id);
+    recipients.push(event.payload.user_id as string);
   }
 
   // If no user_id in payload, try to get it from dossier
@@ -304,7 +304,7 @@ export async function createNotificationFromRule(
   if (event.entity_type === "dossier") {
     dossierId = event.entity_id;
   } else if (event.payload.dossier_id) {
-    dossierId = event.payload.dossier_id;
+    dossierId = event.payload.dossier_id as string;
   }
 
   // Build notification title and message based on template
@@ -424,7 +424,7 @@ export function constructActionUrl(event: BaseEvent): string | null {
   if (event.entity_type === "dossier") {
     dossierId = event.entity_id;
   } else if (event.payload.dossier_id) {
-    dossierId = event.payload.dossier_id;
+    dossierId = event.payload.dossier_id as string;
   }
 
   // If we have a dossier, link to it

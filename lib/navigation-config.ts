@@ -114,6 +114,11 @@ export const adminNavConfig: NavConfig = {
           label: "Gestion Agents",
         },
         {
+          href: "/admin/hub/subscriptions",
+          icon: "fa-ticket",
+          label: "Inscriptions Hub",
+        },
+        {
           href: "/admin/products",
           icon: "fa-box",
           label: "Produits",

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
 import {
   getProducts,
   deleteProduct,
-  dollarsToCents,
-  generateProductCode,
-} from "@/lib/products";
+  createProduct,
+} from "@/lib/modules/products";
 import { ProductFormData } from "@/types/products";
 
 /**
@@ -73,11 +71,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-
-    // Generate product code from name
-    const code = generateProductCode(body.name);
-
     // Validation : si is_deposit = true, full_product_id est requis
     if (body.is_deposit && !body.full_product_id) {
       return NextResponse.json(
@@ -87,33 +80,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create product
-    const { data, error } = await supabase
-      .from("products")
-      .insert({
-        code,
-        name: body.name,
-        description: body.description || null,
-        dossier_type: body.type,
-        stripe_product_id: body.stripe_product_id,
-        stripe_price_id: body.stripe_price_id,
-        price_amount: dollarsToCents(body.price),
-        currency: "USD",
-        active: body.active ?? true,
-        is_deposit: body.is_deposit ?? false,
-        full_product_id: body.is_deposit ? body.full_product_id : null,
-      })
-      .select()
-      .single();
+    const product = await createProduct({
+      name: body.name,
+      type: body.type,
+      description: body.description,
+      stripe_product_id: body.stripe_product_id,
+      stripe_price_id: body.stripe_price_id,
+      price: body.price,
+      active: body.active,
+      is_deposit: body.is_deposit,
+      full_product_id: body.full_product_id,
+    });
 
-    if (error) {
-      console.error("Error creating product:", error);
-      return NextResponse.json(
-        { error: "Failed to create product" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ product: data }, { status: 201 });
+    return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/admin/products:", error);
     return NextResponse.json(

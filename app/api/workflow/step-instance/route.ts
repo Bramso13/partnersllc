@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getOrCreateStepInstance } from "@/lib/modules/workflow/client";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
-    const supabase = await createClient();
 
     const searchParams = request.nextUrl.searchParams;
     const dossierId = searchParams.get("dossier_id");
@@ -18,48 +17,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify dossier ownership
-    const { data: dossier } = await supabase
-      .from("dossiers")
-      .select("id, user_id")
-      .eq("id", dossierId)
-      .eq("user_id", user.id)
-      .single();
+    const stepInstance = await getOrCreateStepInstance(user.id, dossierId, stepId);
 
-    if (!dossier) {
+    if (!stepInstance) {
       return NextResponse.json(
         { message: "Dossier introuvable" },
         { status: 404 }
       );
-    }
-
-    // Get step instance
-    const { data: stepInstance, error } = await supabase
-      .from("step_instances")
-      .select("id, validation_status, rejection_reason, completed_at, started_at")
-      .eq("dossier_id", dossierId)
-      .eq("step_id", stepId)
-      .single();
-
-    if (error || !stepInstance) {
-      // Step instance doesn't exist yet - create one in DRAFT status
-      const { data: newInstance, error: createError } = await supabase
-        .from("step_instances")
-        .insert({
-          dossier_id: dossierId,
-          step_id: stepId,
-          started_at: new Date().toISOString(),
-          validation_status: "DRAFT",
-        })
-        .select("id, validation_status, rejection_reason")
-        .single();
-
-      if (createError || !newInstance) {
-        console.error("Error creating step instance:", createError);
-        return NextResponse.json(null, { status: 200 });
-      }
-
-      return NextResponse.json(newInstance);
     }
 
     return NextResponse.json(stepInstance);
