@@ -91,10 +91,11 @@ export function DossierDetailContent({
   const renderStepInstance = (
     stepInstance: DossierAllData["step_instances"][number]
   ) => {
+    console.log("stepInstance", stepInstance);
     const isAdminStep = stepInstance.step.step_type === "ADMIN";
     const isClientStep = stepInstance.step.step_type === "CLIENT";
     const isAssigned = stepInstance.assigned_to === agentId;
-    const canManageAdminDocs = isAdminStep && isAssigned && canActAsCreateur;
+    const canManageAdminDocs = isAdminStep && canActAsCreateur;
     const canCompleteAdmin = canManageAdminDocs;
     const canVerifyClientStep =
       isClientStep && isAssigned && canActAsVerificateur;

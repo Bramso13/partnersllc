@@ -158,3 +158,5 @@ export const getClientById = getById;
 export const updateClientStatus = updateStatus;
 export const getClientEvents = getEvents;
 export const getClientDossiers = getDossiers;
+
+export { createManualClient } from "./createManualClient";

@@ -168,16 +168,121 @@ export async function getDossierAllData(dossierId: string, agentId: string): Pro
     fieldsByStepInstance.set(fv.step_instance_id as string, fields);
   });
 
+  type RawDoc = {
+    step_instance_id: string;
+    id: string;
+    status: string;
+    delivered_at: string | null;
+    document_type: Record<string, unknown> | null;
+    current_version: Record<string, unknown> | null;
+  };
+  const rawDocumentsByStepInstance = new Map<string, RawDoc[]>();
+  if (stepInstanceIds.length > 0) {
+    const { data: docs } = await supabase
+      .from("documents")
+      .select(
+        "id, step_instance_id, status, delivered_at, document_type:document_types(id, code, label, description), current_version:document_versions!fk_current_version(id, file_url, file_name, uploaded_at)"
+      )
+      .eq("dossier_id", dossierId)
+      .in("step_instance_id", stepInstanceIds);
+    docs?.forEach((d: Record<string, unknown>) => {
+      const stepInstanceId = d.step_instance_id as string;
+      const list = rawDocumentsByStepInstance.get(stepInstanceId) || [];
+      const docType = d.document_type as Record<string, unknown> | null;
+      const currentVersion = (Array.isArray(d.current_version) ? d.current_version[0] : d.current_version) as Record<string, unknown> | null;
+      list.push({
+        step_instance_id: stepInstanceId,
+        id: d.id as string,
+        status: (d.status as string) ?? "PENDING",
+        delivered_at: (d.delivered_at as string) ?? null,
+        document_type: docType,
+        current_version: currentVersion,
+      });
+      rawDocumentsByStepInstance.set(stepInstanceId, list);
+    });
+  }
+
+  const adminStepIds = (stepInstances || [])
+    .map((si: Record<string, unknown>) => {
+      const step = Array.isArray(si.step) ? si.step[0] : si.step;
+      return (step as Record<string, unknown>)?.step_type === "ADMIN" ? (step as Record<string, unknown>).id as string : null;
+    })
+    .filter((id): id is string => id != null);
+  const requiredTypesByStepId = new Map<string, Array<{ id: string; code: string; label: string; description: string }>>();
+  if (adminStepIds.length > 0) {
+    const { data: stepDocTypes } = await supabase
+      .from("step_document_types")
+      .select("step_id, document_type:document_types(id, code, label, description)")
+      .in("step_id", adminStepIds);
+    stepDocTypes?.forEach((row: Record<string, unknown>) => {
+      const stepId = row.step_id as string;
+      const docType = (Array.isArray(row.document_type) ? row.document_type[0] : row.document_type) as Record<string, unknown> | null;
+      if (!docType?.id) return;
+      const list = requiredTypesByStepId.get(stepId) || [];
+      list.push({
+        id: docType.id as string,
+        code: (docType.code as string) ?? "",
+        label: (docType.label as string) ?? "",
+        description: (docType.description as string) ?? "",
+      });
+      requiredTypesByStepId.set(stepId, list);
+    });
+  }
+
   const stepInstancesWithDocuments = (stepInstances || []).map((si: Record<string, unknown>) => {
     const step = Array.isArray(si.step) ? si.step[0] : si.step;
+    const stepType = step.step_type as "CLIENT" | "ADMIN";
+    const rawDocs = rawDocumentsByStepInstance.get(si.id as string) || [];
+
+    const documents: DossierDocument[] =
+      stepType === "CLIENT"
+        ? rawDocs.map((d) => ({
+            document_type: (d.document_type?.label as string) || (d.document_type?.code as string) || "",
+            file_name: (d.current_version?.file_name as string) ?? null,
+            uploaded_at: (d.current_version?.uploaded_at as string) ?? null,
+            status: d.status,
+          }))
+        : [];
+
+    const admin_documents: AdminDocumentItem[] | undefined =
+      stepType === "ADMIN"
+        ? (requiredTypesByStepId.get(step.id as string) || []).map((docType) => {
+            const uploaded = rawDocs.find((d) => (d.document_type?.id as string) === docType.id);
+            const doc: AdminDocumentItem["document"] =
+              uploaded?.current_version != null
+                ? {
+                    id: uploaded.id,
+                    status: (uploaded.delivered_at ? "DELIVERED" : uploaded.status) as "PENDING" | "DELIVERED",
+                    current_version: {
+                      id: uploaded.current_version.id as string,
+                      file_url: uploaded.current_version.file_url as string,
+                      file_name: (uploaded.current_version.file_name as string) ?? "",
+                      uploaded_at: uploaded.current_version.uploaded_at as string,
+                    },
+                    delivered_at: uploaded.delivered_at ?? undefined,
+                  }
+                : undefined;
+            return {
+              document_type: {
+                id: docType.id,
+                code: docType.code,
+                label: docType.label,
+                description: docType.description,
+              },
+              document: doc,
+            };
+          })
+        : undefined;
+
     return {
       id: si.id as string,
-      step: { id: step.id as string, label: step.label as string | null, code: step.code as string, position: step.position as number, step_type: step.step_type as "CLIENT" | "ADMIN" },
+      step: { id: step.id as string, label: step.label as string | null, code: step.code as string, position: step.position as number, step_type: stepType },
       started_at: si.started_at as string | null,
       completed_at: si.completed_at as string | null,
       assigned_to: si.assigned_to as string | null,
       fields: fieldsByStepInstance.get(si.id as string) || [],
-      documents: [],
+      documents,
+      ...(admin_documents !== undefined && { admin_documents }),
     };
   });
 

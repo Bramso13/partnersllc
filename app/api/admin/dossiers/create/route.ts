@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminAuth } from "@/lib/auth";
-import { createDossier } from "@/lib/dossiers";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createForExistingClient } from "@/lib/modules/dossiers/admin";
 import { z } from "zod";
 
 const CreateDossierForExistingClientSchema = z.object({
@@ -32,172 +31,24 @@ export async function POST(request: NextRequest) {
     }
 
     const { client_id, product_id, initial_status } = validation.data;
-    const supabase = createAdminClient();
 
-    console.log("client_id", client_id);
-
-    // Verify client exists
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .eq("id", client_id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "Client introuvable" },
-        { status: 404 }
-      );
-    }
-
-    // Verify product is active
-    const { data: product, error: productError } = await supabase
-      .from("products")
-      .select(
-        "id, name, price_amount, currency, dossier_type, initial_status, active"
-      )
-      .eq("id", product_id)
-      .single();
-
-    if (productError || !product) {
-      return NextResponse.json(
-        { error: "Produit introuvable" },
-        { status: 404 }
-      );
-    }
-
-    if (!product.active) {
-      return NextResponse.json({ error: "Produit inactif" }, { status: 400 });
-    }
-
-    // Create order (fictive, status PAID)
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: client_id,
-        product_id,
-        amount: product.price_amount,
-        currency: product.currency,
-        status: "PAID",
-        paid_at: new Date().toISOString(),
-        stripe_checkout_session_id: null,
-        stripe_payment_intent_id: null,
-      })
-      .select()
-      .single();
-
-    if (orderError || !order) {
-      console.error("[create-dossier] Error creating order:", orderError);
-      return NextResponse.json(
-        { error: "Erreur lors de la création de la commande" },
-        { status: 500 }
-      );
-    }
-
-    // Create dossier (with auto-assign CREATEUR)
-    const { data: dossier, error: dossierError } = await createDossier(
-      supabase,
-      {
-        user_id: client_id,
-        product_id,
-        type: product.dossier_type,
-        status: initial_status,
-        metadata: {
-          order_id: order.id,
-          created_via: "manual_admin_creation",
-          created_by_admin: adminUser.id,
-        },
-      }
-    );
-
-    if (dossierError || !dossier) {
-      console.error("[create-dossier] Error creating dossier:", dossierError);
-      return NextResponse.json(
-        { error: "Erreur lors de la création du dossier" },
-        { status: 500 }
-      );
-    }
-
-    // Link order to dossier
-    await supabase
-      .from("orders")
-      .update({ dossier_id: dossier.id })
-      .eq("id", order.id);
-
-    // Create step instances
-    const { data: productSteps, error: productStepsError } = await supabase
-      .from("product_steps")
-      .select("step_id, position")
-      .eq("product_id", product_id)
-      .order("position", { ascending: true });
-
-    if (productStepsError) {
-      console.error(
-        "[create-dossier] Error fetching product steps:",
-        productStepsError
-      );
-      return NextResponse.json(
-        { error: "Erreur lors de la récupération des étapes" },
-        { status: 500 }
-      );
-    }
-
-    if (productSteps && productSteps.length > 0) {
-      const startedAt = new Date().toISOString();
-      const stepInstancesData = productSteps.map((ps, index) => ({
-        dossier_id: dossier.id,
-        step_id: ps.step_id,
-        started_at: index === 0 ? startedAt : null,
-      }));
-
-      const { data: createdInstances, error: instancesError } = await supabase
-        .from("step_instances")
-        .insert(stepInstancesData)
-        .select("id, started_at");
-
-      if (instancesError) {
-        console.error(
-          "[create-dossier] Error creating step instances:",
-          instancesError
-        );
-        return NextResponse.json(
-          { error: "Erreur lors de la création des étapes" },
-          { status: 500 }
-        );
-      }
-
-      if (createdInstances && createdInstances.length > 0) {
-        const firstInstance =
-          createdInstances.find((si) => si.started_at !== null) ??
-          createdInstances[0];
-
-        if (firstInstance) {
-          await supabase
-            .from("dossiers")
-            .update({ current_step_instance_id: firstInstance.id })
-            .eq("id", dossier.id);
-        }
-      }
-    }
-
-    // Create DOSSIER_CREATED event
-    await supabase.from("events").insert({
-      entity_type: "dossier",
-      entity_id: dossier.id,
-      event_type: "DOSSIER_CREATED",
-      actor_type: "ADMIN",
-      actor_id: adminUser.id,
-      payload: {
-        dossier_id: dossier.id,
-        user_id: client_id,
-        product_id,
-        order_id: order.id,
-        created_via: "manual_admin_creation",
-      },
+    const result = await createForExistingClient({
+      client_id,
+      product_id,
+      initial_status,
+      created_by_admin: adminUser.id,
+      created_via: "manual_admin_creation",
     });
 
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { success: true, dossierId: dossier.id },
+      { success: true, dossierId: result.dossierId },
       { status: 201 }
     );
   } catch (error) {
