@@ -50,7 +50,7 @@ export async function GET(
     const { data: row, error } = await admin
       .from("hub_member_profiles")
       .select(
-        "id, user_id, display_name, profession, country, bio, avatar_url, expertise_tags, languages, years_experience, website, linkedin_url, twitter_handle, is_llc_client, created_at, updated_at"
+        "id, user_id, display_name, profession, country, city, bio, avatar_url, expertise_tags, languages, years_experience, website, linkedin_url, twitter_handle, is_llc_client, created_at, updated_at"
       )
       .eq("user_id", userId)
       .single();
@@ -68,6 +68,7 @@ export async function GET(
       display_name: row.display_name ?? null,
       profession: row.profession ?? null,
       country: row.country ?? null,
+      city: row.city ?? null,
       bio: row.bio ?? null,
       avatar_url: row.avatar_url ?? null,
       expertise_tags: Array.isArray(row.expertise_tags) ? row.expertise_tags : [],

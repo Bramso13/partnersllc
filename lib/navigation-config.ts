@@ -39,7 +39,7 @@ export const clientNavConfig: NavConfig = {
           label: "Mon entreprise",
         },
         {
-          href: "/dashboard/hub",
+          href: "/hub/dashboard",
           icon: "fa-users",
           label: "PARTNERS Hub",
         },
@@ -117,6 +117,11 @@ export const adminNavConfig: NavConfig = {
           href: "/admin/hub/subscriptions",
           icon: "fa-ticket",
           label: "Inscriptions Hub",
+        },
+        {
+          href: "/admin/hub/events",
+          icon: "fa-calendar-days",
+          label: "Événements Hub",
         },
         {
           href: "/admin/products",

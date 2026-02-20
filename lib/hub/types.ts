@@ -7,6 +7,7 @@ export interface HubMemberSearchResult {
   display_name: string | null;
   profession: string | null;
   country: string | null;
+  city: string | null;
   bio_snippet: string | null;
   avatar_url: string | null;
 }

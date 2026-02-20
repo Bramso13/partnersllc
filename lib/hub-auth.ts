@@ -30,7 +30,7 @@ export async function requireHubAuth(): Promise<{ user: User; userId: string }> 
     .maybeSingle();
 
   if (!sub) {
-    redirect("/unauthorized");
+    redirect("/hub/signup");
   }
 
   return { user, userId: user.id };

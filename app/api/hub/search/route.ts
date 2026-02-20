@@ -17,9 +17,11 @@ function escapeIlike(value: string): string {
 
 export type HubSearchResultItem = {
   id: string;
+  user_id: string;
   display_name: string | null;
   profession: string | null;
   country: string | null;
+  city: string | null;
   bio_snippet: string;
   avatar_url: string | null;
 };
@@ -76,9 +78,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("hub_member_profiles")
-      .select("user_id, display_name, profession, country, bio, avatar_url", {
-        count: "exact",
-      })
+      .select(
+        "user_id, display_name, profession, country, city, bio, avatar_url",
+        {
+          count: "exact",
+        }
+      )
       .order("display_name", { ascending: true, nullsFirst: false });
 
     if (params.country?.length) {
@@ -122,13 +127,16 @@ export async function GET(request: NextRequest) {
         display_name: string | null;
         profession: string | null;
         country: string | null;
+        city: string | null;
         bio: string | null;
         avatar_url: string | null;
       }) => ({
         id: row.user_id,
+        user_id: row.user_id,
         display_name: row.display_name ?? null,
         profession: row.profession ?? null,
         country: row.country ?? null,
+        city: row.city ?? null,
         bio_snippet: (row.bio ?? "").slice(0, BIO_SNIPPET_LENGTH),
         avatar_url: row.avatar_url ?? null,
       })

@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       raw.country != null && raw.country !== ""
         ? String(raw.country).trim().toUpperCase().slice(0, 2)
         : null;
+    const city = sanitizeString(raw.city ?? undefined);
     const bio = sanitizeString(raw.bio ?? undefined);
     const website =
       raw.website != null && raw.website !== ""
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
     if (raw.display_name !== undefined) updatePayload.display_name = display_name;
     if (raw.profession !== undefined) updatePayload.profession = profession;
     if (raw.country !== undefined) updatePayload.country = country;
+    if (raw.city !== undefined) updatePayload.city = city;
     if (raw.bio !== undefined) updatePayload.bio = bio;
     if (raw.website !== undefined) updatePayload.website = website;
     if (raw.linkedin_url !== undefined)

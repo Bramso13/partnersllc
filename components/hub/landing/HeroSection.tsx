@@ -43,7 +43,7 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
-            href="/hub/signup/step1"
+            href="/hub/signup"
             className="w-full rounded-xl bg-accent px-8 py-4 text-center text-lg font-semibold text-background shadow-lg transition hover:opacity-90 sm:w-auto"
           >
             Rejoindre Partners Hub

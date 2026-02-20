@@ -6,6 +6,7 @@ export interface HubMemberProfile {
   user_id: string;
   display_name: string | null;
   country: string | null;
+  city: string | null;
   profession: string | null;
   bio: string | null;
   is_llc_client: boolean;
@@ -43,7 +44,7 @@ export async function getHubMemberOrNull(): Promise<{
 
   const { data: profile, error: profileError } = await supabase
     .from("hub_member_profiles")
-    .select("id, user_id, display_name, country, profession, bio, is_llc_client")
+    .select("id, user_id, display_name, country, city, profession, bio, is_llc_client")
     .eq("user_id", user.id)
     .single();
 

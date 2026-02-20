@@ -53,7 +53,7 @@ export function PricingSection() {
               ))}
             </ul>
             <Link
-              href="/hub/signup/step1"
+              href="/hub/signup"
               className="mt-8 block w-full rounded-xl border border-border bg-background py-3 text-center font-medium text-foreground transition hover:bg-surface"
             >
               Choisir Mensuel
@@ -86,7 +86,7 @@ export function PricingSection() {
               ))}
             </ul>
             <Link
-              href="/hub/signup/step1"
+              href="/hub/signup"
               className="mt-8 block w-full rounded-xl bg-accent py-3 text-center font-semibold text-background transition hover:opacity-90"
             >
               Choisir Annuel

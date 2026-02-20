@@ -22,6 +22,7 @@ function toSearchResult(row: {
   display_name: string | null;
   profession: string | null;
   country: string | null;
+  city: string | null;
   bio: string | null;
 }): HubMemberSearchResult {
   return {
@@ -30,6 +31,7 @@ function toSearchResult(row: {
     display_name: row.display_name,
     profession: row.profession,
     country: row.country,
+    city: row.city ?? null,
     bio_snippet: row.bio ? row.bio.slice(0, 120) : null,
     avatar_url: null, // colonne optionnelle (story 16.1)
   };
@@ -67,7 +69,7 @@ export async function GET() {
 
   let query = supabase
     .from("hub_member_profiles")
-    .select("id, user_id, display_name, profession, country, bio")
+    .select("id, user_id, display_name, profession, country, city, bio")
     .neq("user_id", user_id)
     .limit(FETCH_LIMIT);
 

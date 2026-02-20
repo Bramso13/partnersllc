@@ -60,7 +60,7 @@ export function LandingHeader() {
             Connexion
           </Link>
           <Link
-            href="/hub/signup/step1"
+            href="/hub/signup"
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background transition hover:opacity-90"
           >
             S&apos;inscrire

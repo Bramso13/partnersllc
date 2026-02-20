@@ -56,7 +56,7 @@ export function AdminDeliveryHistorySection({
   useEffect(() => {
     if (!expanded) return;
     fetchDelivery();
-  }, [dossierId, expanded, fetchDelivery]);
+  }, [dossierId, expanded]);
 
   return (
     <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">

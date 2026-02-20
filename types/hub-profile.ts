@@ -13,6 +13,7 @@ export interface HubMemberProfilePublic {
   display_name: string | null;
   profession: string | null;
   country: string | null;
+  city: string | null;
   bio: string | null;
   avatar_url: string | null;
   expertise_tags: string[];
@@ -30,6 +31,7 @@ export interface HubProfileUpdateBody {
   display_name?: string | null;
   profession?: string | null;
   country?: string | null;
+  city?: string | null;
   bio?: string | null;
   expertise_tags?: string[];
   languages?: HubProfileLanguage[];
