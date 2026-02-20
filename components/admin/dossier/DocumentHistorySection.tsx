@@ -51,7 +51,7 @@ export function DocumentHistorySection({
     } finally {
       setLoading(false);
     }
-  }, [api, dossierId]);
+  }, [dossierId]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -60,7 +60,7 @@ export function DocumentHistorySection({
     return () => {
       cancelled = true;
     };
-  }, [dossierId, expanded, fetchHistory]);
+  }, [dossierId, expanded]);
 
   return (
     <div className="rounded-xl bg-[#252628] border border-[#363636] overflow-hidden">

@@ -44,7 +44,7 @@ export async function GET(
       `
       )
       .eq("dossier_id", dossierId)
-      .eq("status", "APPROVED")
+      .eq("status", "DELIVERED")
       .order("created_at", { ascending: false });
 
     if (documentsError) {
@@ -54,6 +54,8 @@ export async function GET(
         { status: 500 }
       );
     }
+
+    console.log("documents", documents);
 
     // Get all unique agent IDs from document versions
     const agentIds = new Set<string>();

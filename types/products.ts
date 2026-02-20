@@ -31,8 +31,8 @@ export interface ProductFormData {
   description?: string;
   type: ProductType;
   price: number; // in dollars for display
-  stripe_product_id: string;
-  stripe_price_id: string;
+  stripe_product_id?: string;
+  stripe_price_id?: string;
   active: boolean;
   is_deposit?: boolean;
   is_test?: boolean;

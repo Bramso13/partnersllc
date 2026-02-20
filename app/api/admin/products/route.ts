@@ -6,6 +6,7 @@ import {
   createProduct,
 } from "@/lib/modules/products";
 import { ProductFormData } from "@/types/products";
+import { stripe } from "@/lib/stripe";
 
 /**
  * GET /api/admin/products
@@ -38,13 +39,7 @@ export async function POST(request: NextRequest) {
     const body: ProductFormData = await request.json();
 
     // Validate required fields
-    if (
-      !body.name ||
-      !body.type ||
-      !body.stripe_product_id ||
-      !body.stripe_price_id ||
-      body.price === undefined
-    ) {
+    if (!body.name || !body.type || body.price === undefined) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -59,18 +54,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Validate Stripe IDs by calling Stripe API
-    // For now, just basic format validation
-    if (
-      !body.stripe_product_id.startsWith("prod_") ||
-      !body.stripe_price_id.startsWith("price_")
-    ) {
-      return NextResponse.json(
-        { error: "Invalid Stripe ID format" },
-        { status: 400 }
-      );
-    }
-
     // Validation : si is_deposit = true, full_product_id est requis
     if (body.is_deposit && !body.full_product_id) {
       return NextResponse.json(
@@ -79,13 +62,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Créer le produit sur Stripe
+    const stripeProduct = await stripe.products.create({
+      name: body.name,
+      ...(body.description ? { description: body.description } : {}),
+    });
+
+    // Créer le prix sur Stripe (montant en centimes)
+    const stripePrice = await stripe.prices.create({
+      product: stripeProduct.id,
+      unit_amount: Math.round(body.price * 100),
+      currency: "usd",
+    });
+
     // Create product
     const product = await createProduct({
       name: body.name,
       type: body.type,
       description: body.description,
-      stripe_product_id: body.stripe_product_id,
-      stripe_price_id: body.stripe_price_id,
+      stripe_product_id: stripeProduct.id,
+      stripe_price_id: stripePrice.id,
       price: body.price,
       active: body.active,
       is_deposit: body.is_deposit,

@@ -32,8 +32,6 @@ export function CreateProductModal({
     description: "",
     type: "LLC",
     price: 0,
-    stripe_product_id: "",
-    stripe_price_id: "",
     active: true,
     is_deposit: false,
     full_product_id: null,
@@ -53,14 +51,6 @@ export function CreateProductModal({
 
       if (formData.price < 0.01) {
         throw new Error("Price must be at least $0.01");
-      }
-
-      if (!formData.stripe_product_id.startsWith("prod_")) {
-        throw new Error("Invalid Stripe Product ID format");
-      }
-
-      if (!formData.stripe_price_id.startsWith("price_")) {
-        throw new Error("Invalid Stripe Price ID format");
       }
 
       if (formData.is_deposit && !formData.full_product_id) {
@@ -177,46 +167,6 @@ export function CreateProductModal({
                 placeholder="999.00"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-1">
-              Stripe Product ID <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.stripe_product_id}
-              onChange={(e) =>
-                setFormData({ ...formData, stripe_product_id: e.target.value })
-              }
-              className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent font-mono text-sm"
-              placeholder="prod_xxxxxxxxxxxxx"
-              pattern="prod_.*"
-            />
-            <p className="mt-1 text-xs text-brand-text-secondary">
-              Create this in your Stripe Dashboard first
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-1">
-              Stripe Price ID <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.stripe_price_id}
-              onChange={(e) =>
-                setFormData({ ...formData, stripe_price_id: e.target.value })
-              }
-              className="w-full px-3 py-2 bg-brand-dark-bg border border-brand-border rounded-lg text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent font-mono text-sm"
-              placeholder="price_xxxxxxxxxxxxx"
-              pattern="price_.*"
-            />
-            <p className="mt-1 text-xs text-brand-text-secondary">
-              Create this in your Stripe Dashboard first
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
